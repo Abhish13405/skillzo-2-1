@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-surface-border;
+  }
+  body {
+    @apply bg-ink text-ink_text;
+    background-image: radial-gradient(circle at 20% 0%, rgba(79, 209, 197, 0.06), transparent 40%),
+      radial-gradient(circle at 90% 10%, rgba(245, 166, 35, 0.05), transparent 35%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-ink_text;
+  }
+  :focus-visible {
+    outline: 2px solid #4FD1C5;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-surface-border rounded-xl p-6;
+  }
+  .btn-primary {
+    @apply bg-amber text-ink font-display font-semibold px-5 py-2.5 rounded-lg
+    transition-all duration-150 hover:bg-amber-glow hover:shadow-glow
+    disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply bg-surface-raised border border-surface-border text-ink_text font-medium px-5 py-2.5 rounded-lg
+    transition-all duration-150 hover:border-cyan/50 hover:text-cyan
+    disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98];
+  }
+  .input-field {
+    @apply w-full bg-ink-light border border-surface-border rounded-lg px-4 py-2.5
+    text-ink_text placeholder-ink_text-muted focus:border-cyan focus:outline-none
+    transition-colors duration-150;
+  }
+  .label {
+    @apply block text-sm font-medium text-ink_text-muted mb-1.5;
+  }
+  .eyebrow {
+    @apply font-mono text-xs tracking-widest uppercase text-cyan;
+  }
+}
+
+/* Readiness dial signature element - conic gradient gauge */
+.readiness-dial {
+  --pct: 0;
+  --dial-color: #F5A623;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(var(--dial-color) calc(var(--pct) * 1%), #2A3650 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.readiness-dial::before {
+  content: '';
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background: #161E2E;
+}
+.readiness-dial-value {
+  position: relative;
+  z-index: 1;
+  font-family: 'JetBrains Mono', monospace;
+}
