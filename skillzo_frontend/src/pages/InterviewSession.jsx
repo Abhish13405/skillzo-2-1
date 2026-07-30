@@ -23,22 +23,22 @@ const CountdownTimer = ({ seconds, onExpire }) => {
   const mins = String(Math.floor(remaining / 60)).padStart(2, '0')
   const secs = String(remaining % 60).padStart(2, '0')
   const pct = remaining / seconds
-  const color = pct > 0.5 ? '#4FD1C5' : pct > 0.2 ? '#F5A623' : '#F0654B'
+  const color = pct > 0.5 ? '#E11D48' : pct > 0.2 ? '#D97706' : '#991B1B'
 
   return (
-    <div className="flex items-center gap-2">
-      <svg width="36" height="36" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="#2A3650" strokeWidth="3" />
+    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs">
+      <svg width="32" height="32" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="#F1F5F9" strokeWidth="3" />
         <circle
           cx="18" cy="18" r="15" fill="none"
-          stroke={color} strokeWidth="3"
+          stroke={color} strokeWidth="3.5"
           strokeDasharray={`${2 * Math.PI * 15}`}
           strokeDashoffset={`${2 * Math.PI * 15 * (1 - pct)}`}
           strokeLinecap="round"
           style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s', transform: 'rotate(-90deg)', transformOrigin: 'center' }}
         />
       </svg>
-      <span className="font-mono text-sm font-semibold" style={{ color }}>
+      <span className="font-mono text-sm font-bold tracking-tight" style={{ color }}>
         {mins}:{secs}
       </span>
     </div>
@@ -95,21 +95,21 @@ const VideoPreview = ({ stream, isVideoMuted }) => {
   }, [stream])
 
   return (
-    <div className="relative w-full aspect-video md:aspect-[21/9] bg-ink rounded-xl overflow-hidden border border-surface-border shadow-md mb-4 flex items-center justify-center">
+    <div className="relative w-full aspect-video md:aspect-[21/9] bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 shadow-md mb-4 flex items-center justify-center">
       {stream && !isVideoMuted ? (
         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform -scale-x-100" />
       ) : (
-        <div className="flex flex-col items-center justify-center w-full h-full text-ink_text-muted bg-surface/50">
+        <div className="flex flex-col items-center justify-center w-full h-full text-slate-400 bg-slate-900/90">
           <CameraOffIcon />
-          <span className="mt-2 text-sm font-medium">Camera is Off</span>
+          <span className="mt-2 text-xs font-semibold">Camera is Off</span>
         </div>
       )}
 
       {/* Recording Indicator Overlay */}
       {stream && !isVideoMuted && (
-        <div className="absolute top-4 left-4 bg-ink/70 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-surface-border flex items-center gap-2">
-           <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
-           <span className="text-xs font-mono text-danger font-semibold tracking-wider">LIVE</span>
+        <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700 flex items-center gap-2">
+           <span className="w-2.5 h-2.5 rounded-full bg-brand-500 animate-pulse" />
+           <span className="text-[10px] font-mono text-brand-400 font-bold tracking-wider">LIVE STREAM</span>
         </div>
       )}
     </div>
@@ -196,7 +196,6 @@ const InterviewSession = () => {
     }
   }, [session?.mode])
 
-  // Question aane par usko bol do, khatam hote hi mic khud-ba-khud ON kar do
   useEffect(() => {
     if (!session) return
     stopMic()
@@ -208,12 +207,11 @@ const InterviewSession = () => {
     return () => cancelSpeech()
   }, [current, session]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stop mic when moving to next question
   useEffect(() => {
     return () => stopMic()
   }, [current, stopMic])
 
-  if (!session) return <AppShell><Loader label="Loading interview" /></AppShell>
+  if (!session) return <AppShell><Loader label="Loading interview session" /></AppShell>
 
   const questions = session.questions
   const question = questions[current]
@@ -264,6 +262,7 @@ const InterviewSession = () => {
       startTime.current = Date.now()
     }
   }
+
   const handleSkip = async () => {
     if (listening) stopMic()
     cancelSpeech()
@@ -284,6 +283,7 @@ const InterviewSession = () => {
       startTime.current = Date.now()
     }
   }
+
   const toggleMic = () => {
     if (speaking) return
     if (listening) stopMic()
@@ -302,47 +302,48 @@ const InterviewSession = () => {
   return (
     <AppShell>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/80">
         <div>
-          <p className="eyebrow mb-1">{session.job_role} · {session.difficulty} · {session.mode}</p>
-          <h1 className="text-2xl font-display font-semibold">Question {current + 1} of {questions.length}</h1>
+          <span className="eyebrow mb-1">{session.job_role} · {session.difficulty} · {session.mode}</span>
+          <h1 className="text-2xl font-display font-extrabold text-slate-900">Question {current + 1} of {questions.length}</h1>
         </div>
         <div className="flex items-center gap-4">
-          {/* Countdown Timer */}
           {!lastEval && (
             <CountdownTimer key={timerKey} seconds={TIMER_SECONDS} onExpire={handleTimerExpire} />
           )}
           {/* Progress dots */}
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             {questions.map((_, i) => (
-              <div key={i} className={`w-8 h-1.5 rounded-full transition-colors ${i < current ? 'bg-cyan' : i === current ? 'bg-amber' : 'bg-surface-border'}`} />
+              <div key={i} className={`w-7 h-2 rounded-full transition-all ${i < current ? 'bg-brand-600' : i === current ? 'bg-brand-400 ring-2 ring-brand-200' : 'bg-slate-200'}`} />
             ))}
           </div>
         </div>
       </div>
 
-      {error && <div className="mb-6 px-4 py-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
+      {error && <div className="mb-6 px-4 py-3 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 text-sm font-medium">{error}</div>}
 
       {/* Question Card */}
-      <div className="card mb-6">
+      <div className="card mb-6 bg-white border border-slate-200/80 shadow-craft">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-cyan font-mono uppercase">{question.category || 'Question'}</p>
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-100">
+            {question.category || 'Core Question'}
+          </span>
           {isAudioMode && ttsSupported && (
             <button
               onClick={() => speak(question.question_text)}
               disabled={speaking}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-raised border border-surface-border text-ink_text hover:bg-surface-hover disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-200 disabled:opacity-50 transition-colors"
             >
-              {speaking ? '🔊 Speaking...' : '🔁 Replay Question'}
+              {speaking ? '🔊 Speaking...' : '🔁 Replay Audio'}
             </button>
           )}
         </div>
-        <p className="text-lg font-medium leading-relaxed">{question.question_text}</p>
+        <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed">{question.question_text}</p>
       </div>
 
       {/* Audio/Video mode browser notice */}
       {isAudioMode && !speechSupported && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-amber/10 border border-amber/30 text-amber text-sm">
+        <div className="mb-4 px-4 py-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium">
           ⚠️ Web Speech API is not supported in your browser. Please use Chrome or Edge for audio/video mode, or switch to text mode.
         </div>
       )}
@@ -360,32 +361,32 @@ const InterviewSession = () => {
             {isAudioMode && speechSupported ? (
               <div className="mb-4">
                 {/* Live transcript area */}
-                <div className="input-field min-h-[120px] mb-4 relative">
+                <div className="input-field min-h-[140px] mb-4 relative p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
                   {answerText ? (
-                    <p className="text-ink_text leading-relaxed">{answerText}</p>
+                    <p className="text-slate-900 leading-relaxed font-medium">{answerText}</p>
                   ) : (
-                    <p className="text-ink_text-muted">
-                      {listening ? 'Listening... speak your answer' : 'Press the mic button below to start speaking'}
+                    <p className="text-slate-400 text-sm">
+                      {listening ? 'Listening to your response... speak clearly' : 'Press the mic button below to record your response'}
                     </p>
                   )}
                   {listening && (
-                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
-                      <span className="text-xs text-danger font-mono">REC</span>
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-brand-50 px-2.5 py-1 rounded-full border border-brand-200">
+                      <span className="w-2 h-2 rounded-full bg-brand-600 animate-pulse" />
+                      <span className="text-[10px] text-brand-700 font-mono font-bold">REC</span>
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
 
-                  {/* Camera toggle button (Only for Video Mode) */}
+                  {/* Camera toggle button (Video Mode Only) */}
                   {isVideoMode && (
                     <button
                       onClick={toggleCamera}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold font-display transition-all ${
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
                         isVideoMuted
-                          ? 'bg-danger/20 border border-danger/50 text-danger hover:bg-danger/30'
-                          : 'bg-surface-raised border border-surface-border text-ink_text hover:bg-surface-hover'
+                          ? 'bg-brand-50 border border-brand-200 text-brand-700 hover:bg-brand-100'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
                       {isVideoMuted ? (
@@ -404,10 +405,10 @@ const InterviewSession = () => {
                   <button
                     onClick={toggleMic}
                     disabled={speaking}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold font-display transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                       listening
-                        ? 'bg-cyan/10 border border-cyan/40 text-cyan hover:bg-cyan/20'
-                        : 'bg-danger/20 border border-danger/50 text-danger hover:bg-danger/30'
+                        ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20 hover:bg-brand-700'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     {listening ? (
@@ -423,8 +424,8 @@ const InterviewSession = () => {
 
                   {/* Clear transcript */}
                   {answerText && !listening && (
-                    <button onClick={() => setAnswerText('')} className="text-sm text-ink_text-muted hover:text-ink_text transition-colors">
-                      Clear
+                    <button onClick={() => setAnswerText('')} className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors px-2 py-1">
+                      Clear Text
                     </button>
                   )}
 
@@ -432,9 +433,9 @@ const InterviewSession = () => {
                   <button
                     onClick={handleSubmitAnswer}
                     disabled={submitting || !answerText.trim()}
-                    className="btn-primary ml-auto"
+                    className="btn-primary ml-auto shadow-md shadow-brand-500/20"
                   >
-                    {submitting ? 'Evaluating...' : 'Submit Answer'}
+                    {submitting ? 'Evaluating with AI...' : 'Submit Answer →'}
                   </button>
                 </div>
               </div>
@@ -443,25 +444,29 @@ const InterviewSession = () => {
               <>
                 <textarea
                   className="input-field min-h-[160px] resize-none mb-4"
-                  placeholder="Type your answer here..."
+                  placeholder="Type your structured answer here..."
                   value={answerText}
                   onChange={(e) => setAnswerText(e.target.value)}
                 />
-                <button onClick={handleSubmitAnswer} disabled={submitting || !answerText.trim()} className="btn-primary">
-                  {submitting ? 'Evaluating with AI...' : 'Submit Answer'}
-                </button>
+                <div className="flex justify-between items-center">
+                  <button onClick={handleSkip} className="btn-secondary text-xs">Skip Question</button>
+                  <button onClick={handleSubmitAnswer} disabled={submitting || !answerText.trim()} className="btn-primary shadow-md shadow-brand-500/20">
+                    {submitting ? 'Evaluating with AI...' : 'Submit Answer →'}
+                  </button>
+                </div>
               </>
             )}
           </motion.div>
         ) : (
           <motion.div key="eval" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             {/* Evaluation Card */}
-            <div className="card mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display font-semibold">AI Evaluation</h3>
-                <div className="flex items-center gap-3">
-                  <ReadinessDial score={lastEval.overall_score} size={72} />
+            <div className="card mb-6 bg-white border border-slate-200/80 shadow-craft">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="font-display font-extrabold text-xl text-slate-900">AI Evaluation Feedback</h3>
+                  <p className="text-xs text-slate-500">Real-time answer assessment breakdown</p>
                 </div>
+                <ReadinessDial score={lastEval.overall_score} size={76} />
               </div>
 
               {/* Score grid */}
@@ -473,27 +478,29 @@ const InterviewSession = () => {
                   ['Confidence', lastEval.confidence],
                   ['Problem Solving', lastEval.problem_solving],
                 ].map(([label, val]) => (
-                  <div key={label} className="bg-ink-light rounded-lg px-3 py-2 text-center">
-                    <p className="text-xs text-ink_text-muted font-mono uppercase mb-1">{label}</p>
-                    <p className={`font-mono font-semibold text-lg ${val >= 75 ? 'text-cyan' : val >= 40 ? 'text-amber' : 'text-danger'}`}>{val}</p>
+                  <div key={label} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-slate-500 font-mono font-bold uppercase mb-1">{label}</p>
+                    <p className={`font-mono font-extrabold text-xl ${val >= 75 ? 'text-emerald-600' : val >= 40 ? 'text-amber-600' : 'text-brand-600'}`}>
+                      {val}
+                    </p>
                   </div>
                 ))}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 {lastEval.strengths?.length > 0 && (
-                  <div>
-                    <p className="text-xs text-ink_text-muted font-mono uppercase mb-1.5">Strengths</p>
-                    <ul className="text-sm space-y-1">
-                      {lastEval.strengths.map((s, i) => <li key={i} className="flex gap-2"><span className="text-cyan shrink-0">+</span>{s}</li>)}
+                  <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-4">
+                    <p className="text-xs font-mono font-bold uppercase text-emerald-700 mb-2">Key Strengths</p>
+                    <ul className="text-xs space-y-1.5 text-emerald-900">
+                      {lastEval.strengths.map((s, i) => <li key={i} className="flex gap-2"><span>✓</span><span>{s}</span></li>)}
                     </ul>
                   </div>
                 )}
                 {lastEval.improvements?.length > 0 && (
-                  <div>
-                    <p className="text-xs text-ink_text-muted font-mono uppercase mb-1.5">Improvements</p>
-                    <ul className="text-sm space-y-1">
-                      {lastEval.improvements.map((s, i) => <li key={i} className="flex gap-2"><span className="text-amber shrink-0">↑</span>{s}</li>)}
+                  <div className="bg-brand-50/60 border border-brand-100 rounded-xl p-4">
+                    <p className="text-xs font-mono font-bold uppercase text-brand-700 mb-2">Areas for Growth</p>
+                    <ul className="text-xs space-y-1.5 text-brand-900">
+                      {lastEval.improvements.map((s, i) => <li key={i} className="flex gap-2"><span>↑</span><span>{s}</span></li>)}
                     </ul>
                   </div>
                 )}
@@ -501,17 +508,17 @@ const InterviewSession = () => {
 
               {/* Ideal Answer Summary */}
               {lastEval.ideal_answer_summary && (
-                <div className="border-t border-surface-border pt-4">
-                  <p className="text-xs text-ink_text-muted font-mono uppercase mb-2">💡 Ideal Answer Summary</p>
-                  <p className="text-sm text-ink_text-muted leading-relaxed bg-ink-light rounded-lg px-4 py-3">
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-xs font-mono font-bold uppercase text-slate-500 mb-2">💡 Ideal Answer Summary</p>
+                  <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-xl p-4 border border-slate-200/60 font-medium">
                     {lastEval.ideal_answer_summary}
                   </p>
                 </div>
               )}
             </div>
 
-            <button onClick={handleNext} disabled={submitting} className="btn-primary">
-              {submitting ? 'Finalizing...' : isLast ? 'Finish & See Report' : 'Next Question →'}
+            <button onClick={handleNext} disabled={submitting} className="btn-primary w-full sm:w-auto shadow-md shadow-brand-500/20">
+              {submitting ? 'Finalizing...' : isLast ? 'Finish & See Comprehensive Report →' : 'Next Question →'}
             </button>
           </motion.div>
         )}
@@ -555,3 +562,4 @@ const CameraOffIcon = () => (
 )
 
 export default InterviewSession
+

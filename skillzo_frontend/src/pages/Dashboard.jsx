@@ -8,40 +8,36 @@ import { useAuth } from '../context/AuthContext'
 
 // ─── Skeleton Components ─────────────────────────────────────────────────────
 const Skeleton = ({ className = '' }) => (
-  <div className={`bg-surface-raised rounded animate-pulse ${className}`} />
+  <div className={`bg-slate-200/70 rounded-2xl animate-pulse ${className}`} />
 )
 
 const DashboardSkeleton = () => (
   <AppShell>
     <div className="mb-8 flex items-start justify-between">
       <div>
-        <Skeleton className="w-24 h-3 mb-2" />
-        <Skeleton className="w-56 h-8" />
+        <Skeleton className="w-28 h-4 mb-2" />
+        <Skeleton className="w-64 h-9" />
       </div>
-      <Skeleton className="w-32 h-10 rounded-lg" />
+      <Skeleton className="w-36 h-11 rounded-xl" />
     </div>
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-36 rounded-xl" />)}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-40" />)}
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <Skeleton className="lg:col-span-2 h-72 rounded-xl" />
-      <Skeleton className="h-72 rounded-xl" />
+      <Skeleton className="lg:col-span-2 h-72" />
+      <Skeleton className="h-72" />
     </div>
-    <Skeleton className="mt-6 h-48 rounded-xl" />
+    <Skeleton className="mt-6 h-48" />
   </AppShell>
 )
 
 // ─── Streak Badge ─────────────────────────────────────────────────────────────
 const StreakBadge = ({ streak }) => {
   if (!streak || streak < 2) return null
-  const celebrate = streak >= 7
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-mono ${
-      celebrate
-        ? 'bg-amber/15 border-amber/40 text-amber'
-        : 'bg-surface border-surface-border text-ink_text-muted'
-    }`}>
-      🔥 {streak} day streak{celebrate ? ' 🎉' : ''}
+    <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-xs font-mono font-bold shadow-xs">
+      <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping" />
+      {streak} Day Streak
     </div>
   )
 }
@@ -65,85 +61,113 @@ const Dashboard = () => {
   return (
     <AppShell>
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap border-b border-slate-200/60 pb-6">
         <div>
-          <p className="eyebrow mb-1">Readiness Overview</p>
-          <h1 className="text-3xl font-display font-semibold">
-            Welcome back, {user?.username?.split(' ')[0]} 👋
+          <span className="eyebrow mb-2">Readiness Studio</span>
+          <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight mt-1">
+            Welcome back, {user?.username?.split(' ')[0] || 'Candidate'}!
           </h1>
+          <p className="text-slate-500 text-sm mt-1">Here is your AI interview prep metrics and active performance trends.</p>
         </div>
         <div className="flex items-center gap-3">
           <StreakBadge streak={data.daily_goal.current_streak} />
-          <Link to="/interview/setup" className="btn-primary">Start Interview</Link>
+          <Link to="/interview/setup" className="btn-primary flex items-center gap-2 shadow-md shadow-brand-500/20">
+            <span>Start AI Interview</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </Link>
         </div>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="card flex flex-col items-center justify-center">
-          <ReadinessDial score={data.average_score} size={96} label="Average Score" />
+        <div className="card flex flex-col items-center justify-center py-5 bg-white border border-slate-200/80 shadow-craft">
+          <ReadinessDial score={data.average_score} size={92} label="Average Score" />
         </div>
-        <div className="card flex flex-col items-center justify-center">
-          <ReadinessDial score={data.best_score} size={96} label="Best Score" />
+        <div className="card flex flex-col items-center justify-center py-5 bg-white border border-slate-200/80 shadow-craft">
+          <ReadinessDial score={data.best_score} size={92} label="Best Score" />
         </div>
-        <div className="card flex flex-col justify-center">
-          <p className="text-3xl font-mono font-bold text-ink_text">{data.total_interviews}</p>
-          <p className="text-xs text-ink_text-muted font-mono uppercase tracking-wide mt-1">Total Interviews</p>
-        </div>
-        <div className="card flex flex-col justify-center">
-          <p className={`text-3xl font-mono font-bold ${goalDone ? 'text-cyan' : 'text-amber'}`}>
-            {data.daily_goal.completed_today}/{data.daily_goal.target}
+        <div className="card flex flex-col justify-between p-6 bg-white border border-slate-200/80 shadow-craft">
+          <div>
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Total Practice</span>
+            <p className="text-3xl font-display font-extrabold text-slate-900 mt-2">{data.total_interviews}</p>
+          </div>
+          <p className="text-xs text-slate-500 font-medium border-t border-slate-100 pt-3 mt-4">
+            Sessions completed
           </p>
-          <p className="text-xs text-ink_text-muted font-mono uppercase tracking-wide mt-1">
-            Daily Goal · 🔥 {data.daily_goal.current_streak}d streak
-          </p>
+        </div>
+        <div className="card flex flex-col justify-between p-6 bg-white border border-slate-200/80 shadow-craft">
+          <div>
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Daily Target</span>
+            <p className={`text-3xl font-display font-extrabold mt-2 ${goalDone ? 'text-brand-600' : 'text-amber-600'}`}>
+              {data.daily_goal.completed_today}/{data.daily_goal.target}
+            </p>
+          </div>
+          <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-4">
+            <span className="text-xs text-slate-500 font-medium">Goal Status</span>
+            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${goalDone ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
+              {goalDone ? 'Achieved' : 'In Progress'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Progress + AI Suggestions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="card lg:col-span-2">
-          <h3 className="font-display font-semibold mb-4">Progress Over Time</h3>
+        <div className="card lg:col-span-2 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-display font-bold text-lg text-slate-900">Score Growth Trend</h3>
+              <p className="text-xs text-slate-500">Historical performance timeline</p>
+            </div>
+            <span className="text-xs font-mono font-bold bg-brand-50 text-brand-700 px-2.5 py-1 rounded-full border border-brand-100">
+              Live Chart
+            </span>
+          </div>
           {data.progress_chart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-3xl mb-3">📈</p>
-              <p className="text-sm text-ink_text-muted">
-                No interviews yet. Complete your first one to see your trend.
-              </p>
-              <Link to="/interview/setup" className="btn-secondary mt-4 text-sm">Start Interview</Link>
+            <div className="flex flex-col items-center justify-center py-16 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+              <div className="w-12 h-12 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600 font-bold mb-3">
+                📈
+              </div>
+              <p className="text-sm font-semibold text-slate-700">No session analytics yet</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs">Complete your first AI interview session to plot your progress chart.</p>
+              <Link to="/interview/setup" className="btn-secondary mt-4 text-xs font-bold">Start First Session</Link>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={data.progress_chart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A3650" />
-                <XAxis dataKey="date" stroke="#8A95A5" fontSize={11} />
-                <YAxis stroke="#8A95A5" fontSize={11} domain={[0, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} />
+                <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
                 <Tooltip
-                  contentStyle={{ background: '#1D2740', border: '1px solid #2A3650', borderRadius: 8 }}
-                  labelStyle={{ color: '#E8ECF1' }}
+                  contentStyle={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}
+                  labelStyle={{ color: '#0F172A', fontWeight: 'bold' }}
                 />
-                <Line type="monotone" dataKey="score" stroke="#4FD1C5" strokeWidth={2.5}
-                  dot={{ fill: '#4FD1C5', r: 4, strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: '#F5A623' }}
+                <Line type="monotone" dataKey="score" stroke="#E11D48" strokeWidth={3}
+                  dot={{ fill: '#E11D48', r: 4, strokeWidth: 2, stroke: '#FFF' }}
+                  activeDot={{ r: 6, fill: '#F43F5E' }}
                 />
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
 
-        <div className="card">
-          <h3 className="font-display font-semibold mb-4">AI Suggestions</h3>
+        <div className="card bg-white flex flex-col">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-lg text-slate-900">AI Coach Advice</h3>
+            <p className="text-xs text-slate-500">Personalized feedback</p>
+          </div>
           {data.ai_suggestions.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-3xl mb-3">🤖</p>
-              <p className="text-sm text-ink_text-muted">Suggestions appear after your first completed interview.</p>
+            <div className="text-center py-10 my-auto bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+              <p className="text-xs text-slate-500">Suggestions appear after your first completed interview.</p>
             </div>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-3 my-auto">
               {data.ai_suggestions.map((s, i) => (
-                <li key={i} className="flex gap-2 text-sm text-ink_text">
-                  <span className="text-amber font-mono shrink-0 mt-0.5">→</span>
-                  <span>{s}</span>
+                <li key={i} className="flex items-start gap-2.5 text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-brand-600 font-mono font-bold shrink-0">✦</span>
+                  <span className="leading-relaxed font-medium">{s}</span>
                 </li>
               ))}
             </ul>
@@ -153,48 +177,75 @@ const Dashboard = () => {
 
       {/* Quick action cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Link to="/interview/setup" className="card border-cyan/20 hover:border-cyan/50 hover:shadow-cyanGlow transition-all group">
-          <div className="text-2xl mb-2">🎯</div>
-          <p className="font-display font-semibold group-hover:text-cyan transition-colors">Start AI Interview</p>
-          <p className="text-xs text-ink_text-muted mt-1">Text or Audio mode</p>
+        <Link to="/interview/setup" className="card bg-gradient-to-br from-brand-600 to-brand-700 text-white border-none shadow-md shadow-brand-600/20 hover:shadow-lg transition-all group p-6">
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-brand-200">Mock Session</span>
+          <p className="font-display font-extrabold text-xl text-white mt-1 group-hover:translate-x-1 transition-transform flex items-center justify-between">
+            <span>AI Interview Studio</span>
+            <span>→</span>
+          </p>
+          <p className="text-xs text-brand-100 mt-2">Practice tech & behavioral questions in real-time mode</p>
         </Link>
-        <Link to="/resume" className="card hover:border-amber/30 transition-all group">
-          <div className="text-2xl mb-2">📄</div>
-          <p className="font-display font-semibold group-hover:text-amber transition-colors">Resume Analysis</p>
-          <p className="text-xs text-ink_text-muted mt-1">Get your ATS score</p>
+        
+        <Link to="/resume" className="card bg-white border border-slate-200/80 hover:border-brand-300 shadow-craft hover:shadow-craftHover transition-all group p-6">
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-brand-600">Resume Checker</span>
+          <p className="font-display font-extrabold text-xl text-slate-900 mt-1 group-hover:text-brand-600 transition-colors flex items-center justify-between">
+            <span>ATS Resume Analysis</span>
+            <span>→</span>
+          </p>
+          <p className="text-xs text-slate-500 mt-2">Score your resume against targeted job descriptions</p>
         </Link>
-        <Link to="/leaderboard" className="card hover:border-amber/30 transition-all group">
-          <div className="text-2xl mb-2">🏆</div>
-          <p className="font-display font-semibold group-hover:text-amber transition-colors">Leaderboard</p>
-          <p className="text-xs text-ink_text-muted mt-1">Your best scores</p>
+
+        <Link to="/leaderboard" className="card bg-white border border-slate-200/80 hover:border-brand-300 shadow-craft hover:shadow-craftHover transition-all group p-6">
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-600">Rankings</span>
+          <p className="font-display font-extrabold text-xl text-slate-900 mt-1 group-hover:text-amber-600 transition-colors flex items-center justify-between">
+            <span>Global Leaderboard</span>
+            <span>→</span>
+          </p>
+          <p className="text-xs text-slate-500 mt-2">Compare your readiness metrics against top candidates</p>
         </Link>
       </div>
 
       {/* Recent reports */}
-      <div className="card">
+      <div className="card bg-white">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-display font-semibold">Recent Reports</h3>
-          <Link to="/history" className="text-sm text-cyan hover:underline">View all</Link>
+          <div>
+            <h3 className="font-display font-bold text-lg text-slate-900">Recent Interview Reports</h3>
+            <p className="text-xs text-slate-500">Your latest practice performance scorecards</p>
+          </div>
+          <Link to="/history" className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg border border-brand-100 transition-colors">
+            View All Reports
+          </Link>
         </div>
         {data.recent_reports.length === 0 ? (
-          <p className="text-sm text-ink_text-muted py-6 text-center">
-            No reports yet — your first interview report will show up here.
+          <p className="text-xs text-slate-500 py-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+            No reports yet — complete your first AI interview to view score breakdown.
           </p>
         ) : (
-          <div className="divide-y divide-surface-border">
+          <div className="divide-y divide-slate-100">
             {data.recent_reports.map((r) => {
-              const scoreColor = r.overall_score >= 75 ? 'text-cyan' : r.overall_score >= 40 ? 'text-amber' : 'text-danger'
+              const isHigh = r.overall_score >= 75
+              const isMid = r.overall_score >= 40
+              const scoreBadge = isHigh 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                : isMid 
+                ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                : 'bg-brand-50 text-brand-700 border-brand-200'
               return (
                 <Link
                   to={`/interview/${r.id}/report`}
                   key={r.id}
-                  className="flex items-center justify-between py-3 hover:bg-ink-light/40 -mx-2 px-2 rounded transition-colors"
+                  className="flex items-center justify-between py-3.5 hover:bg-slate-50 -mx-2 px-4 rounded-xl transition-all group"
                 >
                   <div>
-                    <p className="font-medium text-sm">{r.job_role}</p>
-                    <p className="text-xs text-ink_text-muted font-mono">{r.difficulty} · {r.mode}</p>
+                    <p className="font-bold text-sm text-slate-800 group-hover:text-brand-600 transition-colors">{r.job_role}</p>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">Difficulty: {r.difficulty} · Mode: {r.mode}</p>
                   </div>
-                  <span className={`font-mono font-semibold text-lg ${scoreColor}`}>{r.overall_score}</span>
+                  <div className="flex items-center gap-3">
+                    <span className={`font-mono font-bold text-sm px-3 py-1 rounded-full border ${scoreBadge}`}>
+                      Score: {r.overall_score}/100
+                    </span>
+                    <span className="text-slate-400 group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
                 </Link>
               )
             })}
@@ -206,3 +257,4 @@ const Dashboard = () => {
 }
 
 export default Dashboard
+

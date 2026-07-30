@@ -31,30 +31,35 @@ const Profile = () => {
 
   return (
     <AppShell>
-      <p className="eyebrow mb-1">Module 1</p>
-      <h1 className="text-3xl font-display font-semibold mb-8">Profile</h1>
+      <div className="mb-8 border-b border-slate-200/60 pb-6">
+        <span className="eyebrow mb-2">User Settings</span>
+        <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight">Candidate Profile</h1>
+        <p className="text-slate-500 text-sm mt-1">Manage your candidate details and career target roles.</p>
+      </div>
 
-      <div className="card max-w-xl">
-        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-surface-border">
-          <div className="w-16 h-16 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center font-display font-bold text-cyan text-2xl">
-            {user?.username?.[0]?.toUpperCase()}
+      <div className="card bg-white border border-slate-200/80 shadow-craft max-w-xl p-8 rounded-3xl">
+        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 border border-brand-200 flex items-center justify-center font-display font-extrabold text-white text-2xl shadow-md shadow-brand-500/20">
+            {user?.username?.[0]?.toUpperCase() || 'U'}
           </div>
           <div>
-            <p className="font-display font-semibold text-lg">{user?.username}</p>
-            <p className="text-sm text-ink_text-muted">{user?.email}</p>
-            <p className="text-xs text-amber font-mono mt-1">🔥 {user?.current_streak} day streak</p>
+            <p className="font-display font-extrabold text-xl text-slate-900">{user?.username}</p>
+            <p className="text-xs text-slate-500 font-medium">{user?.email}</p>
+            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-mono font-bold">
+              🔥 {user?.current_streak || 0} Day Streak
+            </div>
           </div>
         </div>
 
         {saved && (
-          <div className="mb-4 px-4 py-2.5 rounded-lg bg-cyan/10 border border-cyan/30 text-cyan text-sm">
-            Profile updated.
+          <div className="mb-6 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold">
+            ✓ Profile details updated successfully!
           </div>
         )}
 
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="label">Phone</label>
+            <label className="label">Phone Number</label>
             <input name="phone" className="input-field" value={form.phone} onChange={handleChange} placeholder="+91 XXXXX XXXXX" />
           </div>
           <div>
@@ -62,15 +67,15 @@ const Profile = () => {
             <input name="college_or_company" className="input-field" value={form.college_or_company} onChange={handleChange} placeholder="Your college or current company" />
           </div>
           <div>
-            <label className="label">Target Role</label>
-            <input name="target_role" className="input-field" value={form.target_role} onChange={handleChange} placeholder="e.g. Python Developer" />
+            <label className="label">Target Job Role</label>
+            <input name="target_role" className="input-field" value={form.target_role} onChange={handleChange} placeholder="e.g. Python Developer / Data Engineer" />
           </div>
           <div>
-            <label className="label">Bio</label>
-            <textarea name="bio" className="input-field min-h-[100px] resize-none" value={form.bio} onChange={handleChange} placeholder="A short line about yourself" />
+            <label className="label">Bio & Career Statement</label>
+            <textarea name="bio" className="input-field min-h-[100px] resize-none" value={form.bio} onChange={handleChange} placeholder="A short line about your background and experience" />
           </div>
-          <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'Saving...' : 'Save Changes'}
+          <button type="submit" disabled={saving} className="btn-primary w-full shadow-md shadow-brand-500/20 py-3 mt-2">
+            {saving ? 'Saving changes...' : 'Save Profile Changes →'}
           </button>
         </form>
       </div>
@@ -79,3 +84,4 @@ const Profile = () => {
 }
 
 export default Profile
+

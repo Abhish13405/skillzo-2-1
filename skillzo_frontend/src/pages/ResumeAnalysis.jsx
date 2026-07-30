@@ -44,9 +44,8 @@ const ResumeAnalysis = () => {
     }
   }
 
-  if (loading) return <AppShell><Loader label="Loading resumes" /></AppShell>
+  if (loading) return <AppShell><Loader label="Loading resume files" /></AppShell>
 
-  // Helper to get filename from URL/path
   const getFilename = (url) => {
     if (!url) return 'Unknown File'
     const parts = url.split('/')
@@ -55,127 +54,136 @@ const ResumeAnalysis = () => {
 
   return (
     <AppShell>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 border-b border-slate-200/60 pb-6">
         <div>
-          <p className="eyebrow mb-1">Module 3</p>
-          <h1 className="text-3xl font-display font-semibold">Resume Analysis</h1>
+          <span className="eyebrow mb-2">Resume Intelligence</span>
+          <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight">ATS Resume Scanner</h1>
+          <p className="text-slate-500 text-sm mt-1">Upload your resume to calculate ATS compatibility & key gaps.</p>
         </div>
-        <label className="btn-primary cursor-pointer text-center inline-block">
+        <label className="btn-primary cursor-pointer text-center inline-block shadow-md shadow-brand-500/20">
           {uploading ? 'Uploading...' : '+ Upload Resume'}
           <input type="file" accept=".pdf,.docx" className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
       </div>
 
-      {error && <div className="mb-6 px-4 py-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
+      {error && <div className="mb-6 px-4 py-3.5 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 text-sm font-medium">{error}</div>}
 
       {resumes.length === 0 ? (
-        <div className="card text-center py-16 flex flex-col items-center">
-          <p className="text-4xl mb-4">📄</p>
-          <p className="text-ink_text-muted max-w-sm mb-6">No resumes uploaded yet. Upload a PDF or DOCX to get an AI-powered ATS score.</p>
-          <label className="btn-primary cursor-pointer text-center inline-block">
-            {uploading ? 'Uploading...' : 'Select File'}
+        <div className="card bg-white border border-dashed border-slate-300 text-center py-16 flex flex-col items-center shadow-xs rounded-2xl">
+          <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600 text-2xl mb-4 shadow-sm">
+            📄
+          </div>
+          <h3 className="font-display font-bold text-lg text-slate-900">No resumes uploaded yet</h3>
+          <p className="text-slate-500 text-xs max-w-sm mb-6 mt-1">Upload a PDF or DOCX file to run an instant AI-powered ATS scan.</p>
+          <label className="btn-primary cursor-pointer text-center inline-block shadow-md shadow-brand-500/20">
+            {uploading ? 'Uploading...' : 'Select PDF / DOCX File'}
             <input type="file" accept=".pdf,.docx" className="hidden" onChange={handleUpload} disabled={uploading} />
           </label>
         </div>
       ) : (
         <div className="space-y-6">
           {resumes.map((r) => (
-            <div key={r.id} className="card relative overflow-hidden">
-              {/* If score > 80 show a subtle glow on the left border */}
+            <div key={r.id} className="card bg-white border border-slate-200/80 shadow-craft relative overflow-hidden p-6 rounded-2xl">
               {r.is_analyzed && r.ats_score >= 80 && (
-                <div className="absolute top-0 left-0 bottom-0 w-1 bg-cyan" />
+                <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
               )}
               
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3 border-b border-surface-border pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3 border-b border-slate-100 pb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <svg className="text-ink_text-muted shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="text-brand-600 shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                     </svg>
-                    <p className="font-medium text-ink_text truncate max-w-xs">{getFilename(r.file)}</p>
+                    <p className="font-bold text-slate-900 truncate max-w-xs">{getFilename(r.file)}</p>
                   </div>
-                  <p className="text-xs font-mono text-ink_text-muted">
+                  <p className="text-xs font-mono text-slate-400">
                     Uploaded {new Date(r.uploaded_at).toLocaleDateString()}
                   </p>
                 </div>
+
                 {!r.is_analyzed && (
-                  <button onClick={() => handleAnalyze(r.id)} disabled={analyzing === r.id} className="btn-secondary text-sm">
+                  <button onClick={() => handleAnalyze(r.id)} disabled={analyzing === r.id} className="btn-secondary text-xs font-bold">
                     {analyzing === r.id ? (
                       <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-cyan animate-pulse"/>
-                        Analyzing...
+                        <span className="w-2 h-2 rounded-full bg-brand-600 animate-pulse"/>
+                        Analyzing ATS Score...
                       </span>
-                    ) : 'Run ATS Analysis'}
+                    ) : 'Run ATS Analysis →'}
                   </button>
                 )}
               </div>
 
               {r.is_analyzed ? (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                  <div className="flex flex-col items-center justify-center md:col-span-1">
+                  <div className="flex flex-col items-center justify-center md:col-span-1 p-4 bg-slate-50 rounded-xl border border-slate-100">
                     <ReadinessDial score={r.ats_score} size={110} label="ATS Score" />
                   </div>
                   
                   <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Strengths & Skills */}
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                       <div>
-                        <p className="text-xs text-ink_text-muted font-mono uppercase tracking-wider mb-2 flex items-center gap-2">
-                          <span className="text-cyan">✓</span> Extracted Skills
+                        <p className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                          <span className="text-emerald-600">✓</span> Extracted Skills
                         </p>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {r.extracted_skills?.length > 0 ? (
                             r.extracted_skills.map((s, i) => (
-                              <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-cyan/10 border border-cyan/30 text-cyan">{s}</span>
+                              <span key={i} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">{s}</span>
                             ))
                           ) : (
-                            <span className="text-sm text-ink_text-muted italic">No skills extracted</span>
+                            <span className="text-xs text-slate-400 italic">No skills extracted</span>
                           )}
                         </div>
                       </div>
                       
                       <div>
-                        <p className="text-xs text-ink_text-muted font-mono uppercase tracking-wider mb-2 flex items-center gap-2">
-                          <span className="text-cyan">⭐</span> Suggested Roles
+                        <p className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                          <span className="text-brand-600">⭐</span> Suggested Matching Roles
                         </p>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {r.suggested_job_roles?.length > 0 ? (
                             r.suggested_job_roles.map((role, i) => (
-                              <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-surface-raised border border-surface-border text-ink_text">{role}</span>
+                              <span key={i} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-800">{role}</span>
                             ))
                           ) : (
-                            <span className="text-sm text-ink_text-muted italic">None</span>
+                            <span className="text-xs text-slate-400 italic">None</span>
                           )}
                         </div>
                       </div>
                     </div>
 
                     {/* Feedback & Weaknesses */}
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                       <div>
-                        <p className="text-xs text-ink_text-muted font-mono uppercase tracking-wider mb-2 flex items-center gap-2">
-                          <span className="text-amber">!</span> Missing Keywords
+                        <p className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                          <span className="text-brand-600 font-bold">!</span> Missing Keywords
                         </p>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {r.missing_keywords?.length > 0 ? (
                             r.missing_keywords.map((k, i) => (
-                              <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-danger/10 border border-danger/30 text-danger">{k}</span>
+                              <span key={i} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 border border-brand-200">{k}</span>
                             ))
                           ) : (
-                            <span className="text-sm text-ink_text-muted italic">Looking good! No major missing keywords.</span>
+                            <span className="text-xs text-slate-400 italic">Looking good! No major missing keywords.</span>
                           )}
                         </div>
                       </div>
 
                       <div>
-                        <p className="text-xs text-ink_text-muted font-mono uppercase tracking-wider mb-2 flex items-center gap-2">
-                          <span className="text-amber">→</span> Actionable Feedback
+                        <p className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                          <span className="text-amber-600">→</span> Actionable Recommendations
                         </p>
-                        <ul className="text-sm space-y-1.5">
+                        <ul className="text-xs space-y-1.5 text-slate-700">
                           {r.feedback?.length > 0 ? (
-                            r.feedback.map((f, i) => <li key={i} className="flex gap-2 text-ink_text"><span className="text-amber shrink-0 mt-0.5">•</span>{f}</li>)
+                            r.feedback.map((f, i) => (
+                              <li key={i} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                <span className="text-brand-600 font-bold shrink-0">•</span>
+                                <span className="leading-relaxed">{f}</span>
+                              </li>
+                            ))
                           ) : (
-                            <span className="text-sm text-ink_text-muted italic">No feedback provided.</span>
+                            <span className="text-xs text-slate-400 italic">No additional feedback provided.</span>
                           )}
                         </ul>
                       </div>
@@ -183,9 +191,9 @@ const ResumeAnalysis = () => {
                   </div>
                 </div>
               ) : (
-                <div className="py-6 text-center">
-                  <p className="text-sm text-ink_text-muted mb-2">Resume uploaded successfully but not analyzed yet.</p>
-                  <p className="text-xs text-ink_text-muted font-mono">Click "Run ATS Analysis" to generate insights.</p>
+                <div className="py-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-1">Resume uploaded successfully but not analyzed yet.</p>
+                  <p className="text-[11px] text-slate-400 font-mono">Click "Run ATS Analysis" to extract skills & missing keywords.</p>
                 </div>
               )}
             </div>
@@ -197,3 +205,4 @@ const ResumeAnalysis = () => {
 }
 
 export default ResumeAnalysis
+

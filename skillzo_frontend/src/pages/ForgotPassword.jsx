@@ -42,20 +42,23 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-8">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft font-body">
+      <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-3xl border border-slate-200/80 shadow-craft">
         <div className="text-center mb-8">
-          <span className="font-display font-bold text-2xl">Skillzo</span>
-          <p className="eyebrow mt-2">Account recovery</p>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white font-display font-extrabold text-2xl flex items-center justify-center mx-auto mb-3 shadow-md shadow-brand-500/20">
+            S
+          </div>
+          <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-slate-900 tracking-tight">Account Recovery</h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Reset your Skillzo password via email verification</p>
         </div>
 
         {message && (
-          <div className="mb-4 px-4 py-2.5 rounded-lg bg-cyan/10 border border-cyan/30 text-cyan text-sm font-mono">
+          <div className="mb-6 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-mono font-semibold">
             {message}
           </div>
         )}
         {error && (
-          <div className="mb-4 px-4 py-2.5 rounded-lg bg-danger/10 border border-danger/30 text-danger text-sm">
+          <div className="mb-6 px-4 py-3 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 text-sm font-medium">
             {error}
           </div>
         )}
@@ -63,31 +66,31 @@ const ForgotPassword = () => {
         {step === 1 ? (
           <form onSubmit={handleRequestOtp} className="space-y-4">
             <div>
-              <label className="label">Email</label>
+              <label className="label">Registered Email</label>
               <input type="email" required className="input-field" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? 'Sending...' : 'Send OTP'}
+            <button type="submit" disabled={loading} className="btn-primary w-full shadow-md shadow-brand-500/20 py-3">
+              {loading ? 'Sending Code...' : 'Send Verification OTP →'}
             </button>
           </form>
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
             <div>
-              <label className="label">OTP</label>
-              <input required className="input-field" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6-digit code" maxLength={6} />
+              <label className="label">OTP Verification Code</label>
+              <input required className="input-field font-mono tracking-widest text-center" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6-digit code" maxLength={6} />
             </div>
             <div>
               <label className="label">New Password</label>
               <input type="password" required className="input-field" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? 'Resetting...' : 'Reset password'}
+            <button type="submit" disabled={loading} className="btn-primary w-full shadow-md shadow-brand-500/20 py-3">
+              {loading ? 'Resetting...' : 'Reset Password →'}
             </button>
           </form>
         )}
 
-        <p className="text-sm text-ink_text-muted mt-6 text-center">
-          <Link to="/login" className="text-cyan hover:underline">Back to login</Link>
+        <p className="text-xs font-semibold text-slate-500 mt-6 text-center">
+          <Link to="/login" className="text-brand-600 hover:text-brand-700 font-bold">← Back to Log in</Link>
         </p>
       </div>
     </div>
@@ -95,3 +98,4 @@ const ForgotPassword = () => {
 }
 
 export default ForgotPassword
+

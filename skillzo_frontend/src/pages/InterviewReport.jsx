@@ -22,8 +22,8 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
           #skillzo-certificate {
             display: block !important;
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #0D1321; color: #E8ECF1;
-            font-family: 'Space Grotesk', sans-serif;
+            background: #FFFFFF; color: #0F172A;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
           }
         }
@@ -31,82 +31,82 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
 
       <div style={{
         width: '100%', height: '100%',
-        background: 'linear-gradient(135deg, #0D1321 0%, #161E2E 100%)',
-        border: '2px solid #F5A623',
+        background: 'linear-gradient(135deg, #FFFFFF 0%, #FAFAF9 100%)',
+        border: '3px solid #E11D48',
         borderRadius: '16px',
         padding: '60px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justify: 'center',
         textAlign: 'center', gap: '24px',
-        boxShadow: '0 0 60px rgba(245,166,35,0.15)'
+        boxShadow: '0 0 60px rgba(225,29,72,0.1)'
       }}>
         {/* Top border decoration */}
-        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #4FD1C5, #F5A623)', borderRadius: '2px' }} />
+        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #E11D48, #F43F5E)', borderRadius: '2px' }} />
 
         {/* Brand */}
         <div>
-          <div style={{ fontSize: '14px', fontFamily: 'JetBrains Mono, monospace', color: '#4FD1C5', letterSpacing: '6px', textTransform: 'uppercase', marginBottom: '8px' }}>
-            SKILLZO
+          <div style={{ fontSize: '16px', fontFamily: 'JetBrains Mono, monospace', color: '#E11D48', letterSpacing: '6px', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>
+            SKILLZO AI STUDIO
           </div>
-          <div style={{ fontSize: '11px', color: '#8A95A5', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '3px', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '3px', textTransform: 'uppercase' }}>
             Interview Readiness Platform
           </div>
         </div>
 
         {/* Title */}
         <div>
-          <div style={{ fontSize: '11px', color: '#8A95A5', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '12px' }}>
+          <div style={{ fontSize: '12px', color: '#64748B', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '12px' }}>
             Certificate of Achievement
           </div>
-          <div style={{ fontSize: '13px', color: '#8A95A5' }}>This certifies that</div>
+          <div style={{ fontSize: '14px', color: '#475569' }}>This certifies that</div>
         </div>
 
         {/* Name */}
-        <div style={{ fontSize: '42px', fontWeight: '700', color: '#E8ECF1', letterSpacing: '-1px' }}>
+        <div style={{ fontSize: '42px', fontWeight: '800', color: '#0F172A', letterSpacing: '-1px' }}>
           {user?.username || 'Candidate'}
         </div>
 
-        <div style={{ fontSize: '14px', color: '#8A95A5', maxWidth: '500px', lineHeight: '1.6' }}>
+        <div style={{ fontSize: '14px', color: '#64748B', maxWidth: '500px', lineHeight: '1.6' }}>
           has successfully completed an AI-powered mock interview on the Skillzo platform, demonstrating readiness for the role of
         </div>
 
         {/* Role */}
-        <div style={{ fontSize: '26px', fontWeight: '600', color: '#F5A623' }}>
+        <div style={{ fontSize: '26px', fontWeight: '800', color: '#E11D48' }}>
           {session.job_role}
         </div>
 
         {/* Score */}
         <div style={{
-          background: 'rgba(79,209,197,0.1)',
-          border: '1px solid rgba(79,209,197,0.3)',
+          background: '#FFF1F2',
+          border: '1px solid #FECDD3',
           borderRadius: '12px',
           padding: '20px 40px',
           display: 'flex', gap: '60px', alignItems: 'center'
         }}>
           <div>
-            <div style={{ fontSize: '11px', color: '#8A95A5', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Overall Score</div>
-            <div style={{ fontSize: '48px', fontWeight: '700', color: '#4FD1C5', fontFamily: 'JetBrains Mono, monospace' }}>{session.overall_score}</div>
+            <div style={{ fontSize: '11px', color: '#881337', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Overall Score</div>
+            <div style={{ fontSize: '48px', fontWeight: '800', color: '#E11D48', fontFamily: 'JetBrains Mono, monospace' }}>{session.overall_score}</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: '#8A95A5', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Difficulty</div>
-            <div style={{ fontSize: '22px', fontWeight: '600', color: '#E8ECF1' }}>{session.difficulty}</div>
+            <div style={{ fontSize: '11px', color: '#881337', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Difficulty</div>
+            <div style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A' }}>{session.difficulty}</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: '#8A95A5', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Date</div>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#E8ECF1', fontFamily: 'JetBrains Mono, monospace' }}>{date}</div>
+            <div style={{ fontSize: '11px', color: '#881337', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Date</div>
+            <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', fontFamily: 'JetBrains Mono, monospace' }}>{date}</div>
           </div>
         </div>
 
         {/* Verdict */}
         {session.verdict && (
-          <div style={{ fontSize: '14px', color: '#8A95A5', fontStyle: 'italic', maxWidth: '500px' }}>
+          <div style={{ fontSize: '14px', color: '#475569', fontStyle: 'italic', maxWidth: '500px' }}>
             "{session.verdict}"
           </div>
         )}
 
         {/* Bottom decoration */}
-        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #F5A623, #4FD1C5)', borderRadius: '2px' }} />
+        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #F43F5E, #E11D48)', borderRadius: '2px' }} />
 
-        <div style={{ fontSize: '10px', color: '#5C667A', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px' }}>
+        <div style={{ fontSize: '10px', color: '#94A3B8', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px' }}>
           SKILLZO.AI · INTERVIEW READINESS · {new Date().getFullYear()}
         </div>
       </div>
@@ -137,7 +137,7 @@ const InterviewReport = () => {
     }
   }
 
-  if (!session) return <AppShell><Loader label="Building report" /></AppShell>
+  if (!session) return <AppShell><Loader label="Building report analytics" /></AppShell>
 
   const chartData = [
     { label: 'Technical', value: session.technical_score },
@@ -152,30 +152,34 @@ const InterviewReport = () => {
       {/* Hidden certificate for print */}
       <Certificate ref={certRef} session={session} user={user} />
 
-      <p className="eyebrow mb-1">Interview Report</p>
-      <h1 className="text-3xl font-display font-semibold mb-8">{session.job_role} · {session.difficulty}</h1>
+      <span className="eyebrow mb-2">Performance Analytics</span>
+      <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight mb-8">
+        {session.job_role} · {session.difficulty}
+      </h1>
 
       {/* Top row: Dial + Chart */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="card flex flex-col items-center justify-center md:col-span-1">
-          <ReadinessDial score={session.overall_score} size={160} label="Overall Score" />
-          <p className="text-sm text-ink_text-muted mt-3 font-mono">
-            Confidence: <span className="text-cyan">{session.confidence_trend}</span>
+        <div className="card bg-white flex flex-col items-center justify-center md:col-span-1 shadow-craft border border-slate-200/80 p-6">
+          <ReadinessDial score={session.overall_score} size={150} label="Overall Score" />
+          <p className="text-xs text-slate-500 mt-4 font-mono font-semibold bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            Confidence Trend: <span className="text-brand-600 font-bold">{session.confidence_trend || 'Steady'}</span>
           </p>
           {session.verdict && (
-            <p className="text-xs text-ink_text-muted mt-2 text-center italic px-2">"{session.verdict}"</p>
+            <p className="text-xs text-slate-600 mt-3 text-center italic px-2 bg-brand-50/50 p-2.5 rounded-xl border border-brand-100/60">
+              "{session.verdict}"
+            </p>
           )}
         </div>
 
-        <div className="card md:col-span-2">
-          <h3 className="font-display font-semibold mb-4">Score Breakdown</h3>
+        <div className="card bg-white md:col-span-2 shadow-craft border border-slate-200/80 p-6">
+          <h3 className="font-display font-bold text-lg text-slate-900 mb-4">Competency Score Breakdown</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2A3650" />
-              <XAxis dataKey="label" stroke="#8A95A5" fontSize={12} />
-              <YAxis stroke="#8A95A5" fontSize={12} domain={[0, 100]} />
-              <Tooltip contentStyle={{ background: '#1D2740', border: '1px solid #2A3650', borderRadius: 8 }} />
-              <Bar dataKey="value" fill="#4FD1C5" radius={[6, 6, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+              <XAxis dataKey="label" stroke="#94A3B8" fontSize={12} />
+              <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 100]} />
+              <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
+              <Bar dataKey="value" fill="#E11D48" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -183,67 +187,75 @@ const InterviewReport = () => {
 
       {/* Certificate Banner */}
       {qualifiesForCertificate && (
-        <div className="card mb-6 border-amber/40 bg-amber/5 flex items-center justify-between">
+        <div className="card mb-6 border-brand-200 bg-gradient-to-r from-brand-50 to-rose-50 flex flex-wrap items-center justify-between gap-4 p-6 shadow-craft">
           <div>
-            <p className="font-display font-semibold text-amber">🏆 Certificate Unlocked!</p>
-            <p className="text-sm text-ink_text-muted">
-              Score {session.overall_score}/100 — you've earned a certificate for this interview.
+            <p className="font-display font-extrabold text-lg text-brand-900 flex items-center gap-2">
+              <span>🏆</span> Certificate Unlocked!
+            </p>
+            <p className="text-xs text-brand-700 mt-1">
+              Overall score {session.overall_score}/100 — you've earned your official readiness certificate.
             </p>
           </div>
-          <button onClick={handleDownloadCertificate} className="btn-primary shrink-0">
-            Download Certificate
+          <button onClick={handleDownloadCertificate} className="btn-primary shrink-0 shadow-md shadow-brand-500/20">
+            Download Certificate 📄
           </button>
         </div>
       )}
 
       {/* AI Suggestions */}
-      <div className="card mb-6">
-        <h3 className="font-display font-semibold mb-4">AI Suggestions</h3>
+      <div className="card bg-white mb-6 shadow-craft border border-slate-200/80">
+        <h3 className="font-display font-bold text-lg text-slate-900 mb-4">AI Recommendations</h3>
         {session.ai_suggestions?.length > 0 ? (
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {session.ai_suggestions.map((s, i) => (
-              <li key={i} className="flex gap-2 text-sm"><span className="text-amber font-mono shrink-0">→</span>{s}</li>
+              <li key={i} className="flex items-start gap-2 text-sm text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span className="text-brand-600 font-mono font-bold shrink-0">✦</span>
+                <span className="leading-relaxed">{s}</span>
+              </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-ink_text-muted">No suggestions available.</p>
+          <p className="text-sm text-slate-500">No suggestions recorded for this session.</p>
         )}
       </div>
 
       {/* Question-by-Question */}
-      <div className="card">
-        <h3 className="font-display font-semibold mb-4">Question-by-Question Review</h3>
-        <div className="space-y-5">
+      <div className="card bg-white shadow-craft border border-slate-200/80">
+        <h3 className="font-display font-bold text-lg text-slate-900 mb-4">Question-by-Question Evaluation</h3>
+        <div className="space-y-6">
           {session.questions.map((q, i) => (
-            <div key={q.id} className="border-b border-surface-border last:border-0 pb-5 last:pb-0">
-              <div className="flex items-start gap-3 mb-2">
-                <span className="font-mono text-amber shrink-0 text-sm mt-0.5">{i + 1}.</span>
-                <p className="text-sm font-medium">{q.question_text}</p>
+            <div key={q.id} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
+              <div className="flex items-start gap-3 mb-3">
+                <span className="font-mono text-brand-600 font-bold shrink-0 text-sm mt-0.5">{i + 1}.</span>
+                <p className="text-sm font-bold text-slate-900">{q.question_text}</p>
               </div>
               {q.answer ? (
-                <div className="ml-6">
-                  {/* Mini score row */}
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                <div className="ml-6 space-y-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {[
                       ['Overall', q.answer.overall_score],
                       ['Technical', q.answer.technical_knowledge],
                       ['Communication', q.answer.communication],
                     ].map(([label, val]) => (
-                      <span key={label} className="text-xs font-mono px-2 py-0.5 rounded-full bg-ink-light">
-                        <span className="text-ink_text-muted">{label}: </span>
-                        <span className={val >= 75 ? 'text-cyan' : val >= 40 ? 'text-amber' : 'text-danger'}>{val}</span>
+                      <span key={label} className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
+                        <span className="text-slate-500">{label}: </span>
+                        <span className={val >= 75 ? 'text-emerald-600' : val >= 40 ? 'text-amber-600' : 'text-brand-600'}>{val}</span>
                       </span>
                     ))}
                   </div>
-                  <p className="text-xs text-ink_text-muted line-clamp-2">{q.answer.answer_text}</p>
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs text-slate-700 leading-relaxed">
+                    <strong className="text-slate-900 block mb-1">Your Response:</strong>
+                    {q.answer.answer_text}
+                  </div>
                   {q.answer.ideal_answer_summary && (
-                    <p className="text-xs text-cyan/70 mt-1.5 italic line-clamp-2">
-                      💡 {q.answer.ideal_answer_summary}
-                    </p>
+                    <div className="bg-brand-50/50 p-3.5 rounded-xl border border-brand-100 text-xs text-slate-700 leading-relaxed">
+                      <strong className="text-brand-800 block mb-1">💡 Ideal Answer Structure:</strong>
+                      {q.answer.ideal_answer_summary}
+                    </div>
                   )}
                 </div>
               ) : (
-                <p className="ml-6 text-xs text-ink_text-muted">Not answered</p>
+                <p className="ml-6 text-xs text-slate-400 italic">Question skipped or left blank.</p>
               )}
             </div>
           ))}
@@ -251,11 +263,12 @@ const InterviewReport = () => {
       </div>
 
       <div className="flex gap-3 mt-6">
-        <Link to="/dashboard" className="btn-secondary">Back to Dashboard</Link>
-        <Link to="/interview/setup" className="btn-primary">Start Another Interview</Link>
+        <Link to="/dashboard" className="btn-secondary">← Back to Dashboard</Link>
+        <Link to="/interview/setup" className="btn-primary shadow-md shadow-brand-500/20">Start Another Session →</Link>
       </div>
     </AppShell>
   )
 }
 
 export default InterviewReport
+
