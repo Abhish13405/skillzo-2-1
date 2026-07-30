@@ -146,7 +146,8 @@ const useSpeechSynthesis = () => {
 }
 
 // ─── Main Component ─────────────────────────────────────────────────────────
-const TIMER_SECONDS = 120 // 2 minutes per question
+const TIMER_SECONDS = 30 // 30 seconds per question
+
 
 const InterviewSession = () => {
   const { sessionId } = useParams()
