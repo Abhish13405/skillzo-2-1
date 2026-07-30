@@ -46,7 +46,7 @@ const Profile = () => {
             <p className="font-display font-extrabold text-xl text-slate-900">{user?.username}</p>
             <p className="text-xs text-slate-500 font-medium">{user?.email}</p>
             <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-mono font-bold">
-              🔥 {user?.current_streak || 0} Day Streak
+               {user?.current_streak || 0} Day Streak
             </div>
           </div>
         </div>

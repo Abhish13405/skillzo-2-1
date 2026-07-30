@@ -52,7 +52,7 @@ const Login = () => {
         </div>
 
         <div className="relative z-10 text-xs text-rose-200/80 font-mono border-t border-white/10 pt-4">
-          © 2026 Skillzo Studio · Crafting Interview Confidence
+          © 2026 Skillzo Studio · Made by Abhishek Kushwaha, Harshit Singh, Amritanshu Shukla, Rudra Pratap Singh & Shivam Kumar
         </div>
       </div>
 
