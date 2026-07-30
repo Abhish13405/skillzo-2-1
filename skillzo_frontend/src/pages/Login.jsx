@@ -27,34 +27,38 @@ const Login = () => {
   return (
     <div className="min-h-screen flex bg-surface-soft font-body">
       {/* Left: brand panel */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-brand-700 via-brand-600 to-rose-700 text-white flex-col justify-between p-12 relative overflow-hidden shadow-2xl">
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-rose-400/20 blur-3xl pointer-events-none" />
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-rose-50 via-red-50 to-rose-100/60 border-r border-rose-200/60 text-slate-800 flex-col justify-between p-12 relative overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-rose-200/40 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-red-200/30 blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center font-display font-extrabold text-xl text-white border border-white/20">
+          <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center font-display font-extrabold text-xl text-white shadow-md shadow-brand-500/20">
             S
           </div>
-          <span className="font-display font-extrabold text-2xl tracking-tight text-white">Skillzo AI</span>
+          <span className="font-display font-extrabold text-2xl tracking-tight text-slate-900">Skillzo AI</span>
         </div>
 
         <div className="relative z-10 my-auto py-12">
-          <span className="inline-block px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-xs font-mono font-bold uppercase tracking-wider text-rose-100 mb-6">
+          <span className="inline-block px-3.5 py-1 rounded-full bg-white border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider text-brand-600 mb-6 shadow-xs">
             Readiness Studio
           </span>
-          <h1 className="text-4xl sm:text-5xl font-display font-extrabold leading-tight mb-6 tracking-tight text-white">
+          <h1 className="text-4xl sm:text-5xl font-display font-extrabold leading-tight mb-6 tracking-tight text-slate-900">
             Walk into every interview<br />already prepared for success.
           </h1>
-          <p className="text-rose-100 text-base max-w-md leading-relaxed">
+          <p className="text-slate-600 text-base max-w-md leading-relaxed font-medium">
             AI-driven real-time mock sessions, ATS resume scoring, and performance dials that
             show you exactly where you stand.
           </p>
         </div>
 
-        <div className="relative z-10 text-xs text-rose-200/80 font-mono border-t border-white/10 pt-4">
-          © 2026 Skillzo Studio · Made by Abhishek Kushwaha, Harshit Singh, Amritanshu Shukla, Rudra Pratap Singh & Shivam Kumar
+        <div className="relative z-10 text-xs text-slate-500 font-mono border-t border-rose-200/80 pt-4 leading-relaxed">
+          <p className="font-bold text-slate-800 mb-1">© 2026 Skillzo Studio</p>
+          <p className="text-[11px] text-slate-600">
+            <strong className="text-slate-800">Team:</strong> Abhishek Kushwaha · Harshit Singh · Amritanshu Shukla · Rudra Pratap Singh · Shivam Kumar
+          </p>
         </div>
       </div>
+
 
       {/* Right: form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-surface-soft">
