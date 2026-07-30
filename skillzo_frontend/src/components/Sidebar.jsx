@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
 const Icons = {
@@ -57,6 +58,7 @@ const navItems = [
 
 const SidebarContent = ({ onClose }) => {
   const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -65,21 +67,21 @@ const SidebarContent = ({ onClose }) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Logo Header */}
-      <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between">
+      <div className="px-6 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white font-display font-extrabold text-xl shadow-md shadow-brand-500/20">
             S
           </div>
           <div>
-            <span className="font-display font-extrabold text-xl text-slate-900 tracking-tight block">Skillzo</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-brand-600 font-mono">AI Interview Studio</span>
+            <span className="font-display font-extrabold text-xl text-slate-900 dark:text-white tracking-tight block">Skillzo</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400 font-mono">AI Interview Studio</span>
           </div>
         </div>
         {/* Close button for mobile */}
         {onClose && (
-          <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-slate-700 transition-colors p-1">
+          <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -97,19 +99,19 @@ const SidebarContent = ({ onClose }) => {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 isActive
-                  ? 'bg-brand-50 text-brand-700 border border-brand-200/80 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
+                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-400 border border-brand-200/80 dark:border-brand-900/80 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={isActive ? 'text-brand-600' : 'text-slate-400 group-hover:text-slate-600'}>
+                <span className={isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600'}>
                   <Icon />
                 </span>
                 <span>{label}</span>
                 {isActive && (
-                  <span className="ml-auto w-1.5 h-4 bg-brand-600 rounded-full" />
+                  <span className="ml-auto w-1.5 h-4 bg-brand-600 dark:bg-brand-400 rounded-full" />
                 )}
               </>
             )}
@@ -117,20 +119,33 @@ const SidebarContent = ({ onClose }) => {
         ))}
       </nav>
 
-      {/* User Footer */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-        <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white border border-slate-200/60 shadow-xs">
-          <div className="w-9 h-9 rounded-lg bg-brand-100 text-brand-700 border border-brand-200 flex items-center justify-center font-display font-bold text-sm shrink-0">
+      {/* Theme Toggle & User Footer */}
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        {/* Dark Mode Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between px-3 py-2 mb-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-brand-300 dark:hover:border-brand-600 transition-all shadow-xs"
+        >
+          <span className="flex items-center gap-2">
+            <span>{theme === 'dark' ? '🌙 Dark Theme' : '☀️ Light Theme'}</span>
+          </span>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+            {theme === 'dark' ? 'ON' : 'OFF'}
+          </span>
+        </button>
+
+        <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-xs">
+          <div className="w-9 h-9 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-900 flex items-center justify-center font-display font-bold text-sm shrink-0">
             {user?.username?.[0]?.toUpperCase() || 'U'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-800 truncate leading-snug">{user?.username || 'User'}</p>
-            <p className="text-xs text-slate-500 truncate">{user?.email || 'user@skillzo.ai'}</p>
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate leading-snug">{user?.username || 'User'}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@skillzo.ai'}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-600 hover:bg-brand-50 py-2 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100"
+          className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-800 py-2 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-700"
         >
           <Icons.Logout />
           Sign out
@@ -139,6 +154,7 @@ const SidebarContent = ({ onClose }) => {
     </div>
   )
 }
+
 
 const Sidebar = ({ open, onClose }) => {
   return (
