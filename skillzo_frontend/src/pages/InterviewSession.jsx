@@ -430,6 +430,15 @@ const InterviewSession = () => {
                     </button>
                   )}
 
+                  {/* Skip Question Option */}
+                  <button
+                    onClick={handleSkip}
+                    disabled={submitting}
+                    className="btn-secondary text-xs font-semibold hover:border-amber-300 hover:text-amber-700"
+                  >
+                    Skip Question ⏭️
+                  </button>
+
                   {/* Submit */}
                   <button
                     onClick={handleSubmitAnswer}
@@ -449,8 +458,10 @@ const InterviewSession = () => {
                   value={answerText}
                   onChange={(e) => setAnswerText(e.target.value)}
                 />
-                <div className="flex justify-between items-center">
-                  <button onClick={handleSkip} className="btn-secondary text-xs">Skip Question</button>
+                <div className="flex justify-between items-center gap-3">
+                  <button onClick={handleSkip} disabled={submitting} className="btn-secondary text-xs font-semibold hover:border-amber-300 hover:text-amber-700">
+                    Skip Question ⏭️
+                  </button>
                   <button onClick={handleSubmitAnswer} disabled={submitting || !answerText.trim()} className="btn-primary shadow-md shadow-brand-500/20">
                     {submitting ? 'Evaluating with AI...' : 'Submit Answer →'}
                   </button>
@@ -458,6 +469,7 @@ const InterviewSession = () => {
               </>
             )}
           </motion.div>
+
         ) : (
           <motion.div key="eval" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             {/* Evaluation Card */}
