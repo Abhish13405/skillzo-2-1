@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         ink: {
-          DEFAULT: '#0D1321',
+          DEFAULT: '#17233d',
           light: '#121A2B',
         },
         surface: {

@@ -1,4 +1,4 @@
-@tailwind base;
+ @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -8,7 +8,7 @@
   }
   body {
     @apply bg-ink text-ink_text;
-    background-image: radial-gradient(circle at 20% 0%, rgba(79, 209, 197, 0.06), transparent 40%),
+    background-image: radial-gradient(circle at 20% 0%, rgba(42, 172, 159, 0.06), transparent 40%),
       radial-gradient(circle at 90% 10%, rgba(245, 166, 35, 0.05), transparent 35%);
     background-attachment: fixed;
   }
@@ -65,10 +65,10 @@
   position: absolute;
   inset: 10%;
   border-radius: 50%;
-  background: #161E2E;
+  background: #1a2a4a;
 }
 .readiness-dial-value {
   position: relative;
   z-index: 1;
   font-family: 'JetBrains Mono', monospace;
-}
+} 
