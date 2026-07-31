@@ -98,28 +98,66 @@ MEDIA_ROOT = BASE_DIR / 'media'   # resumes, audio/video recordings stored here
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ---- CORS (React frontend on Vite dev server) ----
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOWED_ORIGINS = [
+#     'http://localhost:5173',
+#     'http://127.0.0.1:5173',
+#     'https://skillzo-2-1.vercel.app',
+# ]
+
+# # ---- DRF + JWT ----
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'rest_framework_simplejwt.authentication.JWTAuthentication',
+#     ),
+#     'DEFAULT_PERMISSION_CLASSES': (
+#         'rest_framework.permissions.IsAuthenticated',
+#     ),
+# }
+
+# SIMPLE_JWT = {
+#     'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),
+#     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+#     'ROTATE_REFRESH_TOKENS': True,
+# }
+
+# # Max upload size for resumes/recordings (50MB)
+# DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+# ---- CORS Settings ----
+CORS_ALLOW_ALL_ORIGINS = False  # Set to False so CORS_ALLOWED_ORIGINS is used
+
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'https://skillzo-2-1.vercel.app',
 ]
 
-# ---- DRF + JWT ----
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-}
+CORS_ALLOW_CREDENTIALS = True
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': True,
-}
+# Allow headers used by DRF & SimpleJWT
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
-# Max upload size for resumes/recordings (50MB)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# Required for Django 4.0+ cross-origin POST requests
+CSRF_TRUSTED_ORIGINS = [
+    'https://skillzo-2-1.vercel.app',
+    'http://localhost:5173',
+]
