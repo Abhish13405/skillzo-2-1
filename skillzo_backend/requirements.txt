@@ -9,3 +9,4 @@ python-docx==1.1.2
 Pillow
 gunicorn==21.2.0
 whitenoise==6.6.0
+gunicorn==22.0.0

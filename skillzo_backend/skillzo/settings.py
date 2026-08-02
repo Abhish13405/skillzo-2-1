@@ -98,12 +98,17 @@ MEDIA_ROOT = BASE_DIR / 'media'   # resumes, audio/video recordings stored here
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ---- CORS Settings ----
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=True, cast=bool)
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'https://skillzo-2-1.vercel.app',
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
+    r"^https://.*\.onrender\.com$",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -130,8 +135,10 @@ CORS_ALLOW_METHODS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://skillzo-2-1.vercel.app',
+    'https://*.vercel.app',
+    'https://*.onrender.com',
     'http://localhost:5173',
+    'http://127.0.0.1:5173',
 ]
 
 # ---- DRF + JWT ----

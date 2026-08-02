@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: skillzo-backend
+    env: python
+    rootDir: skillzo_backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn skillzo.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
