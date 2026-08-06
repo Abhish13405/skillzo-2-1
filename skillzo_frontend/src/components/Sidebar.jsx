@@ -57,13 +57,21 @@ const navItems = [
 ]
 
 const SidebarContent = ({ onClose }) => {
-  const { user, logout } = useAuth()
+  const { user, logout, openAuthModal } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const handleNavClick = (e, to, label) => {
+    if (onClose) onClose()
+    if (!user && to !== '/dashboard') {
+      e.preventDefault()
+      openAuthModal(label)
+    }
   }
 
   return (
@@ -95,7 +103,7 @@ const SidebarContent = ({ onClose }) => {
           <NavLink
             key={to}
             to={to}
-            onClick={onClose}
+            onClick={(e) => handleNavClick(e, to, label)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 isActive
@@ -134,22 +142,52 @@ const SidebarContent = ({ onClose }) => {
           </span>
         </button>
 
-        <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-xs">
-          <div className="w-9 h-9 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-900 flex items-center justify-center font-display font-bold text-sm shrink-0">
-            {user?.username?.[0]?.toUpperCase() || 'U'}
+        {user ? (
+          <>
+            <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-xs">
+              <div className="w-9 h-9 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-900 flex items-center justify-center font-display font-bold text-sm shrink-0">
+                {user?.username?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate leading-snug">{user?.username || 'User'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@skillzo.ai'}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-800 py-2 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-700"
+            >
+              <Icons.Logout />
+              Sign out
+            </button>
+          </>
+        ) : (
+          <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-xs">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-display font-bold text-xs shrink-0">
+                G
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Guest Mode</p>
+                <p className="text-[10px] text-slate-400 truncate">Sign up to save prep data</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                onClick={() => navigate('/login')}
+                className="py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold text-center transition-colors"
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => navigate('/signup')}
+                className="py-1.5 px-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold text-center transition-colors shadow-xs"
+              >
+                Sign Up
+              </button>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate leading-snug">{user?.username || 'User'}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@skillzo.ai'}</p>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-800 py-2 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-700"
-        >
-          <Icons.Logout />
-          Sign out
-        </button>
+        )}
       </div>
     </div>
   )

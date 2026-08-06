@@ -22,15 +22,15 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/resume" element={<ProtectedRoute><ResumeAnalysis /></ProtectedRoute>} />
-      <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-      <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/profile" element={<ProtectedRoute featureName="Profile"><Profile /></ProtectedRoute>} />
+      <Route path="/resume" element={<ProtectedRoute featureName="ATS Resume Analysis"><ResumeAnalysis /></ProtectedRoute>} />
+      <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />
+      <Route path="/leaderboard" element={<ProtectedRoute featureName="Leaderboard"><Leaderboard /></ProtectedRoute>} />
 
-      <Route path="/interview/setup" element={<ProtectedRoute><InterviewSetup /></ProtectedRoute>} />
-      <Route path="/interview/:sessionId/session" element={<ProtectedRoute><InterviewSession /></ProtectedRoute>} />
-      <Route path="/interview/:sessionId/report" element={<ProtectedRoute><InterviewReport /></ProtectedRoute>} />
+      <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><InterviewSetup /></ProtectedRoute>} />
+      <Route path="/interview/:sessionId/session" element={<ProtectedRoute featureName="AI Interview Session"><InterviewSession /></ProtectedRoute>} />
+      <Route path="/interview/:sessionId/report" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
 
       {/* Root redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

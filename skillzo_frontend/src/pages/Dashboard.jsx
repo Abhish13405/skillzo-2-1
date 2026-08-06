@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import AppShell from '../components/AppShell'
 import ReadinessDial from '../components/ReadinessDial'
@@ -42,21 +42,46 @@ const StreakBadge = ({ streak }) => {
   )
 }
 
+const defaultGuestData = {
+  average_score: 0,
+  best_score: 0,
+  total_interviews: 0,
+  daily_goal: { completed_today: 0, target: 1, current_streak: 0 },
+  progress_chart: [],
+  ai_suggestions: [
+    'Welcome to Skillzo! Create an account to start your first AI mock interview.',
+    'Upload your resume to receive ATS matching feedback & AI skill recommendations.'
+  ],
+  recent_reports: []
+}
+
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 const Dashboard = () => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const { user } = useAuth()
+  const { user, requireAuth } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
+    if (!user) {
+      setData(defaultGuestData)
+      setLoading(false)
+      return
+    }
     getDashboardSummary()
       .then((res) => setData(res.data))
+      .catch(() => setData(defaultGuestData))
       .finally(() => setLoading(false))
-  }, [])
+  }, [user])
 
-  if (loading) return <DashboardSkeleton />
+  if (loading || !data) return <DashboardSkeleton />
 
   const goalDone = data.daily_goal.completed_today >= data.daily_goal.target
+
+  const handleFeatureClick = (e, featureName, targetPath) => {
+    e.preventDefault()
+    requireAuth(featureName, () => navigate(targetPath))
+  }
 
   return (
     <AppShell>
@@ -65,18 +90,25 @@ const Dashboard = () => {
         <div>
           <span className="eyebrow mb-2">Readiness Studio</span>
           <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight mt-1">
-            Welcome back, {user?.username?.split(' ')[0] || 'Candidate'}!
+            {user ? `Welcome back, ${user.username?.split(' ')[0]}!` : 'Welcome, Candidate! 👋'}
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Here is your AI interview prep metrics and active performance trends.</p>
+          <p className="text-slate-500 text-sm mt-1">
+            {user 
+              ? 'Here is your AI interview prep metrics and active performance trends.'
+              : 'Explore Skillzo AI mock interview studio & ATS resume evaluation.'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <StreakBadge streak={data.daily_goal.current_streak} />
-          <Link to="/interview/setup" className="btn-primary flex items-center gap-2 shadow-md shadow-brand-500/20">
+          <button 
+            onClick={(e) => handleFeatureClick(e, 'AI Interview Studio', '/interview/setup')}
+            className="btn-primary flex items-center gap-2 shadow-md shadow-brand-500/20"
+          >
             <span>Start AI Interview</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -132,7 +164,12 @@ const Dashboard = () => {
               </div>
               <p className="text-sm font-semibold text-slate-700">No session analytics yet</p>
               <p className="text-xs text-slate-500 mt-1 max-w-xs">Complete your first AI interview session to plot your progress chart.</p>
-              <Link to="/interview/setup" className="btn-secondary mt-4 text-xs font-bold">Start First Session</Link>
+              <button 
+                onClick={(e) => handleFeatureClick(e, 'AI Interview Studio', '/interview/setup')} 
+                className="btn-secondary mt-4 text-xs font-bold"
+              >
+                Start First Session
+              </button>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
@@ -177,32 +214,44 @@ const Dashboard = () => {
 
       {/* Quick action cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Link to="/interview/setup" className="card bg-gradient-to-br from-brand-600 to-brand-700 text-white border-none shadow-md shadow-brand-600/20 hover:shadow-lg transition-all group p-6">
+        <a 
+          href="/interview/setup"
+          onClick={(e) => handleFeatureClick(e, 'AI Interview Studio', '/interview/setup')} 
+          className="card bg-gradient-to-br from-brand-600 to-brand-700 text-white border-none shadow-md shadow-brand-600/20 hover:shadow-lg transition-all group p-6 cursor-pointer"
+        >
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-brand-200">Mock Session</span>
           <p className="font-display font-extrabold text-xl text-white mt-1 group-hover:translate-x-1 transition-transform flex items-center justify-between">
             <span>AI Interview Studio</span>
             <span>→</span>
           </p>
           <p className="text-xs text-brand-100 mt-2">Practice tech & behavioral questions in real-time mode</p>
-        </Link>
+        </a>
         
-        <Link to="/resume" className="card bg-white border border-slate-200/80 hover:border-brand-300 shadow-craft hover:shadow-craftHover transition-all group p-6">
+        <a 
+          href="/resume"
+          onClick={(e) => handleFeatureClick(e, 'ATS Resume Analysis', '/resume')} 
+          className="card bg-white border border-slate-200/80 hover:border-brand-300 shadow-craft hover:shadow-craftHover transition-all group p-6 cursor-pointer"
+        >
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-brand-600">Resume Checker</span>
           <p className="font-display font-extrabold text-xl text-slate-900 mt-1 group-hover:text-brand-600 transition-colors flex items-center justify-between">
             <span>ATS Resume Analysis</span>
             <span>→</span>
           </p>
           <p className="text-xs text-slate-500 mt-2">Score your resume against targeted job descriptions</p>
-        </Link>
+        </a>
 
-        <Link to="/leaderboard" className="card bg-white border border-slate-200/80 hover:border-brand-300 shadow-craft hover:shadow-craftHover transition-all group p-6">
+        <a 
+          href="/leaderboard"
+          onClick={(e) => handleFeatureClick(e, 'Global Leaderboard', '/leaderboard')} 
+          className="card bg-white border border-slate-200/80 hover:border-brand-300 shadow-craft hover:shadow-craftHover transition-all group p-6 cursor-pointer"
+        >
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-600">Rankings</span>
           <p className="font-display font-extrabold text-xl text-slate-900 mt-1 group-hover:text-amber-600 transition-colors flex items-center justify-between">
             <span>Global Leaderboard</span>
             <span>→</span>
           </p>
           <p className="text-xs text-slate-500 mt-2">Compare your readiness metrics against top candidates</p>
-        </Link>
+        </a>
       </div>
 
       {/* Recent reports */}
@@ -212,9 +261,12 @@ const Dashboard = () => {
             <h3 className="font-display font-bold text-lg text-slate-900">Recent Interview Reports</h3>
             <p className="text-xs text-slate-500">Your latest practice performance scorecards</p>
           </div>
-          <Link to="/history" className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg border border-brand-100 transition-colors">
+          <button 
+            onClick={(e) => handleFeatureClick(e, 'Reports & History', '/history')} 
+            className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg border border-brand-100 transition-colors"
+          >
             View All Reports
-          </Link>
+          </button>
         </div>
         {data.recent_reports.length === 0 ? (
           <p className="text-xs text-slate-500 py-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
@@ -231,10 +283,11 @@ const Dashboard = () => {
                 ? 'bg-amber-50 text-amber-700 border-amber-200' 
                 : 'bg-brand-50 text-brand-700 border-brand-200'
               return (
-                <Link
-                  to={`/interview/${r.id}/report`}
+                <a
+                  href={`/interview/${r.id}/report`}
+                  onClick={(e) => handleFeatureClick(e, 'Interview Report', `/interview/${r.id}/report`)}
                   key={r.id}
-                  className="flex items-center justify-between py-3.5 hover:bg-slate-50 -mx-2 px-4 rounded-xl transition-all group"
+                  className="flex items-center justify-between py-3.5 hover:bg-slate-50 -mx-2 px-4 rounded-xl transition-all group cursor-pointer"
                 >
                   <div>
                     <p className="font-bold text-sm text-slate-800 group-hover:text-brand-600 transition-colors">{r.job_role}</p>
@@ -246,7 +299,7 @@ const Dashboard = () => {
                     </span>
                     <span className="text-slate-400 group-hover:translate-x-1 transition-transform">→</span>
                   </div>
-                </Link>
+                </a>
               )
             })}
           </div>
@@ -257,4 +310,3 @@ const Dashboard = () => {
 }
 
 export default Dashboard
-

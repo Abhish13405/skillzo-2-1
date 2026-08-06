@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import * as authApi from '../api/auth'
+import AuthPromptModal from '../components/AuthPromptModal'
 
 const AuthContext = createContext(null)
 
@@ -8,6 +9,8 @@ export const useAuth = () => useContext(AuthContext)
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authModalFeature, setAuthModalFeature] = useState('this feature')
 
   const loadUser = async () => {
     const access = localStorage.getItem('skillzo_access')
@@ -56,9 +59,44 @@ export const AuthProvider = ({ children }) => {
     setUser(res.data)
   }
 
+  const openAuthModal = (featureName = 'this feature') => {
+    setAuthModalFeature(featureName)
+    setIsAuthModalOpen(true)
+  }
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false)
+  }
+
+  const requireAuth = (featureName = 'this feature', callback = null) => {
+    if (user) {
+      if (callback) callback()
+      return true
+    }
+    openAuthModal(featureName)
+    return false
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      login, 
+      signup, 
+      logout, 
+      refreshUser,
+      isAuthModalOpen,
+      authModalFeature,
+      openAuthModal,
+      closeAuthModal,
+      requireAuth
+    }}>
       {children}
+      <AuthPromptModal 
+        isOpen={isAuthModalOpen} 
+        onClose={closeAuthModal} 
+        featureName={authModalFeature} 
+      />
     </AuthContext.Provider>
   )
 }
