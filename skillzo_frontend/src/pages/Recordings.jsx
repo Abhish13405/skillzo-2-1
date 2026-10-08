@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
+import { useAuth } from '../context/AuthContext'
 import {
   getAllRecordings,
   deleteRecording,
@@ -11,6 +12,7 @@ import {
 } from '../utils/recordingsDb'
 
 const Recordings = () => {
+  const { user } = useAuth()
   const [recordings, setRecordings] = useState([])
   const [loading, setLoading] = useState(true)
   const [filterMode, setFilterMode] = useState('all') // 'all', 'video', 'audio'
@@ -18,13 +20,13 @@ const Recordings = () => {
   const [storageInfo, setStorageInfo] = useState({ totalBytes: 0, formatted: '0 KB', count: 0 })
   const [activePlayback, setActivePlayback] = useState(null) // Recording object being played in modal
 
-  // Load recordings from IndexedDB
+  // Load recordings from IndexedDB for logged-in user
   const loadData = async () => {
     setLoading(true)
     try {
-      const all = await getAllRecordings()
+      const all = await getAllRecordings(user)
       setRecordings(all)
-      const storage = await getTotalStorageUsed()
+      const storage = await getTotalStorageUsed(user)
       setStorageInfo(storage)
     } catch (err) {
       console.error('Error loading recordings:', err)
@@ -35,7 +37,7 @@ const Recordings = () => {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [user])
 
   // Delete single recording
   const handleDelete = async (id, e) => {
@@ -48,10 +50,10 @@ const Recordings = () => {
     await loadData()
   }
 
-  // Clear all recordings
+  // Clear all recordings for this user
   const handleClearAll = async () => {
-    if (!window.confirm('Are you sure you want to delete ALL recordings? This cannot be undone.')) return
-    await clearAllRecordings()
+    if (!window.confirm('Are you sure you want to delete your recordings? This cannot be undone.')) return
+    await clearAllRecordings(user)
     setActivePlayback(null)
     await loadData()
   }

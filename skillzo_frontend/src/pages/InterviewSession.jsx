@@ -61,51 +61,120 @@ const AudioWaveformBars = ({ isRecording = true, isPaused = false }) => {
   )
 }
 
-// ─── Speech Recognition Hook ─────────────────────────────────────────────────
-const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition
+// ─── Continuous & Resilient Speech Recognition Hook ───────────────────────────
+const getSpeechRecognitionAPI = () => {
+  if (typeof window === 'undefined') return null
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null
+}
 
 const useSpeechRecognition = (onTranscript) => {
   const recognitionRef = useRef(null)
+  const isExplicitlyStoppedRef = useRef(false)
   const [listening, setListening] = useState(false)
-  const [supported] = useState(() => !!SpeechRecognitionAPI)
+  const [supported] = useState(() => !!getSpeechRecognitionAPI())
+  const finalTranscriptRef = useRef('')
 
   const start = useCallback(() => {
-    if (!SpeechRecognitionAPI) return
-    const recognition = new SpeechRecognitionAPI()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = 'en-US'
+    const SpeechAPI = getSpeechRecognitionAPI()
+    if (!SpeechAPI) return
 
-    recognition.onresult = (event) => {
-      let transcript = ''
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript
-      }
-      onTranscript(transcript)
+    isExplicitlyStoppedRef.current = false
+
+    // Clean up existing instance if any
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch {}
     }
 
-    recognition.onend = () => setListening(false)
-    recognition.onerror = () => setListening(false)
+    const recognition = new SpeechAPI()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.maxAlternatives = 1
+    // Prioritize device language or Indian/US English
+    recognition.lang = (typeof navigator !== 'undefined' && navigator.language?.startsWith('en'))
+      ? navigator.language
+      : 'en-IN'
+
+    recognition.onresult = (event) => {
+      let interim = ''
+      let newFinal = ''
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const item = event.results[i]
+        const text = item[0]?.transcript || ''
+        if (item.isFinal) {
+          newFinal += text + ' '
+        } else {
+          interim += text
+        }
+      }
+
+      if (newFinal) {
+        finalTranscriptRef.current += newFinal
+      }
+
+      const combined = (finalTranscriptRef.current + interim).trim()
+      if (combined) {
+        onTranscript(combined)
+      }
+    }
+
+    recognition.onerror = (event) => {
+      // 'no-speech' happens naturally when candidate is thinking; keep going
+      if (event.error === 'no-speech') {
+        return
+      }
+      if (event.error === 'not-allowed') {
+        console.warn('Microphone permission blocked for speech recognition')
+        setListening(false)
+        isExplicitlyStoppedRef.current = true
+        return
+      }
+      console.warn('Speech recognition status:', event.error)
+    }
+
+    recognition.onend = () => {
+      // Auto-restart if we should still be listening and candidate is answering
+      if (!isExplicitlyStoppedRef.current) {
+        try {
+          recognition.start()
+          setListening(true)
+          return
+        } catch {}
+      }
+      setListening(false)
+    }
 
     recognitionRef.current = recognition
+
     try {
       recognition.start()
       setListening(true)
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('Recognition start caught:', e)
     }
   }, [onTranscript])
 
   const stop = useCallback(() => {
-    try {
-      recognitionRef.current?.stop()
-    } catch {
-      // ignore
+    isExplicitlyStoppedRef.current = true
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop()
+      } catch {}
     }
     setListening(false)
   }, [])
 
-  return { listening, supported, start, stop }
+  const resetTranscript = useCallback(() => {
+    finalTranscriptRef.current = ''
+  }, [])
+
+  const syncTranscript = useCallback((text) => {
+    finalTranscriptRef.current = text ? (text + ' ') : ''
+  }, [])
+
+  return { listening, supported, start, stop, resetTranscript, syncTranscript }
 }
 
 // ─── Speech Synthesis Hook ───────────────────────────────────────────────────
@@ -283,7 +352,14 @@ const InterviewSession = () => {
 
   // Speech Handlers
   const handleTranscript = useCallback((t) => setAnswerText(t), [])
-  const { listening, supported: speechSupported, start: startMic, stop: stopMic } = useSpeechRecognition(handleTranscript)
+  const {
+    listening,
+    supported: speechSupported,
+    start: startMic,
+    stop: stopMic,
+    resetTranscript,
+    syncTranscript,
+  } = useSpeechRecognition(handleTranscript)
   const { speak, cancel: cancelSpeech, speaking } = useSpeechSynthesis()
 
   // Hardware Camera Stop
@@ -439,6 +515,8 @@ const InterviewSession = () => {
               questionText: qText,
               blob,
               durationSeconds,
+              userId: user?.id,
+              userEmail: user?.email,
             })
             resolve(saved)
             return
@@ -455,7 +533,7 @@ const InterviewSession = () => {
         resolve(null)
       }
     })
-  }, [sessionId, session])
+  }, [sessionId, session, user])
 
   // Load Session Detail and set up mode-based media
   useEffect(() => {
@@ -510,6 +588,7 @@ const InterviewSession = () => {
   const handleSpeakImmediately = useCallback(() => {
     setIsCountingDown(false)
     setSpeechCountdown(0)
+    resetTranscript()
     const q = session?.questions?.[current]
     if (q?.question_text) {
       speak(q.question_text, () => {
@@ -518,14 +597,20 @@ const InterviewSession = () => {
           startRecording()
         }
       })
+      // Also start mic right away so candidate can speak immediately
+      if (session?.mode !== 'text' && isMicActive && !isPaused) {
+        startMic()
+        startRecording()
+      }
     }
-  }, [session, current, isMicActive, isPaused, speak, startMic, startRecording])
+  }, [session, current, isMicActive, isPaused, speak, startMic, startRecording, resetTranscript])
 
   // When question changes: 5-second countdown, then speak and start mic & recording
   useEffect(() => {
     if (!session || isCompleted) return
     stopMic()
     cancelSpeech()
+    resetTranscript()
 
     setSpeechCountdown(5)
     setIsCountingDown(true)
@@ -547,6 +632,13 @@ const InterviewSession = () => {
               startRecording()
             }
           })
+          // Fallback: If speech synthesis takes more than 1 second, ensure mic starts so candidate can respond
+          if (session.mode !== 'text' && isMicActive && !isPaused) {
+            setTimeout(() => {
+              startMic()
+              startRecording()
+            }, 1200)
+          }
         }
       }
     }, 1000)
@@ -576,6 +668,7 @@ const InterviewSession = () => {
     } else {
       stopMic()
       cancelSpeech()
+      resetTranscript()
       setCurrent((c) => c + 1)
       setAnswerText('')
       startTime.current = Date.now()
@@ -711,6 +804,18 @@ const InterviewSession = () => {
   // End Call / Finish early
   const handleEndCall = async () => {
     if (window.confirm('Do you want to end the interview and generate your feedback report?')) {
+      if (answerText.trim() && question) {
+        try {
+          const speakingTime = Math.round((Date.now() - startTime.current) / 1000)
+          await submitAnswer(sessionId, {
+            question_id: question.id,
+            answer_text: answerText.trim(),
+            speaking_time_seconds: speakingTime,
+          })
+        } catch (e) {
+          console.warn('Could not submit active answer prior to finishing:', e)
+        }
+      }
       try {
         await stopAndSaveRecording(current + 1, question?.question_text)
       } catch {}
@@ -1120,7 +1225,7 @@ const InterviewSession = () => {
 
               {/* Card 2: Your Answer (Audio Waveform + Recording status / Interactive Textarea) */}
               <div className="bg-slate-50/70 dark:bg-[#0D1527] rounded-2xl p-3 sm:p-3.5 border border-slate-200/70 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-0.5">
+                <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
                   <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                     Your Answer
                   </span>
@@ -1128,18 +1233,35 @@ const InterviewSession = () => {
                     <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
                       {formatTime(recordingSeconds)}
                     </span>
-                    <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 text-[11px]">
-                      {session?.mode === 'text' ? (
-                        'Typing Mode ⌨️'
-                      ) : (
-                        <>
-                          {listening && !isPaused && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-ping" />
-                          )}
-                          {isPaused ? 'Paused' : listening ? 'Recording...' : 'Mic Ready'}
-                        </>
-                      )}
-                    </span>
+                    {session?.mode === 'text' ? (
+                      <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
+                        Typing Mode ⌨️
+                      </span>
+                    ) : (
+                      <>
+                        {listening && !isPaused ? (
+                          <button
+                            type="button"
+                            onClick={stopMic}
+                            className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 animate-pulse cursor-pointer shadow-2xs"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                            <span>🔴 Speaking Live... (Mic On)</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMicActive(true)
+                              startMic()
+                            }}
+                            className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                          >
+                            <span>🎤 Tap to Speak / Dictate</span>
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1154,16 +1276,29 @@ const InterviewSession = () => {
                 <div className="mt-1">
                   <textarea
                     value={answerText}
-                    onChange={(e) => setAnswerText(e.target.value)}
+                    onChange={(e) => {
+                      setAnswerText(e.target.value)
+                      syncTranscript(e.target.value)
+                    }}
                     onKeyDown={handleTextareaKeyDown}
                     placeholder={
                       session?.mode === 'text'
                         ? 'Type your detailed answer here...'
-                        : 'Your spoken answer transcript will appear here. You can also type or edit directly...'
+                        : 'Speak into your microphone now (words appear here in real-time) or type directly...'
                     }
                     rows={session?.mode === 'text' ? 4 : 2}
                     className="w-full p-2 bg-white dark:bg-[#131E38] rounded-xl text-xs sm:text-[13px] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border border-slate-200 dark:border-slate-700/80 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all"
                   />
+                  {session?.mode !== 'text' && (
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                      <span>
+                        {listening
+                          ? '🟢 Live audio dictation active'
+                          : '⚪ Mic paused. Tap "Tap to Speak" or type answer'}
+                      </span>
+                      <span>{answerText ? `${answerText.length} chars` : 'Ready to record'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

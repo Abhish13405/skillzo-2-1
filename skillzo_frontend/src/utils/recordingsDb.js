@@ -48,6 +48,8 @@ export const saveRecording = async ({
   questionText,
   blob,
   durationSeconds,
+  userId,
+  userEmail,
 }) => {
   if (!blob || blob.size === 0) return null
 
@@ -66,6 +68,8 @@ export const saveRecording = async ({
       sizeBytes: blob.size,
       mimeType: blob.type || (mode === 'audio' ? 'audio/webm' : 'video/webm'),
       durationSeconds: durationSeconds || 0,
+      userId: userId || null,
+      userEmail: userEmail ? userEmail.toLowerCase() : null,
       createdAt: new Date().toISOString(),
     }
 
@@ -84,9 +88,9 @@ export const saveRecording = async ({
 }
 
 /**
- * Get all recordings, newest first
+ * Get recordings filtered by logged-in user, newest first
  */
-export const getAllRecordings = async () => {
+export const getAllRecordings = async (filterUser = null) => {
   try {
     const db = await openDB()
     return new Promise((resolve, reject) => {
@@ -95,7 +99,19 @@ export const getAllRecordings = async () => {
       const req = store.getAll()
 
       req.onsuccess = () => {
-        const list = req.result || []
+        let list = req.result || []
+        if (filterUser) {
+          const uid = filterUser.id
+          const uemail = (filterUser.email || '').toLowerCase()
+          list = list.filter((r) => {
+            // Match by userId or userEmail
+            if (r.userId && uid && String(r.userId) === String(uid)) return true
+            if (r.userEmail && uemail && r.userEmail.toLowerCase() === uemail) return true
+            // Legacy recording created before user tagging (only show if email matches current candidate or no user tagged)
+            if (!r.userId && !r.userEmail) return true
+            return false
+          })
+        }
         // Sort newest first
         list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         resolve(list)
@@ -129,19 +145,29 @@ export const deleteRecording = async (id) => {
 }
 
 /**
- * Clear all recordings
+ * Clear all recordings for a specific user
  */
-export const clearAllRecordings = async () => {
+export const clearAllRecordings = async (filterUser = null) => {
   try {
     const db = await openDB()
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite')
-      const store = tx.objectStore(STORE_NAME)
-      const req = store.clear()
+    if (!filterUser) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite')
+        const store = tx.objectStore(STORE_NAME)
+        const req = store.clear()
+        req.onsuccess = () => resolve(true)
+        req.onerror = (e) => reject(e.target.error)
+      })
+    }
 
-      req.onsuccess = () => resolve(true)
-      req.onerror = (e) => reject(e.target.error)
-    })
+    // Delete only the user's recordings
+    const userRecs = await getAllRecordings(filterUser)
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    for (const rec of userRecs) {
+      store.delete(rec.id)
+    }
+    return true
   } catch (err) {
     console.error('Failed to clear recordings:', err)
     return false
@@ -149,10 +175,10 @@ export const clearAllRecordings = async () => {
 }
 
 /**
- * Calculate total storage used by all recordings
+ * Calculate total storage used by recordings of the user
  */
-export const getTotalStorageUsed = async () => {
-  const all = await getAllRecordings()
+export const getTotalStorageUsed = async (filterUser = null) => {
+  const all = await getAllRecordings(filterUser)
   const total = all.reduce((sum, r) => sum + (r.sizeBytes || 0), 0)
   return {
     totalBytes: total,

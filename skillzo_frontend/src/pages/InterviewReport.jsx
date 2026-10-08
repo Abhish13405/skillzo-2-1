@@ -271,34 +271,80 @@ const InterviewReport = () => {
                 <span className="font-mono text-blue-500 font-bold shrink-0 text-sm mt-0.5">{i + 1}.</span>
                 <p className="text-sm font-bold text-slate-900 dark:text-white">{q.question_text}</p>
               </div>
-              {q.answer ? (
-                <div className="ml-6 space-y-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {[
-                      ['Overall', q.answer.overall_score],
-                      ['Technical', q.answer.technical_knowledge],
-                      ['Communication', q.answer.communication],
-                    ].map(([label, val]) => (
-                      <span key={label} className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] border border-slate-200 dark:border-slate-800">
-                        <span className="text-slate-500 dark:text-slate-400">{label}: </span>
-                        <span className={val >= 75 ? 'text-emerald-500' : val >= 40 ? 'text-amber-500' : 'text-blue-500'}>{val}</span>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="bg-slate-50 dark:bg-[#131E38]/60 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800/60 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                    <strong className="text-slate-900 dark:text-white block mb-1">Your Response:</strong>
-                    {q.answer.answer_text}
-                  </div>
-                  {q.answer.ideal_answer_summary && (
-                    <div className="bg-brand-50/50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-brand-100 dark:border-blue-900/40 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                      <strong className="text-blue-600 dark:text-blue-300 block mb-1">💡 Ideal Answer Structure:</strong>
-                      {q.answer.ideal_answer_summary}
+              {(() => {
+                const ans = q.answer || (q.answers && q.answers[0]) || null
+                const isBlankOrTimeout = !ans?.answer_text ||
+                  ans.answer_text.includes('Time expired') ||
+                  ans.answer_text.includes('Passed without verbal')
+
+                if (!ans) {
+                  return (
+                    <div className="ml-6 p-3 bg-slate-50 dark:bg-[#131E38]/50 border border-slate-200/60 dark:border-slate-800 rounded-xl text-xs text-slate-400 dark:text-slate-500 italic">
+                      Question skipped or left blank.
                     </div>
-                  )}
-                </div>
-              ) : (
-                <p className="ml-6 text-xs text-slate-400 dark:text-slate-500 italic">Question skipped or left blank.</p>
-              )}
+                  )
+                }
+
+                return (
+                  <div className="ml-6 space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {[
+                        ['Overall', ans.overall_score],
+                        ['Technical', ans.technical_knowledge],
+                        ['Communication', ans.communication],
+                      ].map(([label, val]) => (
+                        <span key={label} className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] border border-slate-200 dark:border-slate-800">
+                          <span className="text-slate-500 dark:text-slate-400">{label}: </span>
+                          <span className={val >= 75 ? 'text-emerald-500' : val >= 40 ? 'text-amber-500' : 'text-blue-500'}>{val}</span>
+                        </span>
+                      ))}
+                    </div>
+
+                    {isBlankOrTimeout ? (
+                      <div className="bg-amber-50/70 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200/70 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                        <strong className="text-amber-900 dark:text-amber-200 block mb-1">⚠️ No verbal response recorded:</strong>
+                        {ans.answer_text}
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 dark:bg-[#131E38]/80 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-100 leading-relaxed font-sans">
+                        <strong className="text-blue-600 dark:text-blue-400 block mb-1.5 text-[11px] font-mono uppercase tracking-wider">
+                          Your Answer:
+                        </strong>
+                        <p className="whitespace-pre-wrap">{ans.answer_text}</p>
+                      </div>
+                    )}
+
+                    {ans.strengths?.length > 0 && (
+                      <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs">
+                        <strong className="text-emerald-700 dark:text-emerald-300 block mb-1 font-semibold">✓ Key Strengths:</strong>
+                        <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300">
+                          {ans.strengths.map((str, sIdx) => (
+                            <li key={sIdx}>{str}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {ans.improvements?.length > 0 && (
+                      <div className="bg-amber-50/50 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-100 dark:border-amber-900/40 text-xs">
+                        <strong className="text-amber-700 dark:text-amber-300 block mb-1 font-semibold">↗ Recommendations for Improvement:</strong>
+                        <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300">
+                          {ans.improvements.map((imp, iIdx) => (
+                            <li key={iIdx}>{imp}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {ans.ideal_answer_summary && (
+                      <div className="bg-brand-50/50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-brand-100 dark:border-blue-900/40 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                        <strong className="text-blue-600 dark:text-blue-300 block mb-1">💡 Ideal Answer Structure:</strong>
+                        {ans.ideal_answer_summary}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           ))}
         </div>
