@@ -261,34 +261,53 @@ const useSpeechSynthesis = () => {
 
   const speak = useCallback(
     (text, onEnd) => {
-      if (!supported || !text) return
-      window.speechSynthesis.cancel()
-
-      const currentVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices()
-      const femaleVoice = getFemaleVoice(currentVoices)
-
-      const utterance = new SpeechSynthesisUtterance(text)
-      if (femaleVoice) {
-        utterance.voice = femaleVoice
-        utterance.lang = femaleVoice.lang || 'en-US'
-      } else {
-        utterance.lang = 'en-US'
-      }
-
-      // Slightly elevated pitch (1.18) ensures distinctly feminine, friendly, clear sound
-      utterance.pitch = 1.18
-      utterance.rate = 0.94
-
-      utterance.onstart = () => setSpeaking(true)
-      utterance.onend = () => {
-        setSpeaking(false)
+      if (!supported || !text) {
         onEnd?.()
+        return
       }
-      utterance.onerror = () => {
-        setSpeaking(false)
-        onEnd?.()
+
+      let ended = false
+      const finishOnce = () => {
+        if (!ended) {
+          ended = true
+          setSpeaking(false)
+          onEnd?.()
+        }
       }
-      window.speechSynthesis.speak(utterance)
+
+      try {
+        window.speechSynthesis.cancel()
+
+        const currentVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices()
+        const femaleVoice = getFemaleVoice(currentVoices)
+
+        const utterance = new SpeechSynthesisUtterance(text)
+        if (femaleVoice) {
+          utterance.voice = femaleVoice
+          utterance.lang = femaleVoice.lang || 'en-US'
+        } else {
+          utterance.lang = 'en-US'
+        }
+
+        utterance.pitch = 1.18
+        utterance.rate = 0.94
+
+        utterance.onstart = () => setSpeaking(true)
+        utterance.onend = finishOnce
+        utterance.onerror = finishOnce
+
+        window.speechSynthesis.speak(utterance)
+
+        // Safety fallback: if audio autoplay blocked by browser or onend missed
+        const wordCount = text.split(/\s+/).length
+        const estimatedDurationMs = Math.max(3000, Math.min(12000, wordCount * 360))
+        setTimeout(() => {
+          finishOnce()
+        }, estimatedDurationMs)
+      } catch (err) {
+        console.warn('Speech synthesis caught error:', err)
+        finishOnce()
+      }
     },
     [supported, voices]
   )
@@ -321,6 +340,7 @@ const InterviewSession = () => {
   const { user } = useAuth()
 
   const [session, setSession] = useState(null)
+  const [loadingSession, setLoadingSession] = useState(true)
   const [current, setCurrent] = useState(0)
   const [answerText, setAnswerText] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -541,29 +561,39 @@ const InterviewSession = () => {
 
   // Load Session Detail and set up mode-based media
   useEffect(() => {
-    getInterviewDetail(sessionId).then((res) => {
-      const s = res.data
-      setSession(s)
-      const smode = s?.mode || 'text'
-      if (smode === 'video') {
-        setIsCameraActive(true)
-        setIsMicActive(true)
-        setMainView('candidate')
-        startCamera()
-      } else if (smode === 'audio') {
-        stopCamera()
-        setIsCameraActive(false)
-        setIsMicActive(true)
-        setMainView('ai')
-        startAudioStream()
-      } else {
-        // text mode: neither camera nor mic auto-starts
-        stopCamera()
-        setIsCameraActive(false)
-        setIsMicActive(false)
-        setMainView('ai')
-      }
-    })
+    setLoadingSession(true)
+    getInterviewDetail(sessionId)
+      .then((res) => {
+        const s = res.data
+        setSession(s)
+        const smode = s?.mode || 'text'
+        if (smode === 'video') {
+          setIsCameraActive(true)
+          setIsMicActive(true)
+          setMainView('candidate')
+          startCamera()
+        } else if (smode === 'audio') {
+          stopCamera()
+          setIsCameraActive(false)
+          setIsMicActive(true)
+          setMainView('ai')
+          startAudioStream()
+        } else {
+          // text mode: neither camera nor mic auto-starts
+          stopCamera()
+          setIsCameraActive(false)
+          setIsMicActive(false)
+          setMainView('ai')
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load session details:', err)
+        setError('Could not load session details. Please check your connection or return to dashboard.')
+      })
+      .finally(() => {
+        setLoadingSession(false)
+      })
+
     return () => {
       stopAllMedia()
     }
@@ -594,6 +624,20 @@ const InterviewSession = () => {
     cancelSpeech()
     handleAiFinishedAsking()
   }, [cancelSpeech, handleAiFinishedAsking])
+
+  // Speak question immediately without waiting for countdown
+  const handleSpeakImmediately = useCallback(() => {
+    setIsCountingDown(false)
+    setSpeechCountdown(0)
+    const q = session?.questions?.[current]
+    if (q?.question_text) {
+      speak(q.question_text, () => {
+        handleAiFinishedAsking()
+      })
+    } else {
+      handleAiFinishedAsking()
+    }
+  }, [session, current, speak, handleAiFinishedAsking])
 
   // Timers: Only count down AFTER AI finishes asking the question!
   useEffect(() => {
@@ -846,6 +890,28 @@ const InterviewSession = () => {
       setError('Could not generate final report. Try again.')
       setCompleting(false)
     }
+  }
+
+  if (loadingSession || !session) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F4F6FB] dark:bg-[#080D1A] p-4 text-center font-sans">
+        <div className="w-16 h-16 rounded-3xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xl mb-4 animate-pulse shadow-inner border border-blue-200 dark:border-blue-900/60">
+          📹
+        </div>
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">
+          Initializing Video Interview Studio
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6 leading-relaxed">
+          Connecting webcam, microphone, and AI interviewer. Please tap <strong>Allow</strong> if your browser asks for camera permissions.
+        </p>
+        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl text-red-600 dark:text-red-400 text-xs font-semibold max-w-md mx-auto">
+            {error}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -1220,10 +1286,10 @@ const InterviewSession = () => {
                       <button
                         type="button"
                         onClick={handleSkipAiVoiceAndAnswerNow}
-                        className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded-md border border-blue-200/60 dark:border-blue-900/40 cursor-pointer"
+                        className="text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-0.5 rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer"
                         title="Skip voice and immediately start candidate 40s timer & voice recording"
                       >
-                        <span>Skip Voice & Answer Now ➔</span>
+                        <span>Start Answering (40s) ➔</span>
                       </button>
                     )}
                     <div
@@ -1239,7 +1305,7 @@ const InterviewSession = () => {
                       {isAiAsking ? (
                         <>
                           <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                          <span>AI Asking... (40s ready)</span>
+                          <span>AI Speaking...</span>
                         </>
                       ) : (
                         <>
@@ -1268,9 +1334,13 @@ const InterviewSession = () => {
                       {formatTime(recordingSeconds)}
                     </span>
                     {isAiAsking ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-slate-100 dark:bg-[#131E38] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                        <span>⏳ Waiting for AI to finish question...</span>
-                      </span>
+                      <button
+                        onClick={handleSkipAiVoiceAndAnswerNow}
+                        className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Click to start answer immediately"
+                      >
+                        <span>⏳ AI Asking · Click to Answer Now ➔</span>
+                      </button>
                     ) : session?.mode === 'text' ? (
                       <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
                         Typing Mode ⌨️
