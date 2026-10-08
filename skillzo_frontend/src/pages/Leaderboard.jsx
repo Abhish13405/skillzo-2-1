@@ -34,26 +34,26 @@ const Leaderboard = () => {
 
   return (
     <AppShell>
-      <div className="mb-8 border-b border-slate-200/60 pb-6">
-        <span className="eyebrow mb-2">Personal Records</span>
-        <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight">Your Leaderboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Your best mock interview scorecards, ordered by readiness rank.</p>
+      <div className="mb-4 sm:mb-5 border-b border-slate-200/60 pb-3 sm:pb-4">
+        <span className="eyebrow mb-1">Personal Records</span>
+        <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 tracking-tight mt-0.5">Your Leaderboard</h1>
+        <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Your best mock interview scorecards, ordered by readiness rank.</p>
       </div>
 
       {sessions.length === 0 ? (
-        <div className="card bg-white text-center py-16 border border-slate-200/80 shadow-craft rounded-2xl">
-          <p className="text-4xl mb-4">🏆</p>
-          <h3 className="font-display font-bold text-lg text-slate-900">No completed interviews yet</h3>
-          <p className="text-slate-500 text-xs mb-6 mt-1">Complete your first interview to populate your personal leaderboard.</p>
-          <Link to="/interview/setup" className="btn-primary shadow-md shadow-brand-500/20">Start First Interview →</Link>
+        <div className="card bg-white text-center py-12 border border-slate-200/80 shadow-craft rounded-2xl">
+          <p className="text-3xl mb-3">🏆</p>
+          <h3 className="font-display font-bold text-base sm:text-lg text-slate-900">No completed interviews yet</h3>
+          <p className="text-slate-500 text-xs mb-4 mt-0.5">Complete your first interview to populate your personal leaderboard.</p>
+          <Link to="/interview/setup" className="btn-primary shadow-sm py-2 px-3.5 text-xs">Start First Interview →</Link>
         </div>
       ) : (
         <>
           {/* Podium for top 3 */}
           {top3.length > 0 && (
-            <div className="mb-10">
-              <span className="eyebrow mb-4">Top Performance Podium</span>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+            <div className="mb-5 sm:mb-6">
+              <span className="eyebrow mb-2">Top Performance Podium</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mt-1">
                 {top3.map((s, idx) => (
                   <motion.div
                     key={s.id}
@@ -63,15 +63,15 @@ const Leaderboard = () => {
                   >
                     <Link
                       to={`/interview/${s.id}/report`}
-                      className={`card bg-white flex flex-col items-center text-center border transition-all hover:shadow-craftHover group p-6 rounded-2xl ${
+                      className={`card bg-white flex flex-col items-center text-center border transition-all hover:shadow-craftHover group p-3.5 sm:p-4 rounded-2xl ${
                         idx === 0 ? 'border-brand-500 ring-2 ring-brand-500/15 bg-gradient-to-b from-brand-50/50 to-white' : 'border-slate-200/80 shadow-craft'
                       }`}
                     >
-                      <span className="text-4xl mb-3">{MEDALS[idx]}</span>
-                      <ReadinessDial score={s.overall_score} size={100} />
-                      <p className="font-display font-extrabold text-lg text-slate-900 mt-4 group-hover:text-brand-600 transition-colors">{s.job_role}</p>
-                      <p className="text-xs text-slate-500 font-mono mt-1">{s.difficulty} · {s.mode}</p>
-                      <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      <span className="text-3xl mb-2">{MEDALS[idx]}</span>
+                      <ReadinessDial score={s.overall_score} size={76} />
+                      <p className="font-display font-extrabold text-base text-slate-900 mt-2.5 group-hover:text-brand-600 transition-colors">{s.job_role}</p>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">{s.difficulty} · {s.mode}</p>
+                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">
                         {s.completed_at ? new Date(s.completed_at).toLocaleDateString('en-IN') : '—'}
                       </p>
                     </Link>

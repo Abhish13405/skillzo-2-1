@@ -26,7 +26,7 @@ const AppShell = ({ children }) => {
               </svg>
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white font-display font-extrabold text-sm shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-display font-extrabold text-sm shadow-sm">
                 S
               </div>
               <span className="font-display font-bold text-lg text-slate-900 dark:text-white">Skillzo</span>
@@ -41,7 +41,7 @@ const AppShell = ({ children }) => {
         </div>
 
         {/* Main content viewport */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 max-w-6xl mx-auto w-full">
+        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-3.5 sm:py-5 max-w-[1380px] mx-auto w-full">
           {children}
         </main>
       </div>

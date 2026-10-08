@@ -6,9 +6,9 @@ import React from 'react'
  */
 const ReadinessDial = ({ score = 0, size = 120, label }) => {
   const pct = Math.max(0, Math.min(100, score))
-  let color = '#F43F5E' // Low: Rose Red
-  if (pct >= 40) color = '#D97706' // Mid: Amber Warm
-  if (pct >= 75) color = '#E11D48' // High: Deep Crimson Red
+  let color = '#60A5FA' // Low
+  if (pct >= 40) color = '#F59E0B' // Mid: Amber
+  if (pct >= 75) color = '#2563EB' // High: Studio Blue
 
   return (
     <div className="flex flex-col items-center gap-2">

@@ -127,7 +127,16 @@ class CompleteInterviewView(APIView):
 
         answers = InterviewAnswer.objects.filter(question__session=session)
         if not answers.exists():
-            return Response({"error": "No answers submitted yet."}, status=status.HTTP_400_BAD_REQUEST)
+            session.status = 'completed'
+            session.completed_at = timezone.now()
+            session.overall_score = 0
+            session.technical_score = 0
+            session.communication_score = 0
+            session.confidence_trend = 'steady'
+            session.ai_suggestions = ["Attempt answering all questions to receive detailed AI evaluation."]
+            session.verdict = 'No answers submitted during this session.'
+            session.save()
+            return Response(InterviewSessionSerializer(session).data)
 
         eval_list = [
             {

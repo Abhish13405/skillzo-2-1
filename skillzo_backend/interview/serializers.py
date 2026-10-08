@@ -6,7 +6,7 @@ class StartInterviewSerializer(serializers.Serializer):
     job_role = serializers.CharField(max_length=100)
     difficulty = serializers.ChoiceField(choices=InterviewSession.DIFFICULTY_CHOICES)
     mode = serializers.ChoiceField(choices=InterviewSession.MODE_CHOICES, default='text')
-    question_count = serializers.IntegerField(default=5, min_value=1, max_value=15)
+    question_count = serializers.IntegerField(default=10, min_value=1, max_value=15)
 
 
 class SubmitAnswerSerializer(serializers.Serializer):

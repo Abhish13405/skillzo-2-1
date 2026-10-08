@@ -16,7 +16,7 @@ ALLOWED_HOSTS = ['*']
 
 # ---- Groq AI Config (single API used across Resume, Text, Audio, Video eval) ----
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
-GROQ_MODEL = config('GROQ_MODEL', default='llama-3.3-70b-versatile')
+GROQ_MODEL = config('GROQ_MODEL', default='qwen/qwen3.8-27b')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

@@ -77,20 +77,20 @@ const SidebarContent = ({ onClose }) => {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Logo Header */}
-      <div className="px-6 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white font-display font-extrabold text-xl shadow-md shadow-brand-500/20">
+      <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-display font-extrabold text-base shadow-sm">
             S
           </div>
           <div>
-            <span className="font-display font-extrabold text-xl text-slate-900 dark:text-white tracking-tight block">Skillzo</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400 font-mono">AI Interview Studio</span>
+            <span className="font-display font-extrabold text-base text-slate-900 dark:text-white tracking-tight block leading-tight">Skillzo</span>
+            <span className="block text-[9px] font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400 font-mono">AI Interview Studio</span>
           </div>
         </div>
         {/* Close button for mobile */}
         {onClose && (
           <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
@@ -98,16 +98,16 @@ const SidebarContent = ({ onClose }) => {
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-5 space-y-1.5 overflow-y-auto">
+      <nav className="flex-1 px-2.5 py-3 space-y-1 overflow-y-auto">
         {navItems.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
             onClick={(e) => handleNavClick(e, to, label)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-200 ${
                 isActive
-                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-400 border border-brand-200/80 dark:border-brand-900/80 shadow-xs'
+                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-400 border border-brand-200/80 dark:border-brand-900/80 shadow-2xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
               }`
             }
@@ -119,7 +119,7 @@ const SidebarContent = ({ onClose }) => {
                 </span>
                 <span>{label}</span>
                 {isActive && (
-                  <span className="ml-auto w-1.5 h-4 bg-brand-600 dark:bg-brand-400 rounded-full" />
+                  <span className="ml-auto w-1.5 h-3.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
                 )}
               </>
             )}
@@ -128,34 +128,34 @@ const SidebarContent = ({ onClose }) => {
       </nav>
 
       {/* Theme Toggle & User Footer */}
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
         {/* Dark Mode Toggle Button */}
         <button
           onClick={toggleTheme}
-          className="w-full flex items-center justify-between px-3 py-2 mb-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-brand-300 dark:hover:border-brand-600 transition-all shadow-xs"
+          className="w-full flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:border-brand-300 dark:hover:border-brand-600 transition-all shadow-2xs"
         >
-          <span className="flex items-center gap-2">
-            <span>{theme === 'dark' ? '🌙 Dark Theme' : '☀️ Light Theme'}</span>
+          <span className="flex items-center gap-1.5">
+            <span>{theme === 'dark' ? '🌙 Dark' : '☀️ Light'}</span>
           </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
             {theme === 'dark' ? 'ON' : 'OFF'}
           </span>
         </button>
 
         {user ? (
           <>
-            <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-xs">
-              <div className="w-9 h-9 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-900 flex items-center justify-center font-display font-bold text-sm shrink-0">
+            <div className="flex items-center gap-2.5 mb-2 p-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-2xs">
+              <div className="w-7 h-7 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-900 flex items-center justify-center font-display font-bold text-xs shrink-0">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate leading-snug">{user?.username || 'User'}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@skillzo.ai'}</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate leading-snug">{user?.username || 'User'}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@skillzo.ai'}</p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-800 py-2 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-700"
+              className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-800 py-1.5 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-700"
             >
               <Icons.Logout />
               Sign out
@@ -198,7 +198,7 @@ const Sidebar = ({ open, onClose }) => {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-slate-200/80 min-h-screen flex-col shadow-xs sticky top-0 h-screen">
+      <aside className="hidden lg:flex w-56 xl:w-60 shrink-0 bg-white border-r border-slate-200/80 min-h-screen flex-col shadow-xs sticky top-0 h-screen">
         <SidebarContent />
       </aside>
 

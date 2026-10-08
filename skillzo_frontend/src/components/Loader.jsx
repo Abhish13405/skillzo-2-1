@@ -9,7 +9,7 @@ const Loader = ({ label = 'Loading' }) => (
         <circle cx="32" cy="32" r="28" stroke="#E2E8F0" strokeWidth="3" />
         <path
           d="M32 4 A28 28 0 0 1 60 32"
-          stroke="#E11D48" strokeWidth="3.5" strokeLinecap="round"
+          stroke="#2563EB" strokeWidth="3.5" strokeLinecap="round"
         />
       </svg>
       {/* Inner ring */}
@@ -17,7 +17,7 @@ const Loader = ({ label = 'Loading' }) => (
         <circle cx="32" cy="32" r="18" stroke="#F1F5F9" strokeWidth="3" />
         <path
           d="M32 14 A18 18 0 0 1 50 32"
-          stroke="#FB7185" strokeWidth="3.5" strokeLinecap="round"
+          stroke="#60A5FA" strokeWidth="3.5" strokeLinecap="round"
         />
       </svg>
       {/* Center dot */}

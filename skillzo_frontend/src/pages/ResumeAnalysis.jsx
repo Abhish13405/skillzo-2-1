@@ -54,36 +54,36 @@ const ResumeAnalysis = () => {
 
   return (
     <AppShell>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 border-b border-slate-200/60 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-5 gap-3 border-b border-slate-200/60 pb-3 sm:pb-4">
         <div>
-          <span className="eyebrow mb-2">Resume Intelligence</span>
-          <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight">ATS Resume Scanner</h1>
-          <p className="text-slate-500 text-sm mt-1">Upload your resume to calculate ATS compatibility & key gaps.</p>
+          <span className="eyebrow mb-1">Resume Intelligence</span>
+          <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 tracking-tight mt-0.5">ATS Resume Scanner</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Upload your resume to calculate ATS compatibility & key gaps.</p>
         </div>
-        <label className="btn-primary cursor-pointer text-center inline-block shadow-md shadow-brand-500/20">
+        <label className="btn-primary cursor-pointer text-center inline-block shadow-sm py-2 px-3.5 text-xs sm:text-sm">
           {uploading ? 'Uploading...' : '+ Upload Resume'}
           <input type="file" accept=".pdf,.docx" className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
       </div>
 
-      {error && <div className="mb-6 px-4 py-3.5 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 text-sm font-medium">{error}</div>}
+      {error && <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 text-xs font-medium">{error}</div>}
 
       {resumes.length === 0 ? (
-        <div className="card bg-white border border-dashed border-slate-300 text-center py-16 flex flex-col items-center shadow-xs rounded-2xl">
-          <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600 text-2xl mb-4 shadow-sm">
+        <div className="card bg-white border border-dashed border-slate-300 text-center py-12 flex flex-col items-center shadow-xs rounded-2xl">
+          <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600 text-2xl mb-3 shadow-sm">
             📄
           </div>
-          <h3 className="font-display font-bold text-lg text-slate-900">No resumes uploaded yet</h3>
-          <p className="text-slate-500 text-xs max-w-sm mb-6 mt-1">Upload a PDF or DOCX file to run an instant AI-powered ATS scan.</p>
-          <label className="btn-primary cursor-pointer text-center inline-block shadow-md shadow-brand-500/20">
+          <h3 className="font-display font-bold text-base sm:text-lg text-slate-900">No resumes uploaded yet</h3>
+          <p className="text-slate-500 text-xs max-w-sm mb-4 mt-1">Upload a PDF or DOCX file to run an instant AI-powered ATS scan.</p>
+          <label className="btn-primary cursor-pointer text-center inline-block shadow-sm py-2 px-3.5 text-xs sm:text-sm">
             {uploading ? 'Uploading...' : 'Select PDF / DOCX File'}
             <input type="file" accept=".pdf,.docx" className="hidden" onChange={handleUpload} disabled={uploading} />
           </label>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {resumes.map((r) => (
-            <div key={r.id} className="card bg-white border border-slate-200/80 shadow-craft relative overflow-hidden p-6 rounded-2xl">
+            <div key={r.id} className="card bg-white border border-slate-200/80 shadow-craft relative overflow-hidden p-3.5 sm:p-4 rounded-2xl">
               {r.is_analyzed && r.ats_score >= 80 && (
                 <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
               )}

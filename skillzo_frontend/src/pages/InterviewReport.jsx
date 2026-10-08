@@ -6,6 +6,7 @@ import Loader from '../components/Loader'
 import ReadinessDial from '../components/ReadinessDial'
 import { getInterviewDetail } from '../api/interview'
 import { useAuth } from '../context/AuthContext'
+import { downloadInterviewReportPdf } from '../utils/generatePdfReport'
 
 // ─── Certificate print component ────────────────────────────────────────────
 const Certificate = React.forwardRef(({ session, user }, ref) => {
@@ -17,14 +18,14 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
     <div ref={ref} id="skillzo-certificate" style={{ display: 'none' }}>
       <style>{`
         @media print {
-          body * { visibility: hidden !important; }
-          #skillzo-certificate, #skillzo-certificate * { visibility: visible !important; }
-          #skillzo-certificate {
-            display: block !important;
+          body.printing-certificate * { visibility: hidden !important; }
+          body.printing-certificate #skillzo-certificate, body.printing-certificate #skillzo-certificate * { visibility: visible !important; }
+          body.printing-certificate #skillzo-certificate {
+            display: flex !important;
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #FFFFFF; color: #0F172A;
             font-family: 'Plus Jakarta Sans', sans-serif;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex-direction: column; align-items: center; justify-content: center;
           }
         }
       `}</style>
@@ -32,19 +33,19 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
       <div style={{
         width: '100%', height: '100%',
         background: 'linear-gradient(135deg, #FFFFFF 0%, #FAFAF9 100%)',
-        border: '3px solid #E11D48',
+        border: '3px solid #2563EB',
         borderRadius: '16px',
         padding: '60px',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justify: 'center',
         textAlign: 'center', gap: '24px',
-        boxShadow: '0 0 60px rgba(225,29,72,0.1)'
+        boxShadow: '0 0 60px rgba(37,99,235,0.1)'
       }}>
         {/* Top border decoration */}
-        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #E11D48, #F43F5E)', borderRadius: '2px' }} />
+        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #2563EB, #60A5FA)', borderRadius: '2px' }} />
 
         {/* Brand */}
         <div>
-          <div style={{ fontSize: '16px', fontFamily: 'JetBrains Mono, monospace', color: '#E11D48', letterSpacing: '6px', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>
+          <div style={{ fontSize: '16px', fontFamily: 'JetBrains Mono, monospace', color: '#2563EB', letterSpacing: '6px', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>
             SKILLZO AI STUDIO
           </div>
           <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '3px', textTransform: 'uppercase' }}>
@@ -70,28 +71,28 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
         </div>
 
         {/* Role */}
-        <div style={{ fontSize: '26px', fontWeight: '800', color: '#E11D48' }}>
+        <div style={{ fontSize: '26px', fontWeight: '800', color: '#2563EB' }}>
           {session.job_role}
         </div>
 
         {/* Score */}
         <div style={{
-          background: '#FFF1F2',
-          border: '1px solid #FECDD3',
+          background: '#EFF6FF',
+          border: '1px solid #BFDBFE',
           borderRadius: '12px',
           padding: '20px 40px',
           display: 'flex', gap: '60px', alignItems: 'center'
         }}>
           <div>
-            <div style={{ fontSize: '11px', color: '#881337', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Overall Score</div>
-            <div style={{ fontSize: '48px', fontWeight: '800', color: '#E11D48', fontFamily: 'JetBrains Mono, monospace' }}>{session.overall_score}</div>
+            <div style={{ fontSize: '11px', color: '#1E3A8A', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Overall Score</div>
+            <div style={{ fontSize: '48px', fontWeight: '800', color: '#2563EB', fontFamily: 'JetBrains Mono, monospace' }}>{session.overall_score}</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: '#881337', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Difficulty</div>
+            <div style={{ fontSize: '11px', color: '#1E3A8A', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Difficulty</div>
             <div style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A' }}>{session.difficulty}</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: '#881337', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Date</div>
+            <div style={{ fontSize: '11px', color: '#1E3A8A', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px', textTransform: 'uppercase' }}>Date</div>
             <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', fontFamily: 'JetBrains Mono, monospace' }}>{date}</div>
           </div>
         </div>
@@ -104,7 +105,7 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
         )}
 
         {/* Bottom decoration */}
-        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #F43F5E, #E11D48)', borderRadius: '2px' }} />
+        <div style={{ width: '80px', height: '4px', background: 'linear-gradient(90deg, #60A5FA, #2563EB)', borderRadius: '2px' }} />
 
         <div style={{ fontSize: '10px', color: '#94A3B8', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '2px' }}>
           SKILLZO.AI · INTERVIEW READINESS · {new Date().getFullYear()}
@@ -120,20 +121,39 @@ const InterviewReport = () => {
   const { sessionId } = useParams()
   const { user } = useAuth()
   const [session, setSession] = useState(null)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const certRef = useRef(null)
 
   useEffect(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
     getInterviewDetail(sessionId).then((res) => setSession(res.data))
   }, [sessionId])
 
+  const handleDownloadPdf = () => {
+    if (!session) return
+    setDownloadingPdf(true)
+    try {
+      downloadInterviewReportPdf({ session, user })
+    } catch (err) {
+      console.error('Error generating PDF:', err)
+      alert('Could not download PDF. Please try again.')
+    } finally {
+      setTimeout(() => setDownloadingPdf(false), 500)
+    }
+  }
+
   const handleDownloadCertificate = () => {
+    document.body.classList.add('printing-certificate')
     const el = document.getElementById('skillzo-certificate')
     if (el) {
       el.style.display = 'flex'
       setTimeout(() => {
         window.print()
         el.style.display = 'none'
-      }, 100)
+        document.body.classList.remove('printing-certificate')
+      }, 150)
     }
   }
 
@@ -152,34 +172,56 @@ const InterviewReport = () => {
       {/* Hidden certificate for print */}
       <Certificate ref={certRef} session={session} user={user} />
 
-      <span className="eyebrow mb-2">Performance Analytics</span>
-      <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 tracking-tight mb-8">
-        {session.job_role} · {session.difficulty}
-      </h1>
+      <div className="mb-4 sm:mb-5 border-b border-slate-200/60 pb-3 sm:pb-4 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <span className="eyebrow mb-1">Performance Analytics</span>
+          <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 tracking-tight mt-0.5">
+            {session.job_role} · {session.difficulty}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="btn-secondary flex items-center gap-2 py-2 px-3.5 text-xs sm:text-sm cursor-pointer shadow-2xs"
+            title="Download PDF"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>{downloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
+          </button>
+          <Link to="/interview/setup" className="btn-primary flex items-center gap-2 py-2 px-3.5 text-xs sm:text-sm shadow-sm">
+            <span>Start Another Session →</span>
+          </Link>
+        </div>
+      </div>
 
       {/* Top row: Dial + Chart */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="card bg-white flex flex-col items-center justify-center md:col-span-1 shadow-craft border border-slate-200/80 p-6">
-          <ReadinessDial score={session.overall_score} size={150} label="Overall Score" />
-          <p className="text-xs text-slate-500 mt-4 font-mono font-semibold bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-5">
+        <div className="card bg-white flex flex-col items-center justify-center md:col-span-1 shadow-craft border border-slate-200/80 p-3.5 sm:p-4">
+          <ReadinessDial score={session.overall_score} size={110} label="Overall Score" />
+          <p className="text-[11px] text-slate-500 mt-3 font-mono font-semibold bg-slate-100 px-3 py-0.5 rounded-full border border-slate-200">
             Confidence Trend: <span className="text-brand-600 font-bold">{session.confidence_trend || 'Steady'}</span>
           </p>
           {session.verdict && (
-            <p className="text-xs text-slate-600 mt-3 text-center italic px-2 bg-brand-50/50 p-2.5 rounded-xl border border-brand-100/60">
+            <p className="text-xs text-slate-600 mt-2 text-center italic px-2 bg-brand-50/50 p-2 rounded-xl border border-brand-100/60">
               "{session.verdict}"
             </p>
           )}
         </div>
 
-        <div className="card bg-white md:col-span-2 shadow-craft border border-slate-200/80 p-6">
-          <h3 className="font-display font-bold text-lg text-slate-900 mb-4">Competency Score Breakdown</h3>
-          <ResponsiveContainer width="100%" height={220}>
+        <div className="card bg-white md:col-span-2 shadow-craft border border-slate-200/80 p-3.5 sm:p-4">
+          <h3 className="font-display font-bold text-base sm:text-lg text-slate-900 mb-2">Competency Score Breakdown</h3>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="label" stroke="#94A3B8" fontSize={12} />
-              <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 100]} />
+              <XAxis dataKey="label" stroke="#94A3B8" fontSize={11} />
+              <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
               <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
-              <Bar dataKey="value" fill="#E11D48" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="value" fill="#2563EB" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -187,16 +229,16 @@ const InterviewReport = () => {
 
       {/* Certificate Banner */}
       {qualifiesForCertificate && (
-        <div className="card mb-6 border-brand-200 bg-gradient-to-r from-brand-50 to-rose-50 flex flex-wrap items-center justify-between gap-4 p-6 shadow-craft">
+        <div className="card mb-4 sm:mb-5 border-brand-200 bg-gradient-to-r from-brand-50 to-blue-50/60 flex flex-wrap items-center justify-between gap-4 p-4 shadow-craft">
           <div>
-            <p className="font-display font-extrabold text-lg text-brand-900 flex items-center gap-2">
+            <p className="font-display font-extrabold text-base sm:text-lg text-brand-900 flex items-center gap-2">
               <span>🏆</span> Certificate Unlocked!
             </p>
-            <p className="text-xs text-brand-700 mt-1">
+            <p className="text-xs text-brand-700 mt-0.5">
               Overall score {session.overall_score}/100 — you've earned your official readiness certificate.
             </p>
           </div>
-          <button onClick={handleDownloadCertificate} className="btn-primary shrink-0 shadow-md shadow-brand-500/20">
+          <button onClick={handleDownloadCertificate} className="btn-primary shrink-0 shadow-sm py-2 px-3.5 text-xs sm:text-sm">
             Download Certificate 📄
           </button>
         </div>
