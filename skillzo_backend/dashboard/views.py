@@ -54,13 +54,13 @@ class DashboardSummaryView(APIView):
         leader_stats = None
         if user.is_staff or user.is_superuser or (user.email and user.email.lower() == 'abhish@gmail.com'):
             from django.contrib.auth import get_user_model
-            from resume_analysis.models import ResumeAnalysis
+            from resume_analysis.models import Resume
             UserModel = get_user_model()
             leader_stats = {
                 "total_users": UserModel.objects.count(),
                 "all_users": list(UserModel.objects.order_by('-date_joined').values('id', 'username', 'email', 'date_joined', 'current_streak')[:20]),
                 "total_all_interviews": InterviewSession.objects.count(),
-                "total_all_resumes": ResumeAnalysis.objects.count(),
+                "total_all_resumes": Resume.objects.count(),
             }
 
         return Response({
