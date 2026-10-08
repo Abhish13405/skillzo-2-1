@@ -112,6 +112,60 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Project Leader Overview (Only visible to Abhish / Superusers) */}
+      {data.leader_stats && (
+        <div className="card mb-4 sm:mb-5 border-blue-500/40 dark:border-blue-500/30 bg-gradient-to-br from-blue-950/20 via-[#0D1527] to-[#0A0F1D] p-4 sm:p-5 rounded-2xl shadow-craft">
+          <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-200/40 dark:border-slate-800 pb-3 mb-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">👑</span>
+              <div>
+                <h3 className="font-display font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Project Leader Control Center</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold uppercase">Superuser Access</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Live platform metrics & candidate registration monitoring.</p>
+              </div>
+            </div>
+            <a
+              href="https://skillzo-2-1-6.onrender.com/admin"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-sm"
+            >
+              <span>Open Django Admin Portal ↗</span>
+            </a>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mb-3">
+            <div className="p-3 rounded-xl bg-white/50 dark:bg-[#131E38]/80 border border-slate-200/60 dark:border-slate-800 text-center">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Total Candidates</span>
+              <p className="text-xl sm:text-2xl font-display font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{data.leader_stats.total_users}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-white/50 dark:bg-[#131E38]/80 border border-slate-200/60 dark:border-slate-800 text-center">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">All Mock Sessions</span>
+              <p className="text-xl sm:text-2xl font-display font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{data.leader_stats.total_all_interviews}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-white/50 dark:bg-[#131E38]/80 border border-slate-200/60 dark:border-slate-800 text-center">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Resumes Scanned</span>
+              <p className="text-xl sm:text-2xl font-display font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">{data.leader_stats.total_all_resumes}</p>
+            </div>
+          </div>
+
+          {data.leader_stats.all_users?.length > 0 && (
+            <div>
+              <p className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 mb-2">Recent Registered Users:</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                {data.leader_stats.all_users.map(u => (
+                  <span key={u.id} className="text-[11px] font-mono px-2 py-1 rounded-lg bg-slate-100 dark:bg-[#131E38] border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                    👤 <strong>{u.username}</strong> ({u.email})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-5">
         <div className="card flex flex-col items-center justify-center py-3.5 px-3">

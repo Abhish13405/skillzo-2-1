@@ -52,8 +52,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'phone', 'profile_photo',
             'college_or_company', 'target_role', 'bio',
             'current_streak', 'longest_streak',
+            'is_staff', 'is_superuser',
         ]
-        read_only_fields = ['id', 'email', 'current_streak', 'longest_streak']
+        read_only_fields = ['id', 'email', 'current_streak', 'longest_streak', 'is_staff', 'is_superuser']
 
 
 class ForgotPasswordRequestSerializer(serializers.Serializer):

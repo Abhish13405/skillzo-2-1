@@ -51,6 +51,18 @@ class DashboardSummaryView(APIView):
         today = timezone.localdate()
         completed_today = completed.filter(completed_at__date=today).count()
 
+        leader_stats = None
+        if user.is_staff or user.is_superuser or (user.email and user.email.lower() == 'abhish@gmail.com'):
+            from django.contrib.auth import get_user_model
+            from resume_analysis.models import ResumeAnalysis
+            UserModel = get_user_model()
+            leader_stats = {
+                "total_users": UserModel.objects.count(),
+                "all_users": list(UserModel.objects.order_by('-date_joined').values('id', 'username', 'email', 'date_joined', 'current_streak')[:20]),
+                "total_all_interviews": InterviewSession.objects.count(),
+                "total_all_resumes": ResumeAnalysis.objects.count(),
+            }
+
         return Response({
             "total_interviews": stats['total'] or 0,
             "average_score": round(stats['avg_score'], 1) if stats['avg_score'] else 0,
@@ -58,6 +70,7 @@ class DashboardSummaryView(APIView):
             "progress_chart": progress_chart,
             "recent_reports": recent_reports,
             "ai_suggestions": ai_suggestions,
+            "leader_stats": leader_stats,
             "daily_goal": {
                 "target": 1,
                 "completed_today": completed_today,
