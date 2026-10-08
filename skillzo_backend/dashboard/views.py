@@ -138,3 +138,61 @@ class LeaderPortalStatsView(APIView):
             "users": all_users,
             "recent_sessions": recent_sessions,
         })
+
+
+class PlatformLeaderboardView(APIView):
+    """
+    GET /api/dashboard/leaderboard/
+    Returns community candidates leaderboard with rankings, scores, and account information.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.contrib.auth import get_user_model
+        from resume_analysis.models import Resume
+        UserModel = get_user_model()
+
+        candidates = []
+        for u in UserModel.objects.all().order_by('id'):
+            sessions = InterviewSession.objects.filter(user=u)
+            resumes = Resume.objects.filter(user=u)
+            best = sessions.filter(status='completed').aggregate(Max('overall_score'))['overall_score__max'] or 0
+            avg_s = sessions.filter(status='completed').aggregate(Avg('overall_score'))['overall_score__avg'] or 0
+
+            is_leader = (
+                u.is_staff or 
+                u.is_superuser or 
+                (u.email and 'abhish' in u.email.lower()) or
+                (u.username and 'abhish' in u.username.lower())
+            )
+
+            candidates.append({
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "role": u.target_role or "Candidate",
+                "joined": u.date_joined.strftime('%d %b %Y, %I:%M %p') if u.date_joined else "—",
+                "interviews_count": sessions.count(),
+                "completed_interviews": sessions.filter(status='completed').count(),
+                "resumes_count": resumes.count(),
+                "best_score": round(best, 1),
+                "avg_score": round(avg_s, 1),
+                "streak": u.current_streak,
+                "is_active": u.is_active,
+                "is_leader": is_leader,
+            })
+
+        # Rank candidates by best_score descending, then completed_interviews descending, then streak descending
+        ranked = sorted(
+            candidates,
+            key=lambda c: (c['best_score'], c['completed_interviews'], c['streak']),
+            reverse=True
+        )
+
+        return Response({
+            "total_candidates": len(candidates),
+            "total_interviews": InterviewSession.objects.count(),
+            "total_resumes": Resume.objects.count(),
+            "candidates": ranked,
+        })
+
