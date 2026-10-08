@@ -242,7 +242,7 @@ const InterviewSession = () => {
   const [isCountingDown, setIsCountingDown] = useState(true)
 
   // Timers
-  const [questionSeconds, setQuestionSeconds] = useState(90)
+  const [questionSeconds, setQuestionSeconds] = useState(40)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const startTime = useRef(Date.now())
 
@@ -370,7 +370,7 @@ const InterviewSession = () => {
 
     setSpeechCountdown(5)
     setIsCountingDown(true)
-    setQuestionSeconds(90)
+    setQuestionSeconds(40)
     setRecordingSeconds(0)
 
     let remaining = 5
@@ -422,10 +422,11 @@ const InterviewSession = () => {
     }
   }
 
-  // Submit Answer
-  const handleSubmitAnswer = async () => {
+  // Submit Answer (supports manual submission or automatic transition on 40s timeout)
+  const handleSubmitAnswer = async (isAutoSubmit = false) => {
     if (submitting) return
-    if (!answerText.trim() && !window.confirm('Submit without answer text?')) return
+    // When manually clicking, confirm if answer is empty. If auto-submitting on 40s timeout, do NOT block with dialog
+    if (!isAutoSubmit && !answerText.trim() && !window.confirm('Submit without answer text?')) return
     if (listening) stopMic()
     setSubmitting(true)
     setError('')
@@ -434,7 +435,7 @@ const InterviewSession = () => {
     try {
       await submitAnswer(sessionId, {
         question_id: question.id,
-        answer_text: answerText.trim() || 'Passed without verbal response.',
+        answer_text: answerText.trim() || (isAutoSubmit ? 'Time expired before response.' : 'Passed without verbal response.'),
         speaking_time_seconds: speakingTime,
       })
       advanceToNextOrFinish()
@@ -445,11 +446,18 @@ const InterviewSession = () => {
     }
   }
 
-  // Ref to always hold latest handleSubmitAnswer for key listeners
+  // Ref to always hold latest handleSubmitAnswer for key listeners & timer
   const handleSubmitRef = useRef(handleSubmitAnswer)
   useEffect(() => {
     handleSubmitRef.current = handleSubmitAnswer
   })
+
+  // Auto-advance to next question when 40 seconds expire
+  useEffect(() => {
+    if (questionSeconds === 0 && !isCountingDown && !submitting && !isCompleted && session && question) {
+      handleSubmitRef.current(true)
+    }
+  }, [questionSeconds, isCountingDown, submitting, isCompleted, session, question])
 
   // Enter key handler inside Textarea (Enter = submit, Shift + Enter = new line)
   const handleTextareaKeyDown = (e) => {
@@ -900,7 +908,14 @@ const InterviewSession = () => {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-white px-2 py-0.5 rounded-lg border border-blue-100 shadow-2xs">
+                  <div
+                    className={`flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-lg border shadow-2xs transition-all ${
+                      questionSeconds <= 10
+                        ? 'text-rose-600 bg-rose-50 border-rose-200 animate-pulse'
+                        : 'text-blue-600 bg-white border-blue-100'
+                    }`}
+                    title={`${questionSeconds}s remaining · Next question opens automatically on 0s`}
+                  >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                     </svg>
