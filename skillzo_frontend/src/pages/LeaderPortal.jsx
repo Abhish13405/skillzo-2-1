@@ -177,8 +177,7 @@ const LeaderPortal = () => {
       {/* Header */}
       <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3 flex-wrap border-b border-slate-200/60 dark:border-slate-800/80 pb-3 sm:pb-4">
         <div>
-          <span className="eyebrow mb-1 flex items-center gap-1.5 w-fit">
-            <span>👑</span>
+          <span className="eyebrow mb-1 w-fit">
             <span>Project Leader Headquarters</span>
           </span>
           <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">

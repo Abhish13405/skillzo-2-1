@@ -117,7 +117,6 @@ const Dashboard = () => {
         <div className="card mb-4 sm:mb-5 border-blue-500/40 dark:border-blue-500/30 bg-gradient-to-br from-blue-950/20 via-[#0D1527] to-[#0A0F1D] p-4 sm:p-5 rounded-2xl shadow-craft">
           <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-200/40 dark:border-slate-800 pb-3 mb-3">
             <div className="flex items-center gap-2.5">
-              <span className="text-xl">👑</span>
               <div>
                 <h3 className="font-display font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
                   <span>Project Leader Control Center</span>

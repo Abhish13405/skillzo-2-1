@@ -83,7 +83,7 @@ const SidebarContent = ({ onClose }) => {
   const visibleNavItems = isLeader
     ? [
         ...navItems,
-        { to: '/leader', label: '👑 Leader Portal', Icon: Icons.LeaderPortal },
+        { to: '/leader', label: 'Leader Portal', Icon: Icons.LeaderPortal },
       ]
     : navItems
 
