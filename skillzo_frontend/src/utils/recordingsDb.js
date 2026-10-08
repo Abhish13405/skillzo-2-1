@@ -88,9 +88,9 @@ export const saveRecording = async ({
 }
 
 /**
- * Get recordings filtered by logged-in user, newest first
+ * Get recordings filtered by logged-in user (or all if showAll is true), newest first
  */
-export const getAllRecordings = async (filterUser = null) => {
+export const getAllRecordings = async (filterUser = null, showAll = false) => {
   try {
     const db = await openDB()
     return new Promise((resolve, reject) => {
@@ -100,7 +100,7 @@ export const getAllRecordings = async (filterUser = null) => {
 
       req.onsuccess = () => {
         let list = req.result || []
-        if (filterUser) {
+        if (filterUser && !showAll) {
           const uid = filterUser.id
           const uemail = (filterUser.email || '').toLowerCase()
           list = list.filter((r) => {
@@ -161,7 +161,7 @@ export const clearAllRecordings = async (filterUser = null) => {
     }
 
     // Delete only the user's recordings
-    const userRecs = await getAllRecordings(filterUser)
+    const userRecs = await getAllRecordings(filterUser, false)
     const tx = db.transaction(STORE_NAME, 'readwrite')
     const store = tx.objectStore(STORE_NAME)
     for (const rec of userRecs) {
@@ -175,10 +175,10 @@ export const clearAllRecordings = async (filterUser = null) => {
 }
 
 /**
- * Calculate total storage used by recordings of the user
+ * Calculate total storage used by recordings of the user or all if showAll is true
  */
-export const getTotalStorageUsed = async (filterUser = null) => {
-  const all = await getAllRecordings(filterUser)
+export const getTotalStorageUsed = async (filterUser = null, showAll = false) => {
+  const all = await getAllRecordings(filterUser, showAll)
   const total = all.reduce((sum, r) => sum + (r.sizeBytes || 0), 0)
   return {
     totalBytes: total,
@@ -186,3 +186,4 @@ export const getTotalStorageUsed = async (filterUser = null) => {
     count: all.length,
   }
 }
+

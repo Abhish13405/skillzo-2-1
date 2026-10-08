@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
 import { useAuth } from '../context/AuthContext'
@@ -13,20 +13,37 @@ import {
 
 const Recordings = () => {
   const { user } = useAuth()
+  const location = useLocation()
+
+  const isLeader = Boolean(
+    user && (
+      user.is_staff ||
+      user.is_superuser ||
+      (user.email && user.email.toLowerCase().includes('abhish')) ||
+      (user.username && user.username.toLowerCase().includes('abhish'))
+    )
+  )
+
   const [recordings, setRecordings] = useState([])
   const [loading, setLoading] = useState(true)
   const [filterMode, setFilterMode] = useState('all') // 'all', 'video', 'audio'
   const [search, setSearch] = useState('')
   const [storageInfo, setStorageInfo] = useState({ totalBytes: 0, formatted: '0 KB', count: 0 })
   const [activePlayback, setActivePlayback] = useState(null) // Recording object being played in modal
+  const [viewScope, setViewScope] = useState(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('view') === 'all' && isLeader) return 'all'
+    return isLeader ? 'all' : 'mine'
+  })
 
-  // Load recordings from IndexedDB for logged-in user
+  // Load recordings from IndexedDB
   const loadData = async () => {
     setLoading(true)
     try {
-      const all = await getAllRecordings(user)
+      const showAll = isLeader && viewScope === 'all'
+      const all = await getAllRecordings(user, showAll)
       setRecordings(all)
-      const storage = await getTotalStorageUsed(user)
+      const storage = await getTotalStorageUsed(user, showAll)
       setStorageInfo(storage)
     } catch (err) {
       console.error('Error loading recordings:', err)
@@ -37,7 +54,7 @@ const Recordings = () => {
 
   useEffect(() => {
     loadData()
-  }, [user])
+  }, [user, viewScope])
 
   // Delete single recording
   const handleDelete = async (id, e) => {
@@ -50,10 +67,14 @@ const Recordings = () => {
     await loadData()
   }
 
-  // Clear all recordings for this user
+  // Clear recordings
   const handleClearAll = async () => {
-    if (!window.confirm('Are you sure you want to delete your recordings? This cannot be undone.')) return
-    await clearAllRecordings(user)
+    const promptMsg = isLeader && viewScope === 'all'
+      ? 'Delete all stored recordings across all candidates on this device? This cannot be undone.'
+      : 'Are you sure you want to delete your recordings? This cannot be undone.'
+    if (!window.confirm(promptMsg)) return
+    const targetUser = isLeader && viewScope === 'all' ? null : user
+    await clearAllRecordings(targetUser)
     setActivePlayback(null)
     await loadData()
   }
@@ -67,7 +88,8 @@ const Recordings = () => {
     a.href = url
     const ext = rec.mode === 'audio' ? 'webm' : 'webm'
     const safeRole = String(rec.jobRole || 'interview').replace(/[^a-zA-Z0-9_-]/g, '_')
-    a.download = `Skillzo_${rec.mode}_Q${rec.questionNumber}_${safeRole}_${Date.now()}.${ext}`
+    const userTag = rec.userEmail ? `_${rec.userEmail.split('@')[0]}` : ''
+    a.download = `Skillzo_${rec.mode}_Q${rec.questionNumber}${userTag}_${safeRole}_${Date.now()}.${ext}`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -77,9 +99,11 @@ const Recordings = () => {
   // Filter recordings
   const filtered = recordings.filter((r) => {
     const matchMode = filterMode === 'all' || r.mode === filterMode
+    const q = search.toLowerCase()
     const matchSearch =
-      r.jobRole.toLowerCase().includes(search.toLowerCase()) ||
-      r.questionText.toLowerCase().includes(search.toLowerCase())
+      (r.jobRole || '').toLowerCase().includes(q) ||
+      (r.questionText || '').toLowerCase().includes(q) ||
+      (r.userEmail || '').toLowerCase().includes(q)
     return matchMode && matchSearch
   })
 
@@ -121,6 +145,46 @@ const Recordings = () => {
         </div>
       </div>
 
+      {/* ─── Leader View Toggle Bar ─── */}
+      {isLeader && (
+        <div className="flex items-center justify-between gap-3 p-2 sm:p-2.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 mb-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1.5 px-1.5">
+              <span>🛡️ Leader Clearance:</span>
+            </span>
+            <div className="flex gap-1 bg-white dark:bg-[#0D1527] p-1 rounded-xl border border-blue-200/60 dark:border-blue-900/40">
+              <button
+                onClick={() => setViewScope('all')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewScope === 'all'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                All Candidates' Recordings ({storageInfo.count})
+              </button>
+              <button
+                onClick={() => setViewScope('mine')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewScope === 'mine'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Only My Recordings
+              </button>
+            </div>
+          </div>
+
+          <Link
+            to="/leader"
+            className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline px-2 flex items-center gap-1"
+          >
+            <span>Leader Control Center ↗</span>
+          </Link>
+        </div>
+      )}
+
       {/* ─── Search & Mode Filter Tabs ─── */}
       <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
         {/* Search Input */}
@@ -139,7 +203,11 @@ const Recordings = () => {
           </svg>
           <input
             className="input-field pl-9 py-1.5"
-            placeholder="Search by role or question keyword..."
+            placeholder={
+              isLeader && viewScope === 'all'
+                ? "Search by candidate email, role or question keyword..."
+                : "Search by role or question keyword..."
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -203,6 +271,25 @@ const Recordings = () => {
                 className="card p-4 flex flex-col justify-between group"
               >
                 <div>
+                  {/* Candidate Identity (shown in Leader mode or if user is tagged) */}
+                  {(isLeader || rec.userEmail) && (
+                    <div className="flex items-center justify-between text-[11px] mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                      <span className="font-mono text-slate-600 dark:text-slate-300 font-semibold truncate max-w-[190px] flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                        <span className="truncate">{rec.userEmail || (rec.userId ? `User #${rec.userId}` : 'Candidate')}</span>
+                      </span>
+                      {rec.sessionId && rec.sessionId !== 'practice' && (
+                        <Link
+                          to={`/interview/report/${rec.sessionId}`}
+                          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold text-[10px] hover:underline shrink-0"
+                          title="Open full AI interview evaluation report"
+                        >
+                          Report ↗
+                        </Link>
+                      )}
+                    </div>
+                  )}
+
                   {/* Card Header: Role & Mode Badge */}
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
@@ -234,6 +321,7 @@ const Recordings = () => {
                     {rec.mode === 'video' && blobUrl ? (
                       <video
                         src={blobUrl}
+
                         className="w-full h-full object-cover"
                         preload="metadata"
                       />

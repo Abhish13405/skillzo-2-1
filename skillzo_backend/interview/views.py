@@ -190,8 +190,18 @@ class InterviewDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, session_id):
+        user = request.user
+        is_leader = (
+            user.is_staff or
+            user.is_superuser or
+            (user.email and 'abhish' in user.email.lower()) or
+            (user.username and 'abhish' in user.username.lower())
+        )
         try:
-            session = InterviewSession.objects.get(pk=session_id, user=request.user)
+            if is_leader:
+                session = InterviewSession.objects.get(pk=session_id)
+            else:
+                session = InterviewSession.objects.get(pk=session_id, user=user)
         except InterviewSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(InterviewSessionSerializer(session).data)

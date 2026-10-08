@@ -189,6 +189,12 @@ const LeaderPortal = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            to="/recordings?view=all"
+            className="btn-secondary flex items-center gap-1.5 text-xs sm:text-sm py-2 px-3.5 shadow-sm"
+          >
+            <span>📼 Candidate Video Vault</span>
+          </Link>
           <a
             href="https://skillzo-2-1-6.onrender.com/admin"
             target="_blank"
@@ -368,10 +374,17 @@ const LeaderPortal = () => {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <span className="font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
                         Score: {s.score}/100
                       </span>
+                      <Link
+                        to={`/interview/report/${s.id}`}
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center gap-1 shadow-2xs"
+                        title="Inspect full candidate report & answers"
+                      >
+                        <span>View Report ↗</span>
+                      </Link>
                     </div>
                   </div>
                 ))}
