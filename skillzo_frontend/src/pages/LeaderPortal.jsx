@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link, Navigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
 import { getLeaderStats } from '../api/dashboard'
@@ -101,12 +102,27 @@ const DB_FALLBACK_LEADER_STATS = {
 
 const LeaderPortal = () => {
   const { user } = useAuth()
+
+  const isLeader = Boolean(
+    user && (
+      user.is_staff ||
+      user.is_superuser ||
+      (user.email && user.email.toLowerCase().includes('abhish')) ||
+      (user.username && user.username.toLowerCase().includes('abhish'))
+    )
+  )
+
   const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(isLeader)
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!isLeader) {
+      setLoading(false)
+      return
+    }
+
     getLeaderStats()
       .then((res) => {
         if (res.data && res.data.users) {
@@ -120,7 +136,26 @@ const LeaderPortal = () => {
         setStats(DB_FALLBACK_LEADER_STATS)
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [isLeader])
+
+  if (!isLeader) {
+    return (
+      <AppShell>
+        <div className="card text-center py-16 px-4 max-w-md mx-auto my-12 border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 rounded-2xl shadow-craft">
+          <span className="text-4xl mb-3 block">🔒</span>
+          <h2 className="text-xl font-display font-extrabold text-red-600 dark:text-red-400">
+            Access Restricted
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 mb-6">
+            This portal is exclusively reserved for the Project Leader (Abhishek). Your account does not have administrative clearance.
+          </p>
+          <Link to="/dashboard" className="btn-primary text-xs py-2 px-4 shadow-sm inline-block">
+            ← Return to Dashboard
+          </Link>
+        </div>
+      </AppShell>
+    )
+  }
 
   if (loading) {
     return (

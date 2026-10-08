@@ -148,6 +148,23 @@ const Leaderboard = () => {
 
   const top3 = candidates.slice(0, 3)
 
+  const isLeader = Boolean(
+    user && (
+      user.is_staff ||
+      user.is_superuser ||
+      (user.email && user.email.toLowerCase().includes('abhish')) ||
+      (user.username && user.username.toLowerCase().includes('abhish'))
+    )
+  )
+
+  const maskEmail = (email) => {
+    if (!email) return '—'
+    if (isLeader) return email
+    const [name, domain] = email.split('@')
+    if (!domain) return email
+    return `${name.slice(0, 2)}***@${domain}`
+  }
+
   const getScoreBadge = (score) => {
     if (score >= 75) return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50'
     if (score >= 40) return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50'
@@ -228,7 +245,7 @@ const Leaderboard = () => {
                       <span>{c.username}</span>
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                      {c.email}
+                      {maskEmail(c.email)}
                     </p>
                     <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold mt-1">
                       {c.role}
@@ -328,7 +345,7 @@ const Leaderboard = () => {
                                   </span>
                                 )}
                               </p>
-                              <p className="text-[11px] text-slate-400 font-mono">{c.email}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">{maskEmail(c.email)}</p>
                             </div>
                           </div>
                         </td>

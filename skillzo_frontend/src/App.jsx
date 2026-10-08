@@ -30,7 +30,7 @@ function App() {
       <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />
       <Route path="/recordings" element={<ProtectedRoute featureName="Recordings"><Recordings /></ProtectedRoute>} />
       <Route path="/leaderboard" element={<ProtectedRoute featureName="Leaderboard"><Leaderboard /></ProtectedRoute>} />
-      <Route path="/leader" element={<ProtectedRoute featureName="Leader Portal"><LeaderPortal /></ProtectedRoute>} />
+      <Route path="/leader" element={<ProtectedRoute featureName="Leader Portal" requireLeader><LeaderPortal /></ProtectedRoute>} />
 
       <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><InterviewSetup /></ProtectedRoute>} />
       <Route path="/interview/:sessionId/session" element={<ProtectedRoute featureName="AI Interview Session"><InterviewSession /></ProtectedRoute>} />
