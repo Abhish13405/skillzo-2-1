@@ -3,6 +3,34 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getInterviewDetail, submitAnswer, completeInterview } from '../api/interview'
 import { useAuth } from '../context/AuthContext'
+import { saveRecording } from '../utils/recordingsDb'
+
+// ─── Ultra-Low Space Codec Detection Helper (Minimizes file size) ──────────────
+const getBestMimeType = (mode) => {
+  if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') return ''
+  if (mode === 'audio') {
+    const audioTypes = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+    ]
+    for (const type of audioTypes) {
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) return type
+    }
+    return ''
+  }
+  const videoTypes = [
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp9,opus',
+    'video/webm',
+    'video/mp4',
+  ]
+  for (const type of videoTypes) {
+    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) return type
+  }
+  return ''
+}
 
 // ─── Real-time Audio Waveform Component (Compact & Adaptive) ─────────────────
 const AudioWaveformBars = ({ isRecording = true, isPaused = false }) => {
@@ -233,6 +261,7 @@ const InterviewSession = () => {
   const [isMicActive, setIsMicActive] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
   const [stream, setStream] = useState(null)
+  const [isMediaRecording, setIsMediaRecording] = useState(false)
 
   // View Switcher: 'candidate' (default full user video) or 'ai' (full AI avatar)
   const [mainView, setMainView] = useState('ai')
@@ -248,6 +277,9 @@ const InterviewSession = () => {
 
   const videoRef = useRef(null)
   const streamRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const recordedChunksRef = useRef([])
+  const recordingStartTimeRef = useRef(null)
 
   // Speech Handlers
   const handleTranscript = useCallback((t) => setAnswerText(t), [])
@@ -261,7 +293,7 @@ const InterviewSession = () => {
         try {
           track.stop()
         } catch (e) {
-          console.error('Error stopping camera:', e)
+          console.error('Error stopping track:', e)
         }
       })
       streamRef.current = null
@@ -270,16 +302,16 @@ const InterviewSession = () => {
     setIsCameraActive(false)
   }, [])
 
-  // Hardware Camera Start (selfie camera on mobile)
+  // Hardware Camera Start (captures selfie video + microphone for unified recordings)
   const startCamera = useCallback(async () => {
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 640 }, // 640x480 gives crisp clarity while keeping storage ultra-compact
+          height: { ideal: 480 },
         },
-        audio: false,
+        audio: true,
       })
       streamRef.current = s
       setStream(s)
@@ -288,17 +320,142 @@ const InterviewSession = () => {
         videoRef.current.srcObject = s
       }
     } catch (err) {
-      console.warn('Camera permission denied or unavailable:', err)
-      setIsCameraActive(false)
+      console.warn('Camera with audio failed, falling back to video only:', err)
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+          audio: false,
+        })
+        streamRef.current = s
+        setStream(s)
+        setIsCameraActive(true)
+        if (videoRef.current) {
+          videoRef.current.srcObject = s
+        }
+      } catch (e2) {
+        console.warn('Camera permission denied or unavailable:', e2)
+        setIsCameraActive(false)
+      }
+    }
+  }, [])
+
+  // Audio Only Stream for Audio Mode
+  const startAudioStream = useCallback(async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = s
+      setStream(s)
+    } catch (err) {
+      console.warn('Microphone permission denied or unavailable:', err)
     }
   }, [])
 
   // Stop All Media
   const stopAllMedia = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      try {
+        mediaRecorderRef.current.stop()
+      } catch {}
+    }
+    setIsMediaRecording(false)
     stopCamera()
     stopMic()
     cancelSpeech()
   }, [stopCamera, stopMic, cancelSpeech])
+
+  // Start Ultra-Low Space Recording (250 kbps video / 32 kbps audio)
+  const startRecording = useCallback(() => {
+    if (!streamRef.current || typeof MediaRecorder === 'undefined') return
+    const mode = session?.mode || 'video'
+    if (mode === 'text') return // text mode does not record media
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      try {
+        mediaRecorderRef.current.stop()
+      } catch {}
+    }
+
+    try {
+      recordedChunksRef.current = []
+      const mimeType = getBestMimeType(mode)
+
+      const options = {
+        videoBitsPerSecond: 250000, // 250 kbps - High compression, minimal storage
+        audioBitsPerSecond: 32000,  // 32 kbps - Crisp voice audio
+      }
+      if (mimeType) {
+        options.mimeType = mimeType
+      }
+
+      const recorder = new MediaRecorder(streamRef.current, options)
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunksRef.current.push(e.data)
+        }
+      }
+
+      recorder.start(1000)
+      mediaRecorderRef.current = recorder
+      recordingStartTimeRef.current = Date.now()
+      setIsMediaRecording(true)
+    } catch (err) {
+      console.warn('Could not start MediaRecorder:', err)
+      setIsMediaRecording(false)
+    }
+  }, [session?.mode])
+
+  // Stop Recorder and Save Clip into IndexedDB
+  const stopAndSaveRecording = useCallback(async (qNum, qText) => {
+    setIsMediaRecording(false)
+    return new Promise((resolve) => {
+      const recorder = mediaRecorderRef.current
+      if (!recorder || recorder.state === 'inactive') {
+        resolve(null)
+        return
+      }
+
+      recorder.onstop = async () => {
+        try {
+          const mode = session?.mode || 'video'
+          const mimeType = recorder.mimeType || (mode === 'audio' ? 'audio/webm' : 'video/webm')
+          const blob = new Blob(recordedChunksRef.current, { type: mimeType })
+          recordedChunksRef.current = []
+
+          const durationSeconds = recordingStartTimeRef.current
+            ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
+            : 0
+
+          if (blob && blob.size > 0) {
+            const saved = await saveRecording({
+              sessionId,
+              jobRole: session?.job_role || 'Mock Interview',
+              difficulty: session?.difficulty || 'Practice',
+              mode,
+              questionNumber: qNum,
+              questionText: qText,
+              blob,
+              durationSeconds,
+            })
+            resolve(saved)
+            return
+          }
+        } catch (e) {
+          console.error('Error saving recording clip:', e)
+        }
+        resolve(null)
+      }
+
+      try {
+        recorder.stop()
+      } catch {
+        resolve(null)
+      }
+    })
+  }, [sessionId, session])
 
   // Load Session Detail and set up mode-based media
   useEffect(() => {
@@ -316,6 +473,7 @@ const InterviewSession = () => {
         setIsCameraActive(false)
         setIsMicActive(true)
         setMainView('ai')
+        startAudioStream()
       } else {
         // text mode: neither camera nor mic auto-starts
         stopCamera()
@@ -327,7 +485,7 @@ const InterviewSession = () => {
     return () => {
       stopAllMedia()
     }
-  }, [sessionId, startCamera, stopCamera, stopAllMedia])
+  }, [sessionId, startCamera, startAudioStream, stopCamera, stopAllMedia])
 
   // Connect stream to video element
   useEffect(() => {
@@ -357,12 +515,13 @@ const InterviewSession = () => {
       speak(q.question_text, () => {
         if (session?.mode !== 'text' && isMicActive && !isPaused) {
           startMic()
+          startRecording()
         }
       })
     }
-  }, [session, current, isMicActive, isPaused, speak, startMic])
+  }, [session, current, isMicActive, isPaused, speak, startMic, startRecording])
 
-  // When question changes: 5-second countdown, then speak and start mic
+  // When question changes: 5-second countdown, then speak and start mic & recording
   useEffect(() => {
     if (!session || isCompleted) return
     stopMic()
@@ -385,6 +544,7 @@ const InterviewSession = () => {
           speak(q.question_text, () => {
             if (session.mode !== 'text' && isMicActive && !isPaused) {
               startMic()
+              startRecording()
             }
           })
         }
@@ -433,6 +593,9 @@ const InterviewSession = () => {
     const speakingTime = Math.round((Date.now() - startTime.current) / 1000)
 
     try {
+      // Save recorded response clip before submitting
+      await stopAndSaveRecording(current + 1, question?.question_text)
+
       await submitAnswer(sessionId, {
         question_id: question.id,
         answer_text: answerText.trim() || (isAutoSubmit ? 'Time expired before response.' : 'Passed without verbal response.'),
@@ -491,10 +654,13 @@ const InterviewSession = () => {
   }, [isCompleted, submitting, session])
 
   // Skip question
-  const handleSkip = () => {
+  const handleSkip = async () => {
     if (submitting) return
     if (listening) stopMic()
     cancelSpeech()
+    try {
+      await stopAndSaveRecording(current + 1, question?.question_text)
+    } catch {}
     advanceToNextOrFinish()
   }
 
@@ -524,17 +690,30 @@ const InterviewSession = () => {
   const togglePause = () => {
     if (isPaused) {
       setIsPaused(false)
+      if (mediaRecorderRef.current?.state === 'paused') {
+        try {
+          mediaRecorderRef.current.resume()
+        } catch {}
+      }
       if (isMicActive && !speaking) startMic()
     } else {
       setIsPaused(true)
+      if (mediaRecorderRef.current?.state === 'recording') {
+        try {
+          mediaRecorderRef.current.pause()
+        } catch {}
+      }
       stopMic()
       cancelSpeech()
     }
   }
 
   // End Call / Finish early
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     if (window.confirm('Do you want to end the interview and generate your feedback report?')) {
+      try {
+        await stopAndSaveRecording(current + 1, question?.question_text)
+      } catch {}
       stopAllMedia()
       setIsCompleted(true)
     }
@@ -586,6 +765,12 @@ const InterviewSession = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {isMediaRecording && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-bold font-mono border border-rose-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping" />
+                REC (Space Saver)
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold font-mono">
               <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
               LIVE
@@ -626,13 +811,19 @@ const InterviewSession = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               Camera & Microphone: OFF
             </div>
-            <div>
+            <div className="flex flex-col gap-2.5">
               <button
                 onClick={handleOpenFeedback}
                 disabled={completing}
                 className="w-full py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
               >
                 {completing ? 'Generating AI Feedback Report...' : '📊 Open Feedback & Comprehensive Report →'}
+              </button>
+              <button
+                onClick={() => navigate('/recordings')}
+                className="w-full py-2.5 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-2 border border-slate-200"
+              >
+                📼 View Session Recordings Vault
               </button>
             </div>
           </motion.div>
