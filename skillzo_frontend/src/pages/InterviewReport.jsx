@@ -172,10 +172,10 @@ const InterviewReport = () => {
       {/* Hidden certificate for print */}
       <Certificate ref={certRef} session={session} user={user} />
 
-      <div className="mb-4 sm:mb-5 border-b border-slate-200/60 pb-3 sm:pb-4 flex items-start justify-between gap-3 flex-wrap">
+      <div className="mb-4 sm:mb-5 border-b border-slate-200/60 dark:border-slate-800 pb-3 sm:pb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <span className="eyebrow mb-1">Performance Analytics</span>
-          <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 tracking-tight mt-0.5">
+          <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">
             {session.job_role} · {session.difficulty}
           </h1>
         </div>
@@ -186,7 +186,7 @@ const InterviewReport = () => {
             className="btn-secondary flex items-center gap-2 py-2 px-3.5 text-xs sm:text-sm cursor-pointer shadow-2xs"
             title="Download PDF"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 dark:text-blue-400">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
@@ -201,27 +201,27 @@ const InterviewReport = () => {
 
       {/* Top row: Dial + Chart */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-5">
-        <div className="card bg-white flex flex-col items-center justify-center md:col-span-1 shadow-craft border border-slate-200/80 p-3.5 sm:p-4">
+        <div className="card flex flex-col items-center justify-center md:col-span-1 shadow-craft border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527] p-3.5 sm:p-4">
           <ReadinessDial score={session.overall_score} size={110} label="Overall Score" />
-          <p className="text-[11px] text-slate-500 mt-3 font-mono font-semibold bg-slate-100 px-3 py-0.5 rounded-full border border-slate-200">
-            Confidence Trend: <span className="text-brand-600 font-bold">{session.confidence_trend || 'Steady'}</span>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 font-mono font-semibold bg-slate-100 dark:bg-[#131E38] px-3 py-0.5 rounded-full border border-slate-200 dark:border-slate-800">
+            Confidence Trend: <span className="text-blue-600 dark:text-blue-400 font-bold">{session.confidence_trend || 'Steady'}</span>
           </p>
           {session.verdict && (
-            <p className="text-xs text-slate-600 mt-2 text-center italic px-2 bg-brand-50/50 p-2 rounded-xl border border-brand-100/60">
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 text-center italic px-2 bg-brand-50/50 dark:bg-blue-950/30 p-2 rounded-xl border border-brand-100/60 dark:border-blue-800/40">
               "{session.verdict}"
             </p>
           )}
         </div>
 
-        <div className="card bg-white md:col-span-2 shadow-craft border border-slate-200/80 p-3.5 sm:p-4">
-          <h3 className="font-display font-bold text-base sm:text-lg text-slate-900 mb-2">Competency Score Breakdown</h3>
+        <div className="card md:col-span-2 shadow-craft border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527] p-3.5 sm:p-4">
+          <h3 className="font-display font-bold text-base sm:text-lg text-slate-900 dark:text-white mb-2">Competency Score Breakdown</h3>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.15)" />
               <XAxis dataKey="label" stroke="#94A3B8" fontSize={11} />
               <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
-              <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
-              <Bar dataKey="value" fill="#2563EB" radius={[6, 6, 0, 0]} />
+              <Tooltip contentStyle={{ background: '#0D1527', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 12, color: '#F1F5F9', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} />
+              <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -229,12 +229,12 @@ const InterviewReport = () => {
 
       {/* Certificate Banner */}
       {qualifiesForCertificate && (
-        <div className="card mb-4 sm:mb-5 border-brand-200 bg-gradient-to-r from-brand-50 to-blue-50/60 flex flex-wrap items-center justify-between gap-4 p-4 shadow-craft">
+        <div className="card mb-4 sm:mb-5 border-brand-200 dark:border-blue-900/60 bg-gradient-to-r from-brand-50 to-blue-50/60 dark:from-blue-950/40 dark:to-slate-900/60 dark:bg-[#0D1527] flex flex-wrap items-center justify-between gap-4 p-4 shadow-craft">
           <div>
-            <p className="font-display font-extrabold text-base sm:text-lg text-brand-900 flex items-center gap-2">
+            <p className="font-display font-extrabold text-base sm:text-lg text-brand-900 dark:text-blue-300 flex items-center gap-2">
               <span>🏆</span> Certificate Unlocked!
             </p>
-            <p className="text-xs text-brand-700 mt-0.5">
+            <p className="text-xs text-brand-700 dark:text-blue-400 mt-0.5">
               Overall score {session.overall_score}/100 — you've earned your official readiness certificate.
             </p>
           </div>
@@ -245,31 +245,31 @@ const InterviewReport = () => {
       )}
 
       {/* AI Suggestions */}
-      <div className="card bg-white mb-6 shadow-craft border border-slate-200/80">
-        <h3 className="font-display font-bold text-lg text-slate-900 mb-4">AI Recommendations</h3>
+      <div className="card mb-6 shadow-craft border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527]">
+        <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white mb-4">AI Recommendations</h3>
         {session.ai_suggestions?.length > 0 ? (
           <ul className="space-y-2.5">
             {session.ai_suggestions.map((s, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-brand-600 font-mono font-bold shrink-0">✦</span>
+              <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#131E38]/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                <span className="text-blue-500 font-mono font-bold shrink-0">✦</span>
                 <span className="leading-relaxed">{s}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500">No suggestions recorded for this session.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No suggestions recorded for this session.</p>
         )}
       </div>
 
       {/* Question-by-Question */}
-      <div className="card bg-white shadow-craft border border-slate-200/80">
-        <h3 className="font-display font-bold text-lg text-slate-900 mb-4">Question-by-Question Evaluation</h3>
+      <div className="card shadow-craft border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527]">
+        <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white mb-4">Question-by-Question Evaluation</h3>
         <div className="space-y-6">
           {session.questions.map((q, i) => (
-            <div key={q.id} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
+            <div key={q.id} className="border-b border-slate-100 dark:border-slate-800/80 last:border-0 pb-6 last:pb-0">
               <div className="flex items-start gap-3 mb-3">
-                <span className="font-mono text-brand-600 font-bold shrink-0 text-sm mt-0.5">{i + 1}.</span>
-                <p className="text-sm font-bold text-slate-900">{q.question_text}</p>
+                <span className="font-mono text-blue-500 font-bold shrink-0 text-sm mt-0.5">{i + 1}.</span>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{q.question_text}</p>
               </div>
               {q.answer ? (
                 <div className="ml-6 space-y-3">
@@ -279,25 +279,25 @@ const InterviewReport = () => {
                       ['Technical', q.answer.technical_knowledge],
                       ['Communication', q.answer.communication],
                     ].map(([label, val]) => (
-                      <span key={label} className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                        <span className="text-slate-500">{label}: </span>
-                        <span className={val >= 75 ? 'text-emerald-600' : val >= 40 ? 'text-amber-600' : 'text-brand-600'}>{val}</span>
+                      <span key={label} className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] border border-slate-200 dark:border-slate-800">
+                        <span className="text-slate-500 dark:text-slate-400">{label}: </span>
+                        <span className={val >= 75 ? 'text-emerald-500' : val >= 40 ? 'text-amber-500' : 'text-blue-500'}>{val}</span>
                       </span>
                     ))}
                   </div>
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs text-slate-700 leading-relaxed">
-                    <strong className="text-slate-900 block mb-1">Your Response:</strong>
+                  <div className="bg-slate-50 dark:bg-[#131E38]/60 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800/60 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                    <strong className="text-slate-900 dark:text-white block mb-1">Your Response:</strong>
                     {q.answer.answer_text}
                   </div>
                   {q.answer.ideal_answer_summary && (
-                    <div className="bg-brand-50/50 p-3.5 rounded-xl border border-brand-100 text-xs text-slate-700 leading-relaxed">
-                      <strong className="text-brand-800 block mb-1">💡 Ideal Answer Structure:</strong>
+                    <div className="bg-brand-50/50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-brand-100 dark:border-blue-900/40 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                      <strong className="text-blue-600 dark:text-blue-300 block mb-1">💡 Ideal Answer Structure:</strong>
                       {q.answer.ideal_answer_summary}
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="ml-6 text-xs text-slate-400 italic">Question skipped or left blank.</p>
+                <p className="ml-6 text-xs text-slate-400 dark:text-slate-500 italic">Question skipped or left blank.</p>
               )}
             </div>
           ))}

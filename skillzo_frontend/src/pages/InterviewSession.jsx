@@ -733,12 +733,12 @@ const InterviewSession = () => {
   }
 
   return (
-    <div className="h-screen max-h-screen w-full bg-[#F4F6FB] flex flex-col p-2 sm:p-4 lg:p-5 select-none font-sans overflow-hidden">
+    <div className="h-screen max-h-screen w-full bg-[#F4F6FB] dark:bg-[#080D1A] flex flex-col p-2 sm:p-4 lg:p-5 select-none font-sans overflow-hidden transition-colors duration-200">
       {/* ─── Outer Card Frame (Fits Exact Viewport Height with Zero Scroll) ─── */}
-      <div className="w-full h-full max-w-[1400px] mx-auto bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 shadow-[0_10px_40px_-10px_rgba(30,58,138,0.08)] border border-slate-100 flex flex-col justify-between overflow-hidden">
+      <div className="w-full h-full max-w-[1400px] mx-auto bg-white dark:bg-[#0A0F1D] rounded-2xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 shadow-[0_10px_40px_-10px_rgba(30,58,138,0.08)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between overflow-hidden transition-colors duration-200">
         
         {/* ─── Top Header Bar (Slim & Clean) ─── */}
-        <header className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100 shrink-0">
+        <header className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -747,7 +747,7 @@ const InterviewSession = () => {
                   navigate('/dashboard')
                 }
               }}
-              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
+              className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-colors border border-transparent dark:border-slate-700/60"
               title="Back to Dashboard"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -755,10 +755,10 @@ const InterviewSession = () => {
               </svg>
             </button>
             <div>
-              <h1 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 leading-tight">
+              <h1 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 dark:text-white leading-tight">
                 {session?.job_role || 'AI Mock Interview'}
               </h1>
-              <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400">
+              <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400 dark:text-slate-400">
                 {session?.difficulty || 'Practice'} · {session?.mode || 'Video'} Mode
               </p>
             </div>
@@ -766,18 +766,18 @@ const InterviewSession = () => {
 
           <div className="flex items-center gap-2 sm:gap-3">
             {isMediaRecording && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-bold font-mono border border-rose-200">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 text-[10px] font-bold font-mono border border-rose-200 dark:border-rose-900/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping" />
                 REC (Space Saver)
               </span>
             )}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold font-mono">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-400 text-[11px] font-bold font-mono border border-blue-100 dark:border-blue-900/60">
               <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
               LIVE
             </span>
             <button
               onClick={handleEndCall}
-              className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 sm:px-3 py-1 rounded-xl transition-colors border border-rose-200"
+              className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-2.5 sm:px-3 py-1 rounded-xl transition-colors border border-rose-200 dark:border-rose-900/60"
             >
               End Call
             </button>
@@ -785,7 +785,7 @@ const InterviewSession = () => {
         </header>
 
         {error && (
-          <div className="my-1 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center justify-between shrink-0">
+          <div className="my-1 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs font-semibold flex items-center justify-between shrink-0">
             <span>{error}</span>
             <button onClick={() => setError('')} className="text-rose-500 font-bold ml-2">✕</button>
           </div>
@@ -798,16 +798,16 @@ const InterviewSession = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="my-auto py-8 px-4 text-center max-w-md mx-auto"
           >
-            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-3xl shadow-inner">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xl shadow-inner border border-transparent dark:border-blue-900/50">
               🎉
             </div>
-            <h2 className="text-2xl font-extrabold text-slate-900 mb-1.5">
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1.5">
               Interview Finished!
             </h2>
-            <p className="text-slate-500 text-xs mb-4 leading-relaxed">
+            <p className="text-slate-500 dark:text-slate-400 text-xs mb-4 leading-relaxed">
               All questions have been completed. Your camera and microphone are safely turned off.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-mono font-bold mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 text-[11px] font-mono font-bold mb-6">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               Camera & Microphone: OFF
             </div>
@@ -815,13 +815,13 @@ const InterviewSession = () => {
               <button
                 onClick={handleOpenFeedback}
                 disabled={completing}
-                className="w-full py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 dark:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all flex items-center justify-center gap-2"
               >
                 {completing ? 'Generating AI Feedback Report...' : '📊 Open Feedback & Comprehensive Report →'}
               </button>
               <button
                 onClick={() => navigate('/recordings')}
-                className="w-full py-2.5 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-2 border border-slate-200"
+                className="w-full py-2.5 px-6 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
               >
                 📼 View Session Recordings Vault
               </button>
@@ -922,9 +922,9 @@ const InterviewSession = () => {
                 )}
 
                 {/* Top-Left Tag Badge */}
-                <div className="absolute top-2.5 left-2.5 z-20 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-100 shadow-xs flex items-center gap-1.5">
+                <div className="absolute top-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#0D1527]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-100 dark:border-slate-800 shadow-xs flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${mainView === 'candidate' && isCameraActive ? 'bg-emerald-500 animate-pulse' : 'bg-blue-600 animate-pulse'}`} />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 tracking-tight">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
                     {session?.mode === 'video'
                       ? (mainView === 'candidate' ? (user?.username || 'You: Live 📹') : 'AI Interviewer (Sophia)')
                       : session?.mode === 'audio'
@@ -934,13 +934,13 @@ const InterviewSession = () => {
                 </div>
 
                 {/* Bottom-Left Status Pill */}
-                <div className="absolute bottom-2.5 left-2.5 z-20 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-100 shadow-xs flex items-center gap-1.5">
-                  <span className="flex items-center gap-0.5 text-blue-600">
-                    <span className="w-1 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-                    <span className="w-1 h-3.5 rounded-full bg-blue-600 animate-pulse" style={{ animationDelay: '0.15s' }} />
-                    <span className="w-1 h-2 rounded-full bg-blue-600 animate-pulse" style={{ animationDelay: '0.3s' }} />
+                <div className="absolute bottom-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#0D1527]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-100 dark:border-slate-800 shadow-xs flex items-center gap-1.5">
+                  <span className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400">
+                    <span className="w-1 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
+                    <span className="w-1 h-3.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" style={{ animationDelay: '0.15s' }} />
+                    <span className="w-1 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" style={{ animationDelay: '0.3s' }} />
                   </span>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-blue-600 tracking-tight">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-blue-600 dark:text-blue-400 tracking-tight">
                     {isCountingDown
                       ? `Sophia speaking in ${speechCountdown}s...`
                       : speaking
@@ -956,7 +956,7 @@ const InterviewSession = () => {
 
               {/* ─── Compact Controls Bar (NO SCREEN SHARE OPTION) ─── */}
               <div className="shrink-0 flex justify-center w-full">
-                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl px-3 sm:px-5 py-1.5 sm:py-2 flex items-center justify-around sm:justify-center gap-2 sm:gap-6 w-full sm:w-auto shadow-xs">
+                <div className="bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/90 rounded-2xl px-3 sm:px-5 py-1.5 sm:py-2 flex items-center justify-around sm:justify-center gap-2 sm:gap-6 w-full sm:w-auto shadow-xs dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
                   
                   {/* 1. Camera Toggle (Only in Video mode) */}
                   {session?.mode === 'video' && (
@@ -965,8 +965,8 @@ const InterviewSession = () => {
                         onClick={toggleCamera}
                         className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all ${
                           isCameraActive
-                            ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 shadow-xs'
-                            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-100'
+                            ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs dark:shadow-[0_0_12px_rgba(37,99,235,0.3)]'
+                            : 'bg-white dark:bg-[#131E38] text-slate-400 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700'
                         }`}
                         title={isCameraActive ? 'Turn Off Camera' : 'Turn On Camera'}
                       >
@@ -974,7 +974,7 @@ const InterviewSession = () => {
                           <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                         </svg>
                       </button>
-                      <span className="text-[10px] font-semibold text-slate-600">Camera</span>
+                      <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Camera</span>
                     </div>
                   )}
 
@@ -985,8 +985,8 @@ const InterviewSession = () => {
                         onClick={toggleMic}
                         className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all ${
                           isMicActive
-                            ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 shadow-xs'
-                            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-100'
+                            ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs dark:shadow-[0_0_12px_rgba(37,99,235,0.3)]'
+                            : 'bg-white dark:bg-[#131E38] text-slate-400 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700'
                         }`}
                         title={isMicActive ? 'Mute Mic' : 'Unmute Mic'}
                       >
@@ -995,7 +995,7 @@ const InterviewSession = () => {
                           <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
                         </svg>
                       </button>
-                      <span className="text-[10px] font-semibold text-slate-600">Mic</span>
+                      <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Mic</span>
                     </div>
                   )}
 
@@ -1005,8 +1005,8 @@ const InterviewSession = () => {
                       onClick={togglePause}
                       className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all ${
                         isPaused
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-white text-blue-600 border border-slate-200 hover:bg-blue-50'
+                          ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700'
+                          : 'bg-white dark:bg-[#131E38] text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-slate-700/80 hover:bg-blue-50 dark:hover:bg-slate-700'
                       }`}
                       title={isPaused ? 'Resume' : 'Pause'}
                     >
@@ -1020,7 +1020,7 @@ const InterviewSession = () => {
                         </svg>
                       )}
                     </button>
-                    <span className="text-[10px] font-semibold text-slate-600">
+                    <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">
                       {isPaused ? 'Resume' : 'Pause'}
                     </span>
                   </div>
@@ -1030,14 +1030,14 @@ const InterviewSession = () => {
                     <div className="flex flex-col items-center gap-0.5">
                       <button
                         onClick={() => setMainView(v => (v === 'candidate' ? 'ai' : 'candidate'))}
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-all"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white dark:bg-[#131E38] border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all"
                         title="Swap Main Camera / AI View"
                       >
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/>
                         </svg>
                       </button>
-                      <span className="text-[10px] font-semibold text-slate-600">Swap</span>
+                      <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Swap</span>
                     </div>
                   )}
 
@@ -1052,7 +1052,7 @@ const InterviewSession = () => {
                         <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.15-2.66 1.94a1 1 0 0 1-1.42 0L.3 13.2a1 1 0 0 1 0-1.41C2.5 9.54 6.94 8 12 8s9.5 1.54 11.7 3.79c.39.39.39 1.02 0 1.41l-2.46 2.46a1 1 0 0 1-1.42 0 12.8 12.8 0 0 0-2.66-1.94.99.99 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
                       </svg>
                     </button>
-                    <span className="text-[10px] font-semibold text-slate-600">End</span>
+                    <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">End</span>
                   </div>
 
                 </div>
@@ -1065,20 +1065,20 @@ const InterviewSession = () => {
             <div className="flex flex-col h-full justify-between gap-2.5 min-h-0">
               
               {/* Card 1: Current Question with Timer & 5s AI Speech Delay */}
-              <div className="bg-slate-50/70 rounded-2xl p-3 sm:p-4 border border-slate-200/70 shadow-2xs flex flex-col justify-between">
+              <div className="bg-slate-50/70 dark:bg-[#0D1527] rounded-2xl p-3 sm:p-4 border border-slate-200/70 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                       Current Question
                     </span>
                     {isCountingDown ? (
                       <button
                         onClick={handleSpeakImmediately}
                         title="Click to hear question immediately without waiting 5s"
-                        className="px-2 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-800 text-[10px] font-bold flex items-center gap-1 transition-colors animate-pulse"
+                        className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-300 text-[10px] font-bold flex items-center gap-1 transition-colors animate-pulse border border-amber-300 dark:border-amber-700/60"
                       >
                         <span>⏳ {speechCountdown}s</span>
-                        <span className="text-amber-900 font-extrabold underline">Speak now ⚡</span>
+                        <span className="text-amber-900 dark:text-amber-200 font-extrabold underline">Speak now ⚡</span>
                       </button>
                     ) : (
                       <button
@@ -1091,7 +1091,7 @@ const InterviewSession = () => {
                         className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors ${
                           speaking
                             ? 'bg-blue-600 text-white animate-pulse'
-                            : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                            : 'bg-blue-100 dark:bg-[#131E38] hover:bg-blue-200 dark:hover:bg-slate-700 text-blue-700 dark:text-blue-400 border border-transparent dark:border-slate-700'
                         }`}
                       >
                         <span>🔊</span>
@@ -1102,8 +1102,8 @@ const InterviewSession = () => {
                   <div
                     className={`flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-lg border shadow-2xs transition-all ${
                       questionSeconds <= 10
-                        ? 'text-rose-600 bg-rose-50 border-rose-200 animate-pulse'
-                        : 'text-blue-600 bg-white border-blue-100'
+                        ? 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900 animate-pulse'
+                        : 'text-blue-600 dark:text-blue-400 bg-white dark:bg-[#131E38] border-blue-100 dark:border-slate-700'
                     }`}
                     title={`${questionSeconds}s remaining · Next question opens automatically on 0s`}
                   >
@@ -1113,28 +1113,28 @@ const InterviewSession = () => {
                     <span>{formatTime(questionSeconds)}</span>
                   </div>
                 </div>
-                <p className="text-sm sm:text-base font-bold text-slate-900 leading-snug line-clamp-3">
+                <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-3">
                   {question?.question_text || 'Tell me about a time you solved a difficult problem.'}
                 </p>
               </div>
 
               {/* Card 2: Your Answer (Audio Waveform + Recording status / Interactive Textarea) */}
-              <div className="bg-slate-50/70 rounded-2xl p-3 sm:p-3.5 border border-slate-200/70 shadow-2xs flex flex-col justify-between">
+              <div className="bg-slate-50/70 dark:bg-[#0D1527] rounded-2xl p-3 sm:p-3.5 border border-slate-200/70 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                     Your Answer
                   </span>
                   <div className="flex items-center gap-2 text-xs font-semibold">
-                    <span className="text-slate-500 font-mono text-[11px]">
+                    <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
                       {formatTime(recordingSeconds)}
                     </span>
-                    <span className="text-blue-600 flex items-center gap-1 text-[11px]">
+                    <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 text-[11px]">
                       {session?.mode === 'text' ? (
                         'Typing Mode ⌨️'
                       ) : (
                         <>
                           {listening && !isPaused && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-ping" />
                           )}
                           {isPaused ? 'Paused' : listening ? 'Recording...' : 'Mic Ready'}
                         </>
@@ -1162,24 +1162,24 @@ const InterviewSession = () => {
                         : 'Your spoken answer transcript will appear here. You can also type or edit directly...'
                     }
                     rows={session?.mode === 'text' ? 4 : 2}
-                    className="w-full p-2 bg-white rounded-xl text-xs sm:text-[13px] text-slate-800 placeholder-slate-400 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all"
+                    className="w-full p-2 bg-white dark:bg-[#131E38] rounded-xl text-xs sm:text-[13px] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border border-slate-200 dark:border-slate-700/80 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all"
                   />
                 </div>
               </div>
 
               {/* Card 3: Interview Progress Bar */}
-              <div className="bg-slate-50/70 rounded-2xl p-2.5 sm:p-3 border border-slate-200/70 shadow-2xs">
+              <div className="bg-slate-50/70 dark:bg-[#0D1527] rounded-2xl p-2.5 sm:p-3 border border-slate-200/70 dark:border-slate-800/90 shadow-2xs">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                     Interview Progress
                   </span>
-                  <span className="text-xs font-bold font-mono text-slate-700">
+                  <span className="text-xs font-bold font-mono text-slate-700 dark:text-slate-300">
                     {current + 1} / {questions.length}
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-slate-200/80 overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-slate-200/80 dark:bg-slate-800 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                    className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-300"
                     style={{
                       width: `${Math.round(((current + 1) / Math.max(1, questions.length)) * 100)}%`,
                     }}
@@ -1188,18 +1188,18 @@ const InterviewSession = () => {
               </div>
 
               {/* Card 4: Tips Box */}
-              <div className="bg-blue-50/50 rounded-2xl p-2.5 sm:p-3 border border-blue-100 flex items-start gap-2.5">
-                <div className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="bg-blue-50/50 dark:bg-blue-950/30 rounded-2xl p-2.5 sm:p-3 border border-blue-100 dark:border-blue-900/60 flex items-start gap-2.5">
+                <div className="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 18h6"/><path d="M10 22h4"/>
                     <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/>
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block leading-none mb-0.5">
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block leading-none mb-0.5">
                     Tips
                   </span>
-                  <p className="text-[11px] text-slate-600 leading-snug font-medium line-clamp-2">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug font-medium line-clamp-2">
                     {TIPS_LIST[current % TIPS_LIST.length]}
                   </p>
                 </div>
@@ -1210,14 +1210,14 @@ const InterviewSession = () => {
                 <button
                   onClick={handleSkip}
                   disabled={submitting}
-                  className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors border border-slate-200 shrink-0"
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors border border-slate-200 dark:border-slate-700/80 shrink-0"
                 >
                   {isLast ? 'Skip & Finish' : 'Skip ⏭️'}
                 </button>
                 <button
                   onClick={handleSubmitAnswer}
                   disabled={submitting}
-                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition-all text-center truncate cursor-pointer"
+                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 dark:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all text-center truncate cursor-pointer"
                 >
                   {submitting ? 'Saving...' : isLast ? 'Submit & Finish Interview →' : 'Submit & Next Question →'}
                 </button>

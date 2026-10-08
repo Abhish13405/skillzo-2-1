@@ -44,6 +44,17 @@ export default {
           light: '#D1FAE5',
         },
         danger: '#EF4444',
+        // Antigravity Dark Theme Signature Palette
+        agy: {
+          canvas: '#080D1A',          // Deep cosmic obsidian canvas
+          sidebar: '#0A0F1D',         // Refined dark sidebar
+          card: '#0D1527',            // Sculpted obsidian card
+          elevated: '#131E38',        // Hover / modal elevated surface
+          border: 'rgba(59, 130, 246, 0.15)', // Luminous subtle blue border
+          borderMuted: 'rgba(148, 163, 184, 0.12)',
+          glow: '#3B82F6',
+          cyan: '#38BDF8',
+        },
       },
       fontFamily: {
         display: ['"Outfit"', '"Plus Jakarta Sans"', 'sans-serif'],
@@ -57,6 +68,8 @@ export default {
         craftHover: '0 12px 32px -4px rgba(37, 99, 235, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.06)',
         crimsonGlow: '0 0 0 1px rgba(37, 99, 235, 0.2), 0 4px 20px rgba(37, 99, 235, 0.25)',
         glow: '0 0 0 1px rgba(59, 130, 246, 0.25), 0 0 20px rgba(59, 130, 246, 0.15)',
+        agyGlow: '0 0 25px -4px rgba(37, 99, 235, 0.25)',
+        agyCard: '0 10px 30px -10px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(59, 130, 246, 0.12)',
       },
 
     },

@@ -14,7 +14,7 @@
     }
   }
   * {
-    @apply border-surface-border dark:border-slate-800;
+    @apply border-surface-border dark:border-slate-800/80;
   }
   body {
     @apply bg-surface-soft text-ink font-body antialiased selection:bg-brand-100 selection:text-brand-900 transition-colors duration-200;
@@ -25,11 +25,12 @@
     background-attachment: fixed;
   }
   html.dark body {
-    @apply bg-slate-950 text-slate-100;
+    @apply bg-[#080D1A] text-slate-100;
     background-image: 
-      radial-gradient(circle at 15% 0%, rgba(37, 99, 235, 0.12), transparent 40%),
-      radial-gradient(circle at 85% 10%, rgba(59, 130, 246, 0.1), transparent 45%),
-      radial-gradient(circle at 50% 100%, rgba(15, 23, 42, 0.9), transparent 70%);
+      radial-gradient(circle at 15% 0%, rgba(37, 99, 235, 0.16), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.12), transparent 50%),
+      radial-gradient(circle at 50% 100%, rgba(13, 21, 39, 0.95), transparent 70%);
+    background-attachment: fixed;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display text-ink dark:text-slate-100 tracking-tight;
@@ -38,33 +39,52 @@
     outline: 2px solid #2563EB;
     outline-offset: 2px;
   }
+
+  /* Sleek Antigravity Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 9999px;
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.25);
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.45);
+  }
 }
 
 @layer components {
   .card {
-    @apply bg-surface dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-craft
-    transition-all duration-200 hover:shadow-craftHover hover:border-brand-200/70 dark:hover:border-brand-900/60;
+    @apply bg-surface dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-craft
+    transition-all duration-200 hover:shadow-craftHover hover:border-brand-200/70 dark:hover:border-blue-500/40 dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)];
   }
   .btn-primary {
     @apply bg-blue-600 hover:bg-blue-700 text-white font-display font-semibold px-4 py-2 text-xs sm:text-sm rounded-xl
-    shadow-sm transition-all duration-200 hover:shadow-md
+    shadow-sm transition-all duration-200 hover:shadow-md hover:shadow-blue-500/25 dark:shadow-[0_0_20px_rgba(37,99,235,0.35)]
     hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none;
   }
   .btn-secondary {
-    @apply bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-ink dark:text-slate-100 font-medium px-4 py-2 text-xs sm:text-sm rounded-xl
-    shadow-xs transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:text-blue-700 dark:hover:text-blue-400
+    @apply bg-white dark:bg-[#131E38] border border-slate-200 dark:border-slate-700/80 text-ink dark:text-slate-100 font-medium px-4 py-2 text-xs sm:text-sm rounded-xl
+    shadow-xs transition-all duration-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:border-blue-300 dark:hover:border-blue-500/50 hover:text-blue-700 dark:hover:text-blue-400
     hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none;
   }
   .input-field {
-    @apply w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm
-    text-ink dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none
+    @apply w-full bg-white dark:bg-[#0D1527] border border-slate-200 dark:border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm
+    text-ink dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-500/15 focus:outline-none
     transition-all duration-150 shadow-xs;
   }
   .label {
     @apply block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1;
   }
   .eyebrow {
-    @apply font-mono text-[10px] sm:text-xs font-semibold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/80 px-2 py-0.5 rounded-full inline-block;
+    @apply font-mono text-[10px] sm:text-xs font-semibold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 px-2 py-0.5 rounded-full inline-block;
   }
 }
 
@@ -82,7 +102,7 @@
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
 }
 html.dark .readiness-dial {
-  background: conic-gradient(var(--dial-color) calc(var(--pct) * 1%), #334155 0);
+  background: conic-gradient(var(--dial-color) calc(var(--pct) * 1%), #1E293B 0);
 }
 .readiness-dial::before {
   content: '';
@@ -93,8 +113,8 @@ html.dark .readiness-dial {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 html.dark .readiness-dial::before {
-  background: #0F172A;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  background: #0D1527;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 .readiness-dial-value {
   position: relative;

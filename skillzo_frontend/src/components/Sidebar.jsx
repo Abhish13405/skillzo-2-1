@@ -82,16 +82,16 @@ const SidebarContent = ({ onClose }) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0A0F1D] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Logo Header */}
-      <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+      <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-display font-extrabold text-base shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-display font-extrabold text-base shadow-sm dark:shadow-[0_0_15px_rgba(37,99,235,0.4)]">
             S
           </div>
           <div>
             <span className="font-display font-extrabold text-base text-slate-900 dark:text-white tracking-tight block leading-tight">Skillzo</span>
-            <span className="block text-[9px] font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400 font-mono">AI Interview Studio</span>
+            <span className="block text-[9px] font-semibold uppercase tracking-wider text-brand-600 dark:text-blue-400 font-mono">AI Interview Studio</span>
           </div>
         </div>
         {/* Close button for mobile */}
@@ -114,19 +114,19 @@ const SidebarContent = ({ onClose }) => {
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-200 ${
                 isActive
-                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-400 border border-brand-200/80 dark:border-brand-900/80 shadow-2xs'
+                  ? 'bg-brand-50 dark:bg-blue-950/60 text-brand-700 dark:text-blue-400 border border-brand-200/80 dark:border-blue-500/30 shadow-2xs dark:shadow-[0_0_15px_rgba(37,99,235,0.2)]'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600'}>
+                <span className={isActive ? 'text-brand-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600'}>
                   <Icon />
                 </span>
                 <span>{label}</span>
                 {isActive && (
-                  <span className="ml-auto w-1.5 h-3.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
+                  <span className="ml-auto w-1.5 h-3.5 bg-brand-600 dark:bg-blue-400 rounded-full dark:shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
                 )}
               </>
             )}
@@ -135,24 +135,24 @@ const SidebarContent = ({ onClose }) => {
       </nav>
 
       {/* Theme Toggle & User Footer */}
-      <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="p-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#080D1A]/80">
         {/* Dark Mode Toggle Button */}
         <button
           onClick={toggleTheme}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:border-brand-300 dark:hover:border-brand-600 transition-all shadow-2xs"
+          className="w-full flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-xl bg-white dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:border-brand-300 dark:hover:border-blue-500/60 transition-all shadow-2xs"
         >
           <span className="flex items-center gap-1.5">
-            <span>{theme === 'dark' ? '🌙 Dark' : '☀️ Light'}</span>
+            <span>{theme === 'dark' ? '🌙 Antigravity Dark' : '☀️ Studio Light'}</span>
           </span>
-          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-            {theme === 'dark' ? 'ON' : 'OFF'}
+          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-[#131E38] text-slate-500 dark:text-blue-400 border border-transparent dark:border-slate-700">
+            {theme === 'dark' ? 'ACTIVE' : 'OFF'}
           </span>
         </button>
 
         {user ? (
           <>
-            <div className="flex items-center gap-2.5 mb-2 p-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-2xs">
-              <div className="w-7 h-7 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-900 flex items-center justify-center font-display font-bold text-xs shrink-0">
+            <div className="flex items-center gap-2.5 mb-2 p-1.5 rounded-xl bg-white dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800 shadow-2xs">
+              <div className="w-7 h-7 rounded-lg bg-brand-100 dark:bg-blue-950 text-brand-700 dark:text-blue-400 border border-brand-200 dark:border-blue-800 flex items-center justify-center font-display font-bold text-xs shrink-0">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </div>
               <div className="min-w-0 flex-1">
@@ -162,16 +162,16 @@ const SidebarContent = ({ onClose }) => {
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-800 py-1.5 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-700"
+              className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-blue-400 hover:bg-brand-50 dark:hover:bg-[#131E38] py-1.5 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-800"
             >
               <Icons.Logout />
               Sign out
             </button>
           </>
         ) : (
-          <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-xs">
+          <div className="p-2 rounded-xl bg-white dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800 shadow-xs">
             <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-display font-bold text-xs shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#131E38] text-slate-600 dark:text-slate-300 flex items-center justify-center font-display font-bold text-xs shrink-0">
                 G
               </div>
               <div className="min-w-0 flex-1">
@@ -182,13 +182,13 @@ const SidebarContent = ({ onClose }) => {
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 onClick={() => navigate('/login')}
-                className="py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold text-center transition-colors"
+                className="py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-[#1C2C50] text-slate-800 dark:text-slate-200 text-xs font-bold text-center transition-colors border border-transparent dark:border-slate-800"
               >
                 Log In
               </button>
               <button
                 onClick={() => navigate('/signup')}
-                className="py-1.5 px-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold text-center transition-colors shadow-xs"
+                className="py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold text-center transition-colors shadow-xs dark:shadow-[0_0_15px_rgba(37,99,235,0.4)]"
               >
                 Sign Up
               </button>
@@ -205,7 +205,7 @@ const Sidebar = ({ open, onClose }) => {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-56 xl:w-60 shrink-0 bg-white border-r border-slate-200/80 min-h-screen flex-col shadow-xs sticky top-0 h-screen">
+      <aside className="hidden lg:flex w-56 xl:w-60 shrink-0 bg-white dark:bg-[#0A0F1D] border-r border-slate-200/80 dark:border-slate-800/80 min-h-screen flex-col shadow-xs sticky top-0 h-screen transition-colors duration-200">
         <SidebarContent />
       </aside>
 
@@ -213,9 +213,9 @@ const Sidebar = ({ open, onClose }) => {
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity" onClick={onClose} />
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onClick={onClose} />
           {/* Drawer */}
-          <aside className="relative z-50 w-72 bg-white border-r border-slate-200 flex flex-col h-full shadow-2xl">
+          <aside className="relative z-50 w-72 bg-white dark:bg-[#0A0F1D] border-r border-slate-200 dark:border-slate-800 flex flex-col h-full shadow-2xl transition-colors duration-200">
             <SidebarContent onClose={onClose} />
           </aside>
         </div>

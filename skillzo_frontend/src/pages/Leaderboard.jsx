@@ -27,24 +27,24 @@ const Leaderboard = () => {
   const rest  = sessions.slice(3)
 
   const getScoreBadge = (score) => {
-    if (score >= 75) return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    if (score >= 40) return 'bg-amber-50 text-amber-700 border-amber-200'
-    return 'bg-brand-50 text-brand-700 border-brand-200'
+    if (score >= 75) return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50'
+    if (score >= 40) return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50'
+    return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50'
   }
 
   return (
     <AppShell>
-      <div className="mb-4 sm:mb-5 border-b border-slate-200/60 pb-3 sm:pb-4">
+      <div className="mb-4 sm:mb-5 border-b border-slate-200/60 dark:border-slate-800 pb-3 sm:pb-4">
         <span className="eyebrow mb-1">Personal Records</span>
-        <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 tracking-tight mt-0.5">Your Leaderboard</h1>
-        <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Your best mock interview scorecards, ordered by readiness rank.</p>
+        <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">Your Leaderboard</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Your best mock interview scorecards, ordered by readiness rank.</p>
       </div>
 
       {sessions.length === 0 ? (
-        <div className="card bg-white text-center py-12 border border-slate-200/80 shadow-craft rounded-2xl">
+        <div className="card text-center py-12 border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527] shadow-craft rounded-2xl">
           <p className="text-3xl mb-3">🏆</p>
-          <h3 className="font-display font-bold text-base sm:text-lg text-slate-900">No completed interviews yet</h3>
-          <p className="text-slate-500 text-xs mb-4 mt-0.5">Complete your first interview to populate your personal leaderboard.</p>
+          <h3 className="font-display font-bold text-base sm:text-lg text-slate-900 dark:text-white">No completed interviews yet</h3>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mb-4 mt-0.5">Complete your first interview to populate your personal leaderboard.</p>
           <Link to="/interview/setup" className="btn-primary shadow-sm py-2 px-3.5 text-xs">Start First Interview →</Link>
         </div>
       ) : (
@@ -63,15 +63,17 @@ const Leaderboard = () => {
                   >
                     <Link
                       to={`/interview/${s.id}/report`}
-                      className={`card bg-white flex flex-col items-center text-center border transition-all hover:shadow-craftHover group p-3.5 sm:p-4 rounded-2xl ${
-                        idx === 0 ? 'border-brand-500 ring-2 ring-brand-500/15 bg-gradient-to-b from-brand-50/50 to-white' : 'border-slate-200/80 shadow-craft'
+                      className={`card flex flex-col items-center text-center border transition-all hover:shadow-craftHover group p-3.5 sm:p-4 rounded-2xl dark:bg-[#0D1527] ${
+                        idx === 0
+                          ? 'border-blue-500 ring-2 ring-blue-500/20 bg-gradient-to-b from-blue-50/50 to-white dark:from-blue-950/50 dark:to-[#0D1527] dark:border-blue-500/50'
+                          : 'border-slate-200/80 dark:border-slate-800/80 shadow-craft bg-white dark:bg-[#0D1527]'
                       }`}
                     >
                       <span className="text-3xl mb-2">{MEDALS[idx]}</span>
                       <ReadinessDial score={s.overall_score} size={76} />
-                      <p className="font-display font-extrabold text-base text-slate-900 mt-2.5 group-hover:text-brand-600 transition-colors">{s.job_role}</p>
-                      <p className="text-xs text-slate-500 font-mono mt-0.5">{s.difficulty} · {s.mode}</p>
-                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                      <p className="font-display font-extrabold text-base text-slate-900 dark:text-white mt-2.5 group-hover:text-blue-500 transition-colors">{s.job_role}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">{s.difficulty} · {s.mode}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
                         {s.completed_at ? new Date(s.completed_at).toLocaleDateString('en-IN') : '—'}
                       </p>
                     </Link>
@@ -83,22 +85,22 @@ const Leaderboard = () => {
 
           {/* All sessions table */}
           {sessions.length > 0 && (
-            <div className="card bg-white shadow-craft border border-slate-200/80 p-6 rounded-2xl mb-8">
-              <h2 className="font-display font-bold text-lg text-slate-900 mb-4">All Ranked Sessions</h2>
-              <div className="divide-y divide-slate-100">
+            <div className="card shadow-craft border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527] p-6 rounded-2xl mb-8">
+              <h2 className="font-display font-bold text-lg text-slate-900 dark:text-white mb-4">All Ranked Sessions</h2>
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 {sessions.map((s, idx) => (
                   <Link
                     key={s.id}
                     to={`/interview/${s.id}/report`}
-                    className="flex items-center justify-between py-3.5 hover:bg-slate-50 -mx-2 px-4 rounded-xl transition-all group"
+                    className="flex items-center justify-between py-3.5 hover:bg-slate-50 dark:hover:bg-[#131E38]/50 -mx-2 px-4 rounded-xl transition-all group"
                   >
                     <div className="flex items-center gap-4">
-                      <span className="w-8 text-center font-mono font-extrabold text-sm text-slate-400">
+                      <span className="w-8 text-center font-mono font-extrabold text-sm text-slate-400 dark:text-slate-500">
                         {idx < 3 ? MEDALS[idx] : `#${idx + 1}`}
                       </span>
                       <div>
-                        <p className="font-bold text-slate-900 group-hover:text-brand-600 transition-colors text-sm">{s.job_role}</p>
-                        <p className="text-xs text-slate-500 font-mono mt-0.5">
+                        <p className="font-bold text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors text-sm">{s.job_role}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                           {s.difficulty} · {s.mode} · {s.completed_at ? new Date(s.completed_at).toLocaleDateString('en-IN') : '—'}
                         </p>
                       </div>
@@ -120,9 +122,9 @@ const Leaderboard = () => {
               { label: 'Avg Score', value: sessions.length ? Math.round(sessions.reduce((s, x) => s + x.overall_score, 0) / sessions.length) : 0 },
               { label: 'Roles Practiced', value: new Set(sessions.map(s => s.job_role)).size },
             ].map(({ label, value }) => (
-              <div key={label} className="card bg-white text-center p-5 border border-slate-200/80 shadow-craft rounded-2xl">
-                <p className="text-2xl sm:text-3xl font-display font-extrabold text-brand-600">{value}</p>
-                <p className="text-[10px] text-slate-400 font-mono font-bold uppercase tracking-wider mt-1">{label}</p>
+              <div key={label} className="card text-center p-5 border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527] shadow-craft rounded-2xl">
+                <p className="text-2xl sm:text-3xl font-display font-extrabold text-blue-600 dark:text-blue-400">{value}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-bold uppercase tracking-wider mt-1">{label}</p>
               </div>
             ))}
           </div>

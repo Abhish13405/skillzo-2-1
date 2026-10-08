@@ -6,29 +6,29 @@ const Loader = ({ label = 'Loading' }) => (
     <div className="relative w-16 h-16">
       {/* Outer ring */}
       <svg className="absolute inset-0 animate-spin" viewBox="0 0 64 64" fill="none">
-        <circle cx="32" cy="32" r="28" stroke="#E2E8F0" strokeWidth="3" />
+        <circle cx="32" cy="32" r="28" className="stroke-slate-200 dark:stroke-slate-800" strokeWidth="3" />
         <path
           d="M32 4 A28 28 0 0 1 60 32"
-          stroke="#2563EB" strokeWidth="3.5" strokeLinecap="round"
+          stroke="#3B82F6" strokeWidth="3.5" strokeLinecap="round"
         />
       </svg>
       {/* Inner ring */}
       <svg className="absolute inset-0 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.2s' }} viewBox="0 0 64 64" fill="none">
-        <circle cx="32" cy="32" r="18" stroke="#F1F5F9" strokeWidth="3" />
+        <circle cx="32" cy="32" r="18" className="stroke-slate-100 dark:stroke-slate-800/60" strokeWidth="3" />
         <path
           d="M32 14 A18 18 0 0 1 50 32"
-          stroke="#60A5FA" strokeWidth="3.5" strokeLinecap="round"
+          stroke="#38BDF8" strokeWidth="3.5" strokeLinecap="round"
         />
       </svg>
       {/* Center dot */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-3 h-3 rounded-full bg-brand-600 animate-pulse shadow-sm shadow-brand-500" />
+        <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse shadow-sm shadow-blue-500" />
       </div>
     </div>
 
     {/* Label */}
     <div className="text-center">
-      <p className="text-xs font-mono font-semibold text-slate-500 tracking-widest uppercase bg-slate-100 px-3 py-1 rounded-full border border-slate-200">{label}</p>
+      <p className="text-xs font-mono font-semibold text-slate-500 dark:text-slate-300 tracking-widest uppercase bg-slate-100 dark:bg-[#131E38] px-3.5 py-1 rounded-full border border-slate-200 dark:border-slate-800">{label}</p>
       <div className="flex gap-1.5 justify-center mt-3">
         {[0, 1, 2].map(i => (
           <div
