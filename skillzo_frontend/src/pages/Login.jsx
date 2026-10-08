@@ -18,7 +18,13 @@ const Login = () => {
       await login(email.trim(), password)
       navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid email or password.')
+      if (err.response?.status === 401) {
+        setError(err.response?.data?.error || 'Invalid email or password.')
+      } else if (!err.response || err.code === 'ECONNABORTED' || err.response?.status >= 500) {
+        setError('Cloud server is waking up from sleep mode (Render free tier takes ~30s on first load). Please wait 5 seconds and click Sign In again!')
+      } else {
+        setError(err.response?.data?.error || 'Sign in failed. Please check your credentials and try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -109,7 +115,7 @@ const Login = () => {
               />
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full mt-2 shadow-md shadow-blue-500/20 py-3">
-              {loading ? 'Logging in...' : 'Sign In →'}
+              {loading ? 'Connecting & Signing In...' : 'Sign In →'}
             </button>
           </form>
 
