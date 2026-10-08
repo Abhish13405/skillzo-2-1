@@ -51,6 +51,11 @@ const Icons = {
       <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
   ),
+  LeaderPortal: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  ),
 }
 
 const navItems = [
@@ -67,6 +72,20 @@ const SidebarContent = ({ onClose }) => {
   const { user, logout, openAuthModal } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
+
+  const isLeader = Boolean(
+    user?.is_staff ||
+    user?.is_superuser ||
+    (user?.email && user.email.toLowerCase().includes('abhish')) ||
+    (user?.username && user.username.toLowerCase().includes('abhish'))
+  )
+
+  const visibleNavItems = isLeader
+    ? [
+        ...navItems,
+        { to: '/leader', label: '👑 Leader Portal', Icon: Icons.LeaderPortal },
+      ]
+    : navItems
 
   const handleLogout = () => {
     logout()
@@ -106,7 +125,7 @@ const SidebarContent = ({ onClose }) => {
 
       {/* Navigation Links */}
       <nav className="flex-1 px-2.5 py-3 space-y-1 overflow-y-auto">
-        {navItems.map(({ to, label, Icon }) => (
+        {visibleNavItems.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}

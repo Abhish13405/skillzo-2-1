@@ -78,3 +78,63 @@ class DashboardSummaryView(APIView):
                 "longest_streak": user.longest_streak,
             },
         })
+
+
+class LeaderPortalStatsView(APIView):
+    """
+    GET /api/dashboard/leader-stats/
+    Dedicated endpoint for the Project Leader Portal.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        is_leader = (
+            user.is_staff or 
+            user.is_superuser or 
+            (user.email and 'abhish' in user.email.lower()) or
+            (user.username and 'abhish' in user.username.lower())
+        )
+        if not is_leader:
+            return Response({"error": "Leader access required."}, status=403)
+
+        from django.contrib.auth import get_user_model
+        from resume_analysis.models import Resume
+        UserModel = get_user_model()
+
+        users_qs = UserModel.objects.order_by('-date_joined')
+        all_users = [
+            {
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "target_role": u.target_role or "Not specified",
+                "current_streak": u.current_streak,
+                "date_joined": u.date_joined.strftime('%d %b %Y, %I:%M %p') if u.date_joined else "—",
+                "is_active": u.is_active,
+            }
+            for u in users_qs
+        ]
+
+        recent_sessions = [
+            {
+                "id": s.id,
+                "candidate": s.user.username if s.user else "Anonymous",
+                "email": s.user.email if s.user else "—",
+                "role": s.job_role,
+                "difficulty": s.difficulty,
+                "score": s.overall_score,
+                "status": s.status,
+                "date": s.started_at.strftime('%d %b %Y') if s.started_at else "—",
+            }
+            for s in InterviewSession.objects.select_related('user').order_by('-id')[:20]
+        ]
+
+        return Response({
+            "is_leader": True,
+            "total_users": UserModel.objects.count(),
+            "total_interviews": InterviewSession.objects.count(),
+            "total_resumes": Resume.objects.count(),
+            "users": all_users,
+            "recent_sessions": recent_sessions,
+        })

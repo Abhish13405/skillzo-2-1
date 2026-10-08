@@ -14,6 +14,7 @@ import InterviewReport from './pages/InterviewReport'
 import History from './pages/History'
 import Recordings from './pages/Recordings'
 import Leaderboard from './pages/Leaderboard'
+import LeaderPortal from './pages/LeaderPortal'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
       <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />
       <Route path="/recordings" element={<ProtectedRoute featureName="Recordings"><Recordings /></ProtectedRoute>} />
       <Route path="/leaderboard" element={<ProtectedRoute featureName="Leaderboard"><Leaderboard /></ProtectedRoute>} />
+      <Route path="/leader" element={<ProtectedRoute featureName="Leader Portal"><LeaderPortal /></ProtectedRoute>} />
 
       <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><InterviewSetup /></ProtectedRoute>} />
       <Route path="/interview/:sessionId/session" element={<ProtectedRoute featureName="AI Interview Session"><InterviewSession /></ProtectedRoute>} />
