@@ -284,7 +284,10 @@ const useSpeechSynthesis = () => {
         setSpeaking(false)
         onEnd?.()
       }
-      utterance.onerror = () => setSpeaking(false)
+      utterance.onerror = () => {
+        setSpeaking(false)
+        onEnd?.()
+      }
       window.speechSynthesis.speak(utterance)
     },
     [supported, voices]
@@ -338,6 +341,7 @@ const InterviewSession = () => {
   // 5-Second Delay before AI speaks
   const [speechCountdown, setSpeechCountdown] = useState(5)
   const [isCountingDown, setIsCountingDown] = useState(true)
+  const [isAiAsking, setIsAiAsking] = useState(true) // True while AI reads question; timer and recording ONLY start after
 
   // Timers
   const [questionSeconds, setQuestionSeconds] = useState(40)
@@ -572,9 +576,28 @@ const InterviewSession = () => {
     }
   }, [stream, isCameraActive, mainView])
 
-  // Timers
+  // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
+  // THIS is the EXACT moment when the 40s timer begins and voice recording starts!
+  const handleAiFinishedAsking = useCallback(() => {
+    setIsAiAsking(false)
+    setIsCountingDown(false)
+    setSpeechCountdown(0)
+    startTime.current = Date.now()
+    if (session?.mode !== 'text' && isMicActive && !isPaused) {
+      startMic()
+      startRecording()
+    }
+  }, [session, isMicActive, isPaused, startMic, startRecording])
+
+  // Skip AI voice read-aloud and immediately jump into the candidate's 40s answering turn
+  const handleSkipAiVoiceAndAnswerNow = useCallback(() => {
+    cancelSpeech()
+    handleAiFinishedAsking()
+  }, [cancelSpeech, handleAiFinishedAsking])
+
+  // Timers: Only count down AFTER AI finishes asking the question!
   useEffect(() => {
-    if (isPaused || isCompleted) return
+    if (isPaused || isCompleted || isAiAsking) return
 
     const interval = setInterval(() => {
       setQuestionSeconds((prev) => (prev > 0 ? prev - 1 : 0))
@@ -582,69 +605,54 @@ const InterviewSession = () => {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [isPaused, isCompleted])
+  }, [isPaused, isCompleted, isAiAsking])
 
-  // Immediate speech trigger (if user clicks "Speak Now" or skips the 5s delay)
-  const handleSpeakImmediately = useCallback(() => {
-    setIsCountingDown(false)
-    setSpeechCountdown(0)
-    resetTranscript()
-    const q = session?.questions?.[current]
-    if (q?.question_text) {
-      speak(q.question_text, () => {
-        if (session?.mode !== 'text' && isMicActive && !isPaused) {
-          startMic()
-          startRecording()
-        }
-      })
-      // Also start mic right away so candidate can speak immediately
-      if (session?.mode !== 'text' && isMicActive && !isPaused) {
-        startMic()
-        startRecording()
-      }
-    }
-  }, [session, current, isMicActive, isPaused, speak, startMic, startRecording, resetTranscript])
-
-  // When question changes: 5-second countdown, then speak and start mic & recording
+  // When question loads/changes: AI reads the question, timer is frozen at 40s, mic & recording wait until AI finishes!
   useEffect(() => {
     if (!session || isCompleted) return
     stopMic()
     cancelSpeech()
     resetTranscript()
 
-    setSpeechCountdown(5)
+    setIsAiAsking(true)
     setIsCountingDown(true)
+    setSpeechCountdown(2)
     setQuestionSeconds(40)
     setRecordingSeconds(0)
 
-    let remaining = 5
+    const q = session.questions?.[current]
+    if (!q?.question_text) {
+      handleAiFinishedAsking()
+      return
+    }
+
+    let remaining = 2
     const countdownInterval = setInterval(() => {
       remaining -= 1
       setSpeechCountdown(remaining)
       if (remaining <= 0) {
         clearInterval(countdownInterval)
         setIsCountingDown(false)
-        const q = session.questions?.[current]
-        if (q?.question_text) {
-          speak(q.question_text, () => {
-            if (session.mode !== 'text' && isMicActive && !isPaused) {
-              startMic()
-              startRecording()
-            }
-          })
-          // Fallback: If speech synthesis takes more than 1 second, ensure mic starts so candidate can respond
-          if (session.mode !== 'text' && isMicActive && !isPaused) {
-            setTimeout(() => {
-              startMic()
-              startRecording()
-            }, 1200)
-          }
-        }
+
+        speak(q.question_text, () => {
+          // AI finished speaking the question -> START candidate timer & voice recording!
+          handleAiFinishedAsking()
+        })
       }
     }, 1000)
 
+    // Safety fallback: If speech synthesis fails to fire onend in certain browser conditions
+    const textLen = q.question_text ? q.question_text.length : 50
+    const maxSpeechDurationMs = Math.max(10000, Math.min(25000, textLen * 95))
+    const fallbackTimer = setTimeout(() => {
+      if (isAiAsking) {
+        handleAiFinishedAsking()
+      }
+    }, maxSpeechDurationMs)
+
     return () => {
       clearInterval(countdownInterval)
+      clearTimeout(fallbackTimer)
       cancelSpeech()
     }
   }, [current, session, isCompleted]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -669,6 +677,9 @@ const InterviewSession = () => {
       stopMic()
       cancelSpeech()
       resetTranscript()
+      setIsAiAsking(true)
+      setQuestionSeconds(40)
+      setRecordingSeconds(0)
       setCurrent((c) => c + 1)
       setAnswerText('')
       startTime.current = Date.now()
@@ -710,10 +721,10 @@ const InterviewSession = () => {
 
   // Auto-advance to next question when 40 seconds expire
   useEffect(() => {
-    if (questionSeconds === 0 && !isCountingDown && !submitting && !isCompleted && session && question) {
+    if (questionSeconds === 0 && !isAiAsking && !isCountingDown && !submitting && !isCompleted && session && question) {
       handleSubmitRef.current(true)
     }
-  }, [questionSeconds, isCountingDown, submitting, isCompleted, session, question])
+  }, [questionSeconds, isAiAsking, isCountingDown, submitting, isCompleted, session, question])
 
   // Enter key handler inside Textarea (Enter = submit, Shift + Enter = new line)
   const handleTextareaKeyDown = (e) => {
@@ -1204,18 +1215,41 @@ const InterviewSession = () => {
                       </button>
                     )}
                   </div>
-                  <div
-                    className={`flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-lg border shadow-2xs transition-all ${
-                      questionSeconds <= 10
-                        ? 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900 animate-pulse'
-                        : 'text-blue-600 dark:text-blue-400 bg-white dark:bg-[#131E38] border-blue-100 dark:border-slate-700'
-                    }`}
-                    title={`${questionSeconds}s remaining · Next question opens automatically on 0s`}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    <span>{formatTime(questionSeconds)}</span>
+                  <div className="flex items-center gap-2">
+                    {isAiAsking && (
+                      <button
+                        type="button"
+                        onClick={handleSkipAiVoiceAndAnswerNow}
+                        className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded-md border border-blue-200/60 dark:border-blue-900/40 cursor-pointer"
+                        title="Skip voice and immediately start candidate 40s timer & voice recording"
+                      >
+                        <span>Skip Voice & Answer Now ➔</span>
+                      </button>
+                    )}
+                    <div
+                      className={`flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-lg border shadow-2xs transition-all ${
+                        isAiAsking
+                          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800'
+                          : questionSeconds <= 10
+                          ? 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900 animate-pulse'
+                          : 'text-blue-600 dark:text-blue-400 bg-white dark:bg-[#131E38] border-blue-100 dark:border-slate-700'
+                      }`}
+                      title={isAiAsking ? 'AI is asking the question. Your 40s timer starts after AI finishes.' : `${questionSeconds}s remaining · Next question opens on 0s`}
+                    >
+                      {isAiAsking ? (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                          <span>AI Asking... (40s ready)</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                          </svg>
+                          <span>{formatTime(questionSeconds)}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-3">
@@ -1233,7 +1267,11 @@ const InterviewSession = () => {
                     <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
                       {formatTime(recordingSeconds)}
                     </span>
-                    {session?.mode === 'text' ? (
+                    {isAiAsking ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-slate-100 dark:bg-[#131E38] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                        <span>⏳ Waiting for AI to finish question...</span>
+                      </span>
+                    ) : session?.mode === 'text' ? (
                       <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
                         Typing Mode ⌨️
                       </span>
@@ -1268,7 +1306,7 @@ const InterviewSession = () => {
                 {/* Compact Waveform only in audio/video mode */}
                 {session?.mode !== 'text' && (
                   <div className="my-0.5">
-                    <AudioWaveformBars isRecording={listening || !!answerText} isPaused={isPaused} />
+                    <AudioWaveformBars isRecording={!isAiAsking && (listening || !!answerText)} isPaused={isPaused} />
                   </div>
                 )}
 
@@ -1284,6 +1322,8 @@ const InterviewSession = () => {
                     placeholder={
                       session?.mode === 'text'
                         ? 'Type your detailed answer here...'
+                        : isAiAsking
+                        ? 'AI is asking the question... Your 40s timer and mic will start as soon as AI finishes speaking.'
                         : 'Speak into your microphone now (words appear here in real-time) or type directly...'
                     }
                     rows={session?.mode === 'text' ? 4 : 2}
@@ -1292,8 +1332,10 @@ const InterviewSession = () => {
                   {session?.mode !== 'text' && (
                     <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                       <span>
-                        {listening
-                          ? '🟢 Live audio dictation active'
+                        {isAiAsking
+                          ? '⏳ AI asking question... Timer and voice recording start right after.'
+                          : listening
+                          ? '🟢 Live audio dictation active (40s countdown running)'
                           : '⚪ Mic paused. Tap "Tap to Speak" or type answer'}
                       </span>
                       <span>{answerText ? `${answerText.length} chars` : 'Ready to record'}</span>
