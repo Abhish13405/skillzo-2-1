@@ -42,7 +42,7 @@ class GroqService:
             self._client = Groq(api_key=settings.GROQ_API_KEY)
         return self._client
 
-    def _chat(self, system_prompt: str, user_prompt: str, json_mode: bool = True) -> dict:
+    def _chat(self, system_prompt: str, user_prompt: str, json_mode: bool = True, temperature: float = 0.3) -> dict:
         """Core call shared by every method below, with JSON validation error recovery."""
         kwargs = {
             "model": self.model,
@@ -50,7 +50,7 @@ class GroqService:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 0.3,
+            "temperature": temperature,
         }
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
@@ -133,22 +133,49 @@ Resume text:
     # (shared by Text / Audio / Video modes)
     # ---------------------------------------------------------------
     def generate_questions(self, role: str, difficulty: str, count: int = 10,
-                            question_type: str = "technical") -> dict:
-        """Generate interview questions for a given role + difficulty."""
+                            question_type: str = "technical",
+                            exclude_questions: list = None) -> dict:
+        """Generate diverse, non-repeating interview questions for a given role + difficulty."""
+        exclude_block = ""
+        if exclude_questions:
+            recent_sample = [q.strip() for q in exclude_questions[-15:] if q and q.strip()]
+            if recent_sample:
+                formatted_excludes = "\n".join(f"- {q}" for q in recent_sample)
+                exclude_block = f"\nIMPORTANT: Do NOT repeat or slightly rephrase any of these recently asked questions:\n{formatted_excludes}\n"
+
+        topic_angles = [
+            "Practical real-world debugging & edge cases",
+            "Performance optimization, caching & scaling challenges",
+            "Architectural choices, best practices & trade-offs",
+            "Concurrency, async programming & API integration",
+            "Database querying, data structures & memory management",
+            "System reliability, failure handling & security basics",
+        ]
+        import random
+        selected_focus = random.sample(topic_angles, k=min(3, len(topic_angles)))
+        focus_str = ", ".join(selected_focus)
+
         system_prompt = (
-            "You are a senior technical interviewer. Always respond with valid JSON only. "
+            "You are a principal technical interviewer at a top technology company. "
+            "You pride yourself on asking fresh, realistic, varied questions that test true practical understanding, "
+            "not generic textbook definitions. Always respond with valid JSON only. "
             "CRITICAL: Never output unescaped double quotes inside JSON string values. Use single quotes instead."
         )
         user_prompt = f"""
 Generate {count} {difficulty} level {question_type} interview questions for the role
-of "{role}". Return JSON with EXACTLY this structure:
+of "{role}".
+
+Focus areas for this session: {focus_str}.
+Ensure each question explores a distinct concept with varied real-world phrasing.
+{exclude_block}
+Return JSON with EXACTLY this structure:
 {{
   "questions": [
     {{"id": 1, "question": "...", "category": "..."}}
   ]
 }}
 """
-        return self._chat(system_prompt, user_prompt)
+        return self._chat(system_prompt, user_prompt, temperature=0.85)
 
     # ---------------------------------------------------------------
     # Module 4: AI Interview - Answer Evaluation

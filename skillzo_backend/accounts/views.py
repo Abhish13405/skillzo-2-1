@@ -48,19 +48,25 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
+        identifier = serializer.validated_data['email'].strip()
         password = serializer.validated_data['password']
 
-        try:
-            user_obj = User.objects.get(email=email)
-        except User.DoesNotExist:
+        # Flexible case-insensitive lookup: match email OR username
+        user_obj = User.objects.filter(email__iexact=identifier).first()
+        if not user_obj:
+            user_obj = User.objects.filter(username__iexact=identifier).first()
+
+        if not user_obj:
             return Response({"error": "Invalid email or password."},
                              status=status.HTTP_401_UNAUTHORIZED)
 
-        user = authenticate(username=email, password=password)
+        user = authenticate(username=user_obj.email, password=password)
         if not user:
-            return Response({"error": "Invalid email or password."},
-                             status=status.HTTP_401_UNAUTHORIZED)
+            if user_obj.check_password(password) and user_obj.is_active:
+                user = user_obj
+            else:
+                return Response({"error": "Invalid email or password."},
+                                 status=status.HTTP_401_UNAUTHORIZED)
 
         # Streak update on login (used by Dashboard's Daily Goal / streak feature)
         today = timezone.localdate()
@@ -88,11 +94,13 @@ class ForgotPasswordRequestView(APIView):
     def post(self, request):
         serializer = ForgotPasswordRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
+        identifier = serializer.validated_data['email'].strip()
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        user = User.objects.filter(email__iexact=identifier).first()
+        if not user:
+            user = User.objects.filter(username__iexact=identifier).first()
+
+        if not user:
             # Don't reveal whether email exists
             return Response({"message": "If this email exists, an OTP has been sent."})
 
@@ -115,12 +123,18 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        user = User.objects.filter(email__iexact=data['email'].strip()).first()
+        if not user:
+            user = User.objects.filter(username__iexact=data['email'].strip()).first()
+
+        if not user:
+            return Response({"error": "Invalid OTP or account not found."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            user = User.objects.get(email=data['email'])
             otp_obj = PasswordResetOTP.objects.filter(
-                user=user, otp=data['otp'], is_used=False
+                user=user, otp=data['otp'].strip(), is_used=False
             ).latest('created_at')
-        except (User.DoesNotExist, PasswordResetOTP.DoesNotExist):
+        except PasswordResetOTP.DoesNotExist:
             return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(data['new_password'])

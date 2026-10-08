@@ -32,11 +32,19 @@ class StartInterviewView(APIView):
             mode=data['mode'],
         )
 
+        # Fetch recent questions for this user and role to avoid repetitive questions
+        recent_questions = list(
+            InterviewQuestion.objects.filter(session__user=request.user, session__job_role=data['job_role'])
+            .order_by('-id')
+            .values_list('question_text', flat=True)[:20]
+        )
+
         try:
             result = groq_service.generate_questions(
                 role=data['job_role'],
                 difficulty=data['difficulty'],
                 count=data['question_count'],
+                exclude_questions=recent_questions,
             )
         except Exception as e:
             session.delete()

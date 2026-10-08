@@ -15,7 +15,7 @@ const Login = () => {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
+      await login(email.trim(), password)
       navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid email or password.')
@@ -81,14 +81,17 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="label">Email address</label>
+              <label className="label">Email or Username</label>
               <input
-                type="email"
+                type="text"
                 required
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
                 className="input-field"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="you@example.com or username"
               />
             </div>
             <div>

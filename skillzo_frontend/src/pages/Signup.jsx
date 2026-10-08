@@ -16,7 +16,11 @@ const Signup = () => {
     setError('')
     setLoading(true)
     try {
-      await signup(form)
+      await signup({
+        ...form,
+        username: form.username.trim(),
+        email: form.email.trim().toLowerCase(),
+      })
       navigate('/dashboard')
     } catch (err) {
       const data = err.response?.data
@@ -47,19 +51,56 @@ const Signup = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Username</label>
-            <input name="username" required className="input-field" value={form.username} onChange={handleChange} placeholder="username" />
+            <input
+              name="username"
+              required
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
+              className="input-field"
+              value={form.username}
+              onChange={handleChange}
+              placeholder="username"
+            />
           </div>
           <div>
             <label className="label">Email address</label>
-            <input type="email" name="email" required className="input-field" value={form.email} onChange={handleChange} placeholder="you@example.com" />
+            <input
+              type="email"
+              name="email"
+              required
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
+              className="input-field"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+            />
           </div>
           <div>
             <label className="label">Password</label>
-            <input type="password" name="password" required className="input-field" value={form.password} onChange={handleChange} placeholder="Min 8 characters" />
+            <input
+              type="password"
+              name="password"
+              required
+              className="input-field"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Min 8 characters"
+            />
           </div>
           <div>
             <label className="label">Confirm Password</label>
-            <input type="password" name="confirm_password" required className="input-field" value={form.confirm_password} onChange={handleChange} placeholder="Re-enter password" />
+            <input
+              type="password"
+              name="confirm_password"
+              required
+              className="input-field"
+              value={form.confirm_password}
+              onChange={handleChange}
+              placeholder="Re-enter password"
+            />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full mt-2 shadow-md shadow-blue-500/20 py-3">
             {loading ? 'Creating account...' : 'Create Account →'}
