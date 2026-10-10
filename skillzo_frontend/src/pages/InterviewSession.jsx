@@ -374,6 +374,17 @@ const InterviewSession = () => {
   const recordedChunksRef = useRef([])
   const recordingStartTimeRef = useRef(null)
 
+  // Direct element ref binder ensures live video track is instantly attached
+  const attachVideoRef = useCallback((el) => {
+    videoRef.current = el
+    if (el) {
+      const activeStream = streamRef.current || stream
+      if (activeStream && el.srcObject !== activeStream) {
+        el.srcObject = activeStream
+      }
+    }
+  }, [stream])
+
   // Speech Handlers
   const handleTranscript = useCallback((t) => setAnswerText(t), [])
   const {
@@ -467,9 +478,13 @@ const InterviewSession = () => {
     cancelSpeech()
   }, [stopCamera, stopMic, cancelSpeech])
 
-  // Start Ultra-Low Space Recording (250 kbps video / 32 kbps audio)
+  // Start High-Reliability Video/Audio Recording with multi-tier fallback
   const startRecording = useCallback(() => {
-    if (!streamRef.current || typeof MediaRecorder === 'undefined') return
+    const activeStream = streamRef.current || stream
+    if (!activeStream || typeof MediaRecorder === 'undefined') {
+      console.warn('startRecording: No active stream available yet.')
+      return
+    }
     const mode = session?.mode || 'video'
     if (mode === 'text') return // text mode does not record media
 
@@ -481,24 +496,44 @@ const InterviewSession = () => {
 
     try {
       recordedChunksRef.current = []
-      const mimeType = getBestMimeType(mode)
+      let recorder = null
 
-      const options = {
-        videoBitsPerSecond: 250000, // 250 kbps - High compression, minimal storage
-        audioBitsPerSecond: 32000,  // 32 kbps - Crisp voice audio
-      }
-      if (mimeType) {
-        options.mimeType = mimeType
+      const hasVideo = activeStream.getVideoTracks().length > 0
+      const hasAudio = activeStream.getAudioTracks().length > 0
+
+      // Tier 1: Try with optimized low-bandwidth options
+      try {
+        const mimeType = getBestMimeType(mode)
+        const options = {}
+        if (mimeType) options.mimeType = mimeType
+        if (hasVideo) options.videoBitsPerSecond = 350000
+        if (hasAudio) options.audioBitsPerSecond = 48000
+        recorder = new MediaRecorder(activeStream, options)
+      } catch (optErr) {
+        console.warn('MediaRecorder with bitrates failed, trying with mimeType only:', optErr)
+        // Tier 2: Try with mimeType only
+        try {
+          const mimeType = getBestMimeType(mode)
+          recorder = mimeType ? new MediaRecorder(activeStream, { mimeType }) : new MediaRecorder(activeStream)
+        } catch (mimeErr) {
+          console.warn('MediaRecorder with mimeType failed, falling back to default:', mimeErr)
+          // Tier 3: Browser default (guaranteed to work across all devices)
+          recorder = new MediaRecorder(activeStream)
+        }
       }
 
-      const recorder = new MediaRecorder(streamRef.current, options)
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
           recordedChunksRef.current.push(e.data)
         }
       }
 
-      recorder.start(1000)
+      recorder.onerror = (e) => {
+        console.error('MediaRecorder runtime error:', e)
+      }
+
+      // Start with 500ms chunk timeslice for instant buffer availability
+      recorder.start(500)
       mediaRecorderRef.current = recorder
       recordingStartTimeRef.current = Date.now()
       setIsMediaRecording(true)
@@ -506,28 +541,28 @@ const InterviewSession = () => {
       console.warn('Could not start MediaRecorder:', err)
       setIsMediaRecording(false)
     }
-  }, [session?.mode])
+  }, [session?.mode, stream])
 
-  // Stop Recorder and Save Clip into IndexedDB
+  // Stop Recorder and Save Clip into IndexedDB with timeout safeguard
   const stopAndSaveRecording = useCallback(async (qNum, qText) => {
     setIsMediaRecording(false)
     return new Promise((resolve) => {
       const recorder = mediaRecorderRef.current
-      if (!recorder || recorder.state === 'inactive') {
-        resolve(null)
-        return
-      }
+      const mode = session?.mode || 'video'
+      const mimeType = recorder?.mimeType || (mode === 'audio' ? 'audio/webm' : 'video/webm')
 
-      recorder.onstop = async () => {
+      // Save helper function
+      const commitBlob = async (chunks) => {
         try {
-          const mode = session?.mode || 'video'
-          const mimeType = recorder.mimeType || (mode === 'audio' ? 'audio/webm' : 'video/webm')
-          const blob = new Blob(recordedChunksRef.current, { type: mimeType })
+          if (!chunks || chunks.length === 0) {
+            resolve(null)
+            return
+          }
+          const blob = new Blob(chunks, { type: mimeType })
           recordedChunksRef.current = []
-
           const durationSeconds = recordingStartTimeRef.current
-            ? Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
-            : 0
+            ? Math.max(1, Math.round((Date.now() - recordingStartTimeRef.current) / 1000))
+            : 1
 
           if (blob && blob.size > 0) {
             const saved = await saveRecording({
@@ -551,10 +586,30 @@ const InterviewSession = () => {
         resolve(null)
       }
 
+      // Safety timeout: never block answer submission longer than 1.5 seconds
+      const timeout = setTimeout(() => {
+        commitBlob([...recordedChunksRef.current])
+      }, 1500)
+
+      if (!recorder || recorder.state === 'inactive') {
+        clearTimeout(timeout)
+        commitBlob([...recordedChunksRef.current])
+        return
+      }
+
+      recorder.onstop = async () => {
+        clearTimeout(timeout)
+        await commitBlob([...recordedChunksRef.current])
+      }
+
       try {
+        if (recorder.state === 'recording') {
+          recorder.requestData()
+        }
         recorder.stop()
-      } catch {
-        resolve(null)
+      } catch (err) {
+        clearTimeout(timeout)
+        commitBlob([...recordedChunksRef.current])
       }
     })
   }, [sessionId, session, user])
@@ -605,6 +660,18 @@ const InterviewSession = () => {
       videoRef.current.srcObject = stream
     }
   }, [stream, isCameraActive, mainView])
+
+  // Reactive Recording Watcher: Auto-start recording as soon as media stream is ready and AI finished asking
+  useEffect(() => {
+    const mode = session?.mode || 'text'
+    if (mode === 'text' || isPaused || isCompleted || isAiAsking || isCountingDown) return
+    const activeStream = streamRef.current || stream
+    if (!activeStream) return
+
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
+      startRecording()
+    }
+  }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
   // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
   // THIS is the EXACT moment when the 40s timer begins and voice recording starts!
@@ -1025,7 +1092,7 @@ const InterviewSession = () => {
                 {mainView === 'candidate' ? (
                   isCameraActive && stream ? (
                     <video
-                      ref={videoRef}
+                      ref={attachVideoRef}
                       autoPlay
                       playsInline
                       muted
@@ -1082,7 +1149,7 @@ const InterviewSession = () => {
                       <div className="relative w-full h-full bg-slate-800">
                         {isCameraActive && stream ? (
                           <video
-                            ref={videoRef}
+                            ref={attachVideoRef}
                             autoPlay
                             playsInline
                             muted
