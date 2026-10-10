@@ -1,10 +1,22 @@
 import axios from 'axios'
 
-export const API_BASE_URL =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:8000/api'
-    : 'https://skillzo-2-1-6.onrender.com/api'
+const getApiBaseUrl = () => {
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000/api'
+  const hostname = window.location.hostname
+  const isLocal =
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+
+  if (isLocal) {
+    return `http://${hostname}:8000/api`
+  }
+  return 'https://skillzo-2-1-6.onrender.com/api'
+}
+
+export const API_BASE_URL = getApiBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -32,6 +44,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const url = originalRequest?.url || ''
+
+    // DO NOT intercept login, signup, or refresh endpoints to avoid page refresh loops
+    if (
+      url.includes('/auth/login') ||
+      url.includes('/auth/signup') ||
+      url.includes('/auth/token/refresh')
+    ) {
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refresh = localStorage.getItem('skillzo_refresh')
       if (!refresh) {

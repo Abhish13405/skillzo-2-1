@@ -18,13 +18,24 @@ const Login = () => {
       await login(email.trim(), password)
       navigate('/dashboard')
     } catch (err) {
-      if (err.response?.status === 401) {
-        setError(err.response?.data?.error || 'Invalid email or password.')
+      const data = err.response?.data
+      let msg = ''
+      if (typeof data?.error === 'string') {
+        msg = data.error
+      } else if (typeof data?.detail === 'string') {
+        msg = data.detail
+      } else if (data?.email && Array.isArray(data.email)) {
+        msg = data.email.join(' ')
+      } else if (data?.non_field_errors && Array.isArray(data.non_field_errors)) {
+        msg = data.non_field_errors.join(' ')
+      } else if (err.response?.status === 401) {
+        msg = 'Invalid email/username or password.'
       } else if (!err.response || err.code === 'ECONNABORTED' || err.response?.status >= 500) {
-        setError('Cloud server is waking up from sleep mode (Render free tier takes ~30s on first load). Please wait 5 seconds and click Sign In again!')
+        msg = 'Cloud server is waking up from sleep mode (takes ~30s on first load). Please wait 5 seconds and click Sign In again!'
       } else {
-        setError(err.response?.data?.error || 'Sign in failed. Please check your credentials and try again.')
+        msg = 'Sign in failed. Please check your credentials and try again.'
       }
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -60,7 +71,7 @@ const Login = () => {
         <div className="relative z-10 text-xs text-slate-500 dark:text-slate-400 font-mono border-t border-blue-200/80 dark:border-slate-800 pt-4 leading-relaxed">
           <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">© 2026 Skillzo Studio</p>
           <p className="text-[11px] text-slate-600 dark:text-slate-400">
-            <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha · Harshit Singh · Amritanshu Shukla · Rudra Pratap Singh · Shivam Kumar
+            <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha · Jaya Maurya Raj kumar verma Kundan Bhardwaj
           </p>
         </div>
       </div>

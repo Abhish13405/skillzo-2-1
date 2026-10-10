@@ -58,10 +58,10 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class ForgotPasswordRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.CharField()  # Accepts either email or username
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.CharField()  # Accepts either email or username
     otp = serializers.CharField(max_length=6)
     new_password = serializers.CharField(validators=[validate_password])
