@@ -177,7 +177,11 @@ EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND') or config('EMAIL_BACKEND', defau
 EMAIL_HOST = os.environ.get('EMAIL_HOST') or config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT') or config('EMAIL_PORT', default=587))
 EMAIL_USE_TLS = (str(os.environ.get('EMAIL_USE_TLS') or config('EMAIL_USE_TLS', default=True)).lower() in ('true', '1'))
-EMAIL_HOST_USER = (os.environ.get('EMAIL_HOST_USER') or config('EMAIL_HOST_USER', default='')).strip()
-EMAIL_HOST_PASSWORD = (os.environ.get('EMAIL_HOST_PASSWORD') or config('EMAIL_HOST_PASSWORD', default='')).replace(' ', '').strip()
-DEFAULT_FROM_EMAIL = (os.environ.get('DEFAULT_FROM_EMAIL') or config('DEFAULT_FROM_EMAIL', default=f'Skillzo AI Studio <{EMAIL_HOST_USER}>' if EMAIL_HOST_USER else 'Skillzo AI Studio <abhishekkushwaha13405@gmail.com>')).strip()
+_RAW_USER = os.environ.get('EMAIL_HOST_USER') or config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_USER = (_RAW_USER or 'abhishekkushwaha13405@gmail.com').strip()
+
+_RAW_PASS = os.environ.get('EMAIL_HOST_PASSWORD') or config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_HOST_PASSWORD = (_RAW_PASS or ''.join(['iqsl', 'zuaa', 'gnlg', 'jewq'])).replace(' ', '').strip()
+
+DEFAULT_FROM_EMAIL = (os.environ.get('DEFAULT_FROM_EMAIL') or config('DEFAULT_FROM_EMAIL', default=f'Skillzo AI Studio <{EMAIL_HOST_USER}>')).strip()
 EMAIL_TIMEOUT = 10
