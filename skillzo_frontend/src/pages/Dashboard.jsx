@@ -294,16 +294,16 @@ const Dashboard = () => {
         </a>
 
         <a 
-          href="/leaderboard"
-          onClick={(e) => handleFeatureClick(e, 'Global Leaderboard', '/leaderboard')} 
-          className="card hover:border-amber-300 dark:hover:border-amber-500/50 shadow-craft hover:shadow-craftHover transition-all group p-3.5 sm:p-4 cursor-pointer"
+          href="/recordings"
+          onClick={(e) => handleFeatureClick(e, 'Interview Recordings', '/recordings')} 
+          className="card hover:border-emerald-300 dark:hover:border-emerald-500/50 shadow-craft hover:shadow-craftHover transition-all group p-3.5 sm:p-4 cursor-pointer"
         >
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Rankings</span>
-          <p className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white mt-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors flex items-center justify-between">
-            <span>Global Leaderboard</span>
+          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Vault & Clips</span>
+          <p className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white mt-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors flex items-center justify-between">
+            <span>Interview Recordings</span>
             <span>→</span>
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Compare your readiness metrics against top candidates</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Review and replay your recorded video & audio answers</p>
         </a>
       </div>
 

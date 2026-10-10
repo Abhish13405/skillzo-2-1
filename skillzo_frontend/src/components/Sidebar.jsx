@@ -28,11 +28,6 @@ const Icons = {
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
     </svg>
   ),
-  Leaderboard: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/>
-    </svg>
-  ),
   Recordings: () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="23 7 16 12 23 17 23 7" />
@@ -64,7 +59,6 @@ const navItems = [
   { to: '/resume',          label: 'Resume Analysis',  Icon: Icons.Resume },
   { to: '/history',         label: 'Reports',          Icon: Icons.History },
   { to: '/recordings',      label: 'Recordings',       Icon: Icons.Recordings },
-  { to: '/leaderboard',     label: 'Leaderboard',      Icon: Icons.Leaderboard },
   { to: '/profile',         label: 'Profile',          Icon: Icons.Profile },
 ]
 

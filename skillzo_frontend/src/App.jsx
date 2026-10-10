@@ -13,7 +13,6 @@ import InterviewSession from './pages/InterviewSession'
 import InterviewReport from './pages/InterviewReport'
 import History from './pages/History'
 import Recordings from './pages/Recordings'
-import Leaderboard from './pages/Leaderboard'
 import LeaderPortal from './pages/LeaderPortal'
 import NotFound from './pages/NotFound'
 
@@ -29,7 +28,6 @@ function App() {
       <Route path="/resume" element={<ProtectedRoute featureName="ATS Resume Analysis"><ResumeAnalysis /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />
       <Route path="/recordings" element={<ProtectedRoute featureName="Recordings"><Recordings /></ProtectedRoute>} />
-      <Route path="/leaderboard" element={<ProtectedRoute featureName="Leaderboard"><Leaderboard /></ProtectedRoute>} />
       <Route path="/leader" element={<ProtectedRoute featureName="Leader Portal" requireLeader><LeaderPortal /></ProtectedRoute>} />
 
       <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><InterviewSetup /></ProtectedRoute>} />

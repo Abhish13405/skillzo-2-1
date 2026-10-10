@@ -71,7 +71,7 @@ const Login = () => {
         <div className="relative z-10 text-xs text-slate-500 dark:text-slate-400 font-mono border-t border-blue-200/80 dark:border-slate-800 pt-4 leading-relaxed">
           <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">© 2026 Skillzo Studio</p>
           <p className="text-[11px] text-slate-600 dark:text-slate-400">
-            <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha · Jaya Maurya Raj kumar verma Kundan Bhardwaj
+            <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha  . Jaya Maurya .Rajkumar verma. Kundan Bhardwaj
           </p>
         </div>
       </div>
@@ -88,7 +88,7 @@ const Login = () => {
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mb-1">Welcome back</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Log in to access your interview workspace.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8"></p>
 
           {error && (
             <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400 text-sm font-medium">
