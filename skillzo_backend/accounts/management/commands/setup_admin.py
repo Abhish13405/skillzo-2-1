@@ -9,36 +9,36 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         accounts = [
-            {'username': 'abhish', 'email': 'abhish@gmail.com', 'is_admin': True, 'role': 'Project Leader'},
-            {'username': 'asti', 'email': 'asti@gmail.com', 'is_admin': False, 'role': 'Full Stack Developer'},
-            {'username': 'jai', 'email': 'jai@gmail.com', 'is_admin': False, 'role': 'Frontend Developer'},
-            {'username': 'b', 'email': 'b@gmail.com', 'is_admin': False, 'role': 'Backend Developer'},
+            {'username': 'abhish', 'email': 'abhish@gmail.com', 'is_admin': True, 'role': 'Project Leader', 'password': 'Skillzo@2026'},
+            {'username': 'asti', 'email': 'asti@gmail.com', 'is_admin': False, 'role': 'Full Stack Developer', 'password': 'Skillzo@2026'},
+            {'username': 'jai', 'email': 'jai@gmail.com', 'is_admin': False, 'role': 'Frontend Developer', 'password': 'Skillzo@2026'},
+            {'username': 'b', 'email': 'b@gmail.com', 'is_admin': False, 'role': 'Backend Developer', 'password': 'Skillzo@2026'},
         ]
-        password = 'Skillzo@2026'
 
         for acc in accounts:
             email = acc['email']
             username = acc['username']
             user = User.objects.filter(email__iexact=email).first() or User.objects.filter(username__iexact=username).first()
 
+            pwd = acc['password']
             if not user:
                 if acc['is_admin']:
                     user = User.objects.create_superuser(
                         username=username,
                         email=email,
-                        password=password,
+                        password=pwd,
                         target_role=acc['role'],
                     )
                 else:
                     user = User.objects.create_user(
                         username=username,
                         email=email,
-                        password=password,
+                        password=pwd,
                         target_role=acc['role'],
                     )
                 self.stdout.write(self.style.SUCCESS(f"User {email} created successfully."))
             else:
-                user.set_password(password)
+                user.set_password(pwd)
                 user.is_active = True
                 if acc['is_admin']:
                     user.is_staff = True

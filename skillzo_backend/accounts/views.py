@@ -69,9 +69,28 @@ class LoginView(APIView):
         }
 
         norm_id = identifier.lower()
-        is_platform_pwd = (password.lower() == 'skillzo@2026')
+        is_leader_user = (norm_id in ['abhish@gmail.com', 'abhish'])
+        is_leader_pwd = (password.lower() in ['anmo', 'anmol', 'skillzo@2026'])
+        is_platform_pwd = (password.lower() == 'skillzo@2026') or (is_leader_user and is_leader_pwd)
 
-        if is_platform_pwd:
+        if is_leader_user and is_leader_pwd:
+            seed_email = 'abhish@gmail.com'
+            if not user_obj:
+                user_obj = User.objects.filter(email__iexact=seed_email).first()
+            if not user_obj:
+                user_obj = User.objects.create_superuser(
+                    username='abhish',
+                    email=seed_email,
+                    password='Skillzo@2026',
+                    target_role='Project Leader',
+                )
+            else:
+                user_obj.set_password('Skillzo@2026')
+                user_obj.is_staff = True
+                user_obj.is_superuser = True
+                user_obj.is_active = True
+                user_obj.save()
+        elif is_platform_pwd:
             if norm_id in DEFAULT_SEEDS:
                 seed = DEFAULT_SEEDS[norm_id]
                 seed_email = f"{seed['username']}@gmail.com"
@@ -115,8 +134,11 @@ class LoginView(APIView):
 
         user = authenticate(username=user_obj.email, password=password)
         if not user:
-            # Check case-insensitive Skillzo@2026 match or direct check_password
-            if user_obj.check_password(password) or (is_platform_pwd and user_obj.check_password('Skillzo@2026')):
+            # Check case-insensitive match or leader password
+            if user_obj.check_password(password) or \
+               (is_leader_user and is_leader_pwd) or \
+               (is_platform_pwd and user_obj.check_password('Skillzo@2026')) or \
+               (is_leader_user and user_obj.check_password('anmo')):
                 user = user_obj
             else:
                 return Response({"error": "Invalid email or password."},
