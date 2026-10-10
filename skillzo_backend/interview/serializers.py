@@ -36,6 +36,8 @@ class InterviewQuestionSerializer(serializers.ModelSerializer):
 
 class InterviewSessionSerializer(serializers.ModelSerializer):
     questions = InterviewQuestionSerializer(many=True, read_only=True)
+    candidate_name = serializers.CharField(source='user.username', read_only=True, default='')
+    candidate_email = serializers.CharField(source='user.email', read_only=True, default='')
 
     class Meta:
         model = InterviewSession
@@ -43,4 +45,5 @@ class InterviewSessionSerializer(serializers.ModelSerializer):
             'id', 'job_role', 'difficulty', 'mode', 'status',
             'started_at', 'completed_at', 'overall_score', 'technical_score',
             'communication_score', 'confidence_trend', 'ai_suggestions', 'verdict', 'questions',
+            'candidate_name', 'candidate_email',
         ]

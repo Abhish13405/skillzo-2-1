@@ -33,6 +33,7 @@ function App() {
       <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><InterviewSetup /></ProtectedRoute>} />
       <Route path="/interview/:sessionId/session" element={<ProtectedRoute featureName="AI Interview Session"><InterviewSession /></ProtectedRoute>} />
       <Route path="/interview/:sessionId/report" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
+      <Route path="/interview/report/:sessionId" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
 
       {/* Root redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

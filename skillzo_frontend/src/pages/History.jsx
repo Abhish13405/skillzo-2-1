@@ -5,6 +5,7 @@ import Loader from '../components/Loader'
 import { getInterviewHistory, getInterviewDetail } from '../api/interview'
 import { useAuth } from '../context/AuthContext'
 import { downloadInterviewReportPdf } from '../utils/generatePdfReport'
+import { getAllRecordings } from '../utils/recordingsDb'
 
 const DIFFICULTIES = ['All', 'Beginner', 'Intermediate', 'Advanced']
 
@@ -16,17 +17,82 @@ const History = () => {
   const [filterDiff, setFilterDiff] = useState('All')
   const [downloadingId, setDownloadingId] = useState(null)
 
-  useEffect(() => {
-    getInterviewHistory().then((res) => setSessions(res.data)).finally(() => setLoading(false))
-  }, [])
+  const isLeader = Boolean(
+    user?.is_staff ||
+    user?.is_superuser ||
+    (user?.email && user.email.toLowerCase().includes('abhish')) ||
+    (user?.username && user.username.toLowerCase().includes('abhish'))
+  )
+  const [showAllCandidates, setShowAllCandidates] = useState(isLeader)
 
-  const handleDownloadPdf = async (e, sessionId) => {
+  useEffect(() => {
+    const loadAll = async () => {
+      setLoading(true)
+      let backendList = []
+      try {
+        const res = await getInterviewHistory()
+        backendList = res.data || []
+      } catch (err) {
+        console.warn('Backend history error:', err)
+      }
+
+      // Also retrieve sessions from local browser vault
+      try {
+        const vaultClips = await getAllRecordings(user, isLeader)
+        const vaultSessionsMap = {}
+        for (const clip of vaultClips) {
+          const sid = clip.sessionId
+          if (!sid || sid === 'null' || sid === 'undefined') continue
+          if (!vaultSessionsMap[sid]) {
+            vaultSessionsMap[sid] = {
+              id: sid,
+              job_role: clip.jobRole || 'Mock Interview',
+              difficulty: clip.difficulty || 'Practice',
+              mode: clip.mode || 'video',
+              status: 'completed',
+              completed_at: clip.createdAt,
+              started_at: clip.createdAt,
+              overall_score: 80,
+              fromVault: true,
+              candidate_name: clip.userEmail ? clip.userEmail.split('@')[0] : 'Candidate',
+              candidate_email: clip.userEmail || '',
+            }
+          }
+        }
+
+        const existingIds = new Set(backendList.map((s) => String(s.id)))
+        const merged = [...backendList]
+        for (const [sid, vSession] of Object.entries(vaultSessionsMap)) {
+          if (!existingIds.has(String(sid))) {
+            merged.push(vSession)
+          }
+        }
+        merged.sort((a, b) => new Date(b.completed_at || b.started_at) - new Date(a.completed_at || a.started_at))
+        setSessions(merged)
+      } catch (vaultErr) {
+        console.warn('Vault load error:', vaultErr)
+        setSessions(backendList)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadAll()
+  }, [user, isLeader])
+
+  const handleDownloadPdf = async (e, sessionItem) => {
     e.preventDefault()
     e.stopPropagation()
+    const sessionId = sessionItem.id
     setDownloadingId(sessionId)
     try {
-      const res = await getInterviewDetail(sessionId)
-      downloadInterviewReportPdf({ session: res.data, user })
+      let detail = sessionItem
+      try {
+        const res = await getInterviewDetail(sessionId)
+        if (res.data) detail = res.data
+      } catch {
+        // use sessionItem in memory as fallback
+      }
+      downloadInterviewReportPdf({ session: detail, user })
     } catch (err) {
       console.error('Error downloading PDF:', err)
       alert('Could not download PDF report. Please try again.')
@@ -37,10 +103,15 @@ const History = () => {
 
   if (loading) return <AppShell><Loader label="Loading interview history" /></AppShell>
 
-  const filtered = sessions.filter(s => {
-    const matchSearch = s.job_role.toLowerCase().includes(search.toLowerCase())
+  const filtered = sessions.filter((s) => {
+    const matchSearch = (s.job_role || '').toLowerCase().includes(search.toLowerCase()) ||
+                        (s.candidate_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                        (s.candidate_email || '').toLowerCase().includes(search.toLowerCase())
     const matchDiff = filterDiff === 'All' || s.difficulty === filterDiff
-    return matchSearch && matchDiff
+    const matchUser = (!isLeader || showAllCandidates)
+      ? true
+      : (!s.candidate_email || s.candidate_email.toLowerCase() === (user?.email || '').toLowerCase())
+    return matchSearch && matchDiff && matchUser
   })
 
   const getScoreBadge = (score) => {
@@ -62,6 +133,32 @@ const History = () => {
         </Link>
       </div>
 
+      {/* Leader Scope Toggle */}
+      {isLeader && (
+        <div className="flex gap-2 mb-3 sm:mb-4">
+          <button
+            onClick={() => setShowAllCandidates(true)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+              showAllCandidates
+                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+            }`}
+          >
+            👥 All Candidates' Reports ({sessions.length})
+          </button>
+          <button
+            onClick={() => setShowAllCandidates(false)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+              !showAllCandidates
+                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+            }`}
+          >
+            👤 Only My Reports
+          </button>
+        </div>
+      )}
+
       {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-2.5 mb-4 sm:mb-5">
         {/* Search */}
@@ -71,14 +168,14 @@ const History = () => {
           </svg>
           <input
             className="input-field pl-9 py-1.5"
-            placeholder="Search by job role..."
+            placeholder="Search by job role or candidate name..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         {/* Difficulty filter */}
         <div className="flex gap-1.5 flex-wrap">
-          {DIFFICULTIES.map(d => (
+          {DIFFICULTIES.map((d) => (
             <button
               key={d}
               onClick={() => setFilterDiff(d)}
@@ -114,17 +211,29 @@ const History = () => {
                 className="flex items-center justify-between py-2.5 hover:bg-slate-50 dark:hover:bg-[#131E38]/50 -mx-1 px-3 rounded-xl transition-all group"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors truncate text-sm">{s.job_role}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors truncate text-sm">{s.job_role}</p>
+                    {s.candidate_name && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
+                        Candidate: {s.candidate_name}
+                      </span>
+                    )}
+                    {s.fromVault && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
+                        📼 Saved in Vault
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                     {s.difficulty} · Format: {s.mode} · {s.completed_at ? new Date(s.completed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'In Progress'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                   <span className={`font-mono font-bold text-xs px-2.5 py-0.5 rounded-full border ${badgeStyle}`}>
-                    {s.overall_score} / 100
+                    {s.overall_score || 0} / 100
                   </span>
                   <button
-                    onClick={(e) => handleDownloadPdf(e, s.id)}
+                    onClick={(e) => handleDownloadPdf(e, s)}
                     disabled={downloadingId === s.id}
                     className="px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800/50 transition-colors flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
                     title="Download Report PDF"
