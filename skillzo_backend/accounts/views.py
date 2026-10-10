@@ -216,7 +216,8 @@ class ForgotPasswordRequestView(APIView):
         # In development or if SMTP isn't configured, include debug_otp so testing is seamless
         if not email_sent:
             response_payload["debug_otp"] = otp
-            response_payload["dev_note"] = "Email simulation mode (SMTP not configured in environment)."
+            response_payload["error_details"] = error_msg
+            response_payload["dev_note"] = "Email simulation mode (SMTP not active)."
 
         return Response(response_payload, status=status.HTTP_200_OK)
 
