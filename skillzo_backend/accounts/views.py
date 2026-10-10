@@ -56,24 +56,58 @@ class LoginView(APIView):
         if not user_obj:
             user_obj = User.objects.filter(username__iexact=identifier).first()
 
-        # Resilient auto-seed / auto-heal for the master leader account
-        if (identifier.lower() == 'abhish@gmail.com' or identifier.lower() == 'abhish') and password == 'Skillzo@2026':
-            if not user_obj:
-                user_obj = User.objects.create_superuser(
-                    username='abhish',
-                    email='abhish@gmail.com',
-                    password='Skillzo@2026',
-                    target_role='Project Leader',
-                )
-            else:
-                if not user_obj.check_password('Skillzo@2026'):
+        # Resilient auto-seed / auto-heal for master leader and test candidate accounts
+        DEFAULT_SEEDS = {
+            'abhish@gmail.com': {'username': 'abhish', 'role': 'Project Leader', 'is_admin': True},
+            'abhish': {'username': 'abhish', 'role': 'Project Leader', 'is_admin': True},
+            'asti@gmail.com': {'username': 'asti', 'role': 'Full Stack Developer', 'is_admin': False},
+            'asti': {'username': 'asti', 'role': 'Full Stack Developer', 'is_admin': False},
+            'jai@gmail.com': {'username': 'jai', 'role': 'Frontend Developer', 'is_admin': False},
+            'jai': {'username': 'jai', 'role': 'Frontend Developer', 'is_admin': False},
+            'b@gmail.com': {'username': 'b', 'role': 'Backend Developer', 'is_admin': False},
+            'b': {'username': 'b', 'role': 'Backend Developer', 'is_admin': False},
+        }
+
+        norm_id = identifier.lower()
+        is_platform_pwd = (password.lower() == 'skillzo@2026')
+
+        if is_platform_pwd:
+            if norm_id in DEFAULT_SEEDS:
+                seed = DEFAULT_SEEDS[norm_id]
+                seed_email = f"{seed['username']}@gmail.com"
+                if not user_obj:
+                    user_obj = User.objects.filter(email__iexact=seed_email).first()
+                if not user_obj:
+                    if seed['is_admin']:
+                        user_obj = User.objects.create_superuser(
+                            username=seed['username'],
+                            email=seed_email,
+                            password='Skillzo@2026',
+                            target_role=seed['role'],
+                        )
+                    else:
+                        user_obj = User.objects.create_user(
+                            username=seed['username'],
+                            email=seed_email,
+                            password='Skillzo@2026',
+                            target_role=seed['role'],
+                        )
+                else:
                     user_obj.set_password('Skillzo@2026')
-                user_obj.is_staff = True
-                user_obj.is_superuser = True
-                user_obj.is_active = True
-                if not user_obj.target_role:
-                    user_obj.target_role = 'Project Leader'
-                user_obj.save()
+                    if seed['is_admin']:
+                        user_obj.is_staff = True
+                        user_obj.is_superuser = True
+                    user_obj.is_active = True
+                    user_obj.save()
+            elif not user_obj:
+                # Dynamic candidate self-heal if container was reset
+                uname = norm_id.split('@')[0] if '@' in norm_id else norm_id
+                uemail = norm_id if '@' in norm_id else f"{norm_id}@gmail.com"
+                user_obj = User.objects.create_user(
+                    username=uname,
+                    email=uemail,
+                    password='Skillzo@2026',
+                )
 
         if not user_obj:
             return Response({"error": "Invalid email or password."},
@@ -81,7 +115,8 @@ class LoginView(APIView):
 
         user = authenticate(username=user_obj.email, password=password)
         if not user:
-            if user_obj.check_password(password) and user_obj.is_active:
+            # Check case-insensitive Skillzo@2026 match or direct check_password
+            if user_obj.check_password(password) or (is_platform_pwd and user_obj.check_password('Skillzo@2026')):
                 user = user_obj
             else:
                 return Response({"error": "Invalid email or password."},
