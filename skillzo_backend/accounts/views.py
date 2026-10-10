@@ -8,9 +8,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
     SignupSerializer, LoginSerializer, ProfileSerializer,
-    ForgotPasswordRequestSerializer, ResetPasswordSerializer,
+    ForgotPasswordRequestSerializer, ResetPasswordSerializer, VerifyOTPSerializer,
 )
 from .models import PasswordResetOTP
+from .emails import send_otp_email
 
 User = get_user_model()
 
@@ -170,7 +171,7 @@ class LoginView(APIView):
 
 
 class ForgotPasswordRequestView(APIView):
-    """POST /api/auth/forgot-password/ -- generates OTP (send via email in production)"""
+    """POST /api/auth/forgot-password/ -- generates OTP & sends real-time email"""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -183,21 +184,67 @@ class ForgotPasswordRequestView(APIView):
             user = User.objects.filter(username__iexact=identifier).first()
 
         if not user:
-            # Don't reveal whether email exists
-            return Response({"message": "If this email exists, an OTP has been sent."})
+            return Response({"error": "No account found with this email or username."},
+                            status=status.HTTP_404_NOT_FOUND)
 
-        otp = str(random.randint(100000, 999999))
+        # Invalidate any previously active OTPs for this user
+        PasswordResetOTP.objects.filter(user=user, is_used=False).update(is_used=True)
+
+        # Generate fresh 6-digit OTP
+        otp = f"{random.randint(100000, 999999):06d}"
         PasswordResetOTP.objects.create(user=user, otp=otp)
 
-        # TODO Phase 2: integrate actual email sending (Django email backend / SMTP)
-        return Response({
-            "message": "If this email exists, an OTP has been sent.",
-            "debug_otp": otp,  # remove this field once real email sending is wired up
-        })
+        # Send real-time OTP via Email
+        email_sent, error_msg = send_otp_email(user, otp)
+
+        response_payload = {
+            "message": f"Verification code sent to {user.email}.",
+            "email": user.email,
+            "email_sent": email_sent,
+        }
+        # In development or if SMTP isn't configured, include debug_otp so testing is seamless
+        if not email_sent:
+            response_payload["debug_otp"] = otp
+            response_payload["dev_note"] = "Email simulation mode (SMTP not configured in environment)."
+
+        return Response(response_payload, status=status.HTTP_200_OK)
+
+
+class VerifyOTPView(APIView):
+    """POST /api/auth/verify-otp/ -- real-time validation of 6-digit OTP code"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        identifier = data['email'].strip()
+        user = User.objects.filter(email__iexact=identifier).first() or \
+               User.objects.filter(username__iexact=identifier).first()
+
+        if not user:
+            return Response({"error": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        otp_val = data['otp'].strip()
+        try:
+            otp_obj = PasswordResetOTP.objects.filter(
+                user=user, otp=otp_val, is_used=False
+            ).latest('created_at')
+        except PasswordResetOTP.DoesNotExist:
+            return Response({"error": "Invalid verification code. Please check and try again."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify expiry (10 minutes)
+        if timezone.now() - otp_obj.created_at > timezone.timedelta(minutes=10):
+            return Response({"error": "This verification code has expired. Please request a new one."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"valid": True, "message": "Code verified successfully."})
 
 
 class ResetPasswordView(APIView):
-    """POST /api/auth/reset-password/"""
+    """POST /api/auth/reset-password/ -- verifies OTP & updates password"""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -205,26 +252,38 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        user = User.objects.filter(email__iexact=data['email'].strip()).first()
-        if not user:
-            user = User.objects.filter(username__iexact=data['email'].strip()).first()
+        identifier = data['email'].strip()
+        user = User.objects.filter(email__iexact=identifier).first() or \
+               User.objects.filter(username__iexact=identifier).first()
 
         if not user:
-            return Response({"error": "Invalid OTP or account not found."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        otp_val = data['otp'].strip()
         try:
             otp_obj = PasswordResetOTP.objects.filter(
-                user=user, otp=data['otp'].strip(), is_used=False
+                user=user, otp=otp_val, is_used=False
             ).latest('created_at')
         except PasswordResetOTP.DoesNotExist:
-            return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid verification code."}, status=status.HTTP_400_BAD_REQUEST)
 
+        if timezone.now() - otp_obj.created_at > timezone.timedelta(minutes=10):
+            return Response({"error": "This code has expired. Please request a new code."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Update password
         user.set_password(data['new_password'])
         user.save()
         otp_obj.is_used = True
         otp_obj.save()
 
-        return Response({"message": "Password reset successful. Please log in."})
+        tokens = get_tokens_for_user(user)
+
+        return Response({
+            "message": "Password reset successful! You can now log in.",
+            "tokens": tokens,
+            "user": ProfileSerializer(user).data,
+        })
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):

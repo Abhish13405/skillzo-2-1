@@ -6,6 +6,8 @@ export const login = (data) => api.post('/auth/login/', data)
 
 export const forgotPassword = (email) => api.post('/auth/forgot-password/', { email })
 
+export const verifyOtp = (data) => api.post('/auth/verify-otp/', data)
+
 export const resetPassword = (data) => api.post('/auth/reset-password/', data)
 
 export const getProfile = () => api.get('/auth/profile/')
