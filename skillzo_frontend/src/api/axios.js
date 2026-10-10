@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
   if (isLocal) {
     return `http://${hostname}:8000/api`
   }
-  return 'https://skillzo-2-1-6.onrender.com/api'
+  return 'https://skillzo-2-1-2.onrender.com/api'
 }
 
 export const API_BASE_URL = getApiBaseUrl()
