@@ -356,6 +356,7 @@ const InterviewSession = () => {
   const [completing, setCompleting] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
   const [error, setError] = useState('')
+  const [showTip, setShowTip] = useState(false)
 
   // Control Bar States (NO screen sharing)
   const [isCameraActive, setIsCameraActive] = useState(false)
@@ -1080,19 +1081,12 @@ const InterviewSession = () => {
             {isMediaRecording && (
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 text-[10px] font-bold font-mono border border-rose-200 dark:border-rose-900/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping" />
-                REC (Space Saver)
+                REC
               </span>
             )}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-400 text-[11px] font-bold font-mono border border-blue-100 dark:border-blue-900/60">
-              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-              LIVE
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] text-slate-600 dark:text-slate-300 text-[11px] font-bold font-mono border border-slate-200/80 dark:border-slate-800">
+              Interview in Progress
             </span>
-            <button
-              onClick={handleEndCall}
-              className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-2.5 sm:px-3 py-1 rounded-xl transition-colors border border-rose-200 dark:border-rose-900/60"
-            >
-              End Call
-            </button>
           </div>
         </header>
 
@@ -1245,42 +1239,75 @@ const InterviewSession = () => {
                   </span>
                 </div>
 
-                {/* Bottom-Left Status Pill */}
+                {/* Bottom-Left Unified Status Pill */}
                 <div className="absolute bottom-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#0D1527]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-100 dark:border-slate-800 shadow-xs flex items-center gap-1.5">
-                  <span className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400">
-                    <span className="w-1 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
-                    <span className="w-1 h-3.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" style={{ animationDelay: '0.15s' }} />
-                    <span className="w-1 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" style={{ animationDelay: '0.3s' }} />
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-blue-600 dark:text-blue-400 tracking-tight">
-                    {isAiAsking
-                      ? 'AI Speaking Question... (Mic Muted 🔇)'
-                      : isPaused
-                      ? 'Paused'
-                      : listening
-                      ? `Mic Active 🎙️ (Silence: ${silenceSeconds}s)`
-                      : 'Ready'}
+                  <span className="text-[10px] sm:text-[11px] font-bold tracking-tight flex items-center gap-1.5">
+                    {isAiAsking ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                        <span className="text-indigo-600 dark:text-indigo-400">AI is speaking</span>
+                      </>
+                    ) : isPaused ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span className="text-amber-600 dark:text-amber-400">Paused</span>
+                      </>
+                    ) : listening ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        <span className="text-emerald-600 dark:text-emerald-400">Your turn (Speak now)</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-slate-400" />
+                        <span className="text-slate-500 dark:text-slate-400">Mic Muted</span>
+                      </>
+                    )}
                   </span>
                 </div>
+
+                {/* Pause Interview Modal Overlay */}
+                {isPaused && (
+                  <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 mb-2.5 shadow-lg">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-bold text-white mb-1">Interview Paused</h3>
+                    <p className="text-xs text-slate-300 max-w-xs mb-3.5 leading-relaxed">
+                      Timer and recording are temporarily paused. Take your time and resume when ready.
+                    </p>
+                    <button
+                      onClick={togglePause}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-500/30 transition-all cursor-pointer"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                      </svg>
+                      <span>Resume Interview</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* ─── Compact Controls Bar (NO SCREEN SHARE OPTION) ─── */}
+              {/* ─── Compact Controls Bar (Clean 4-Button Meeting Controls) ─── */}
               <div className="shrink-0 flex justify-center w-full">
-                <div className="bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/90 rounded-2xl px-3 sm:px-5 py-1.5 sm:py-2 flex items-center justify-around sm:justify-center gap-2 sm:gap-6 w-full sm:w-auto shadow-xs dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+                <div className="bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/90 rounded-2xl px-4 sm:px-6 py-2 flex items-center justify-around sm:justify-center gap-3 sm:gap-6 w-full sm:w-auto shadow-xs dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
                   
                   {/* 1. Camera Toggle (Only in Video mode) */}
                   {session?.mode === 'video' && (
                     <div className="flex flex-col items-center gap-0.5">
                       <button
                         onClick={toggleCamera}
-                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all ${
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                           isCameraActive
-                            ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs dark:shadow-[0_0_12px_rgba(37,99,235,0.3)]'
+                            ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs'
                             : 'bg-white dark:bg-[#131E38] text-slate-400 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700'
                         }`}
                         title={isCameraActive ? 'Turn Off Camera' : 'Turn On Camera'}
                       >
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                         </svg>
                       </button>
@@ -1293,14 +1320,14 @@ const InterviewSession = () => {
                     <div className="flex flex-col items-center gap-0.5">
                       <button
                         onClick={toggleMic}
-                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all ${
-                          isMicActive
-                            ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs dark:shadow-[0_0_12px_rgba(37,99,235,0.3)]'
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                          isMicActive && !isAiAsking
+                            ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs'
                             : 'bg-white dark:bg-[#131E38] text-slate-400 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700'
                         }`}
-                        title={isMicActive ? 'Mute Mic' : 'Unmute Mic'}
+                        title={isAiAsking ? 'Microphone paused while AI is asking question' : isMicActive ? 'Mute Mic' : 'Unmute Mic'}
                       >
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                           <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
                         </svg>
@@ -1309,23 +1336,23 @@ const InterviewSession = () => {
                     </div>
                   )}
 
-                  {/* 3. Pause Toggle */}
+                  {/* 3. Pause Interview Toggle */}
                   <div className="flex flex-col items-center gap-0.5">
                     <button
                       onClick={togglePause}
-                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                         isPaused
                           ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700'
                           : 'bg-white dark:bg-[#131E38] text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-slate-700/80 hover:bg-blue-50 dark:hover:bg-slate-700'
                       }`}
-                      title={isPaused ? 'Resume' : 'Pause'}
+                      title={isPaused ? 'Resume Interview' : 'Pause Interview'}
                     >
                       {isPaused ? (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                           <polygon points="5 3 19 12 5 21 5 3"/>
                         </svg>
                       ) : (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/>
                         </svg>
                       )}
@@ -1335,30 +1362,14 @@ const InterviewSession = () => {
                     </span>
                   </div>
 
-                  {/* 4. Swap View Toggle (Only in Video mode) */}
-                  {session?.mode === 'video' && (
-                    <div className="flex flex-col items-center gap-0.5">
-                      <button
-                        onClick={() => setMainView(v => (v === 'candidate' ? 'ai' : 'candidate'))}
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white dark:bg-[#131E38] border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all"
-                        title="Swap Main Camera / AI View"
-                      >
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/>
-                        </svg>
-                      </button>
-                      <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Swap</span>
-                    </div>
-                  )}
-
-                  {/* 5. End Call Button (Solid Red) */}
+                  {/* 4. End Interview Button (Single Red Button) */}
                   <div className="flex flex-col items-center gap-0.5">
                     <button
                       onClick={handleEndCall}
-                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all"
+                      className="w-10 h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all"
                       title="End Interview"
                     >
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.15-2.66 1.94a1 1 0 0 1-1.42 0L.3 13.2a1 1 0 0 1 0-1.41C2.5 9.54 6.94 8 12 8s9.5 1.54 11.7 3.79c.39.39.39 1.02 0 1.41l-2.46 2.46a1 1 0 0 1-1.42 0 12.8 12.8 0 0 0-2.66-1.94.99.99 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
                       </svg>
                     </button>
@@ -1374,74 +1385,41 @@ const InterviewSession = () => {
             ═════════════════════════════════════════════════════════════════ */}
             <div className="flex flex-col h-full justify-between gap-2.5 min-h-0">
               
-              {/* Card 1: Current Question with Timer & 5s AI Speech Delay */}
+              {/* Card 1: Current Question */}
               <div className="bg-slate-50/70 dark:bg-[#0D1527] rounded-2xl p-3 sm:p-4 border border-slate-200/70 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                      Current Question
+                      Question {current + 1}
                     </span>
-                    {isCountingDown ? (
-                      <button
-                        onClick={handleSpeakImmediately}
-                        title="Click to hear question immediately without waiting 5s"
-                        className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-300 text-[10px] font-bold flex items-center gap-1 transition-colors animate-pulse border border-amber-300 dark:border-amber-700/60"
-                      >
-                        <span>⏳ {speechCountdown}s</span>
-                        <span className="text-amber-900 dark:text-amber-200 font-extrabold underline">Speak now ⚡</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          if (question?.question_text) {
-                            speak(question.question_text)
-                          }
-                        }}
-                        title="Listen to Question (AI Sophia Voice)"
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors ${
-                          speaking
-                            ? 'bg-blue-600 text-white animate-pulse'
-                            : 'bg-blue-100 dark:bg-[#131E38] hover:bg-blue-200 dark:hover:bg-slate-700 text-blue-700 dark:text-blue-400 border border-transparent dark:border-slate-700'
-                        }`}
-                      >
-                        <span>🔊</span>
-                        <span>{speaking ? 'Speaking...' : 'AI Voice'}</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        if (question?.question_text && !isAiAsking) {
+                          speak(question.question_text)
+                        }
+                      }}
+                      disabled={isAiAsking}
+                      title={isAiAsking ? 'AI is currently speaking' : 'Replay question voice'}
+                      className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                      </svg>
+                    </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    {isAiAsking && (
-                      <button
-                        type="button"
-                        onClick={handleSkipAiVoiceAndAnswerNow}
-                        className="text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-0.5 rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer"
-                        title="Skip voice and immediately open mic for candidate"
-                      >
-                        <span>Start Answering Now ➔</span>
-                      </button>
+                    {isAiAsking ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 animate-pulse">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                        AI is speaking
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Time: {questionSeconds}s
+                      </span>
                     )}
-                    <div
-                      className={`flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-lg border shadow-2xs transition-all ${
-                        isAiAsking
-                          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800'
-                          : silenceSeconds <= 2
-                          ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-900 animate-pulse'
-                          : 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-900'
-                      }`}
-                      title={isAiAsking ? 'AI is asking question. Mic is closed and will open right after.' : `Auto-submits after 6s of silence (${silenceSeconds}s remaining)`}
-                    >
-                      {isAiAsking ? (
-                        <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                          <span>AI Speaking (Mic Off)</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className={`w-1.5 h-1.5 rounded-full ${silenceSeconds <= 2 ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
-                          <span>Silence: {silenceSeconds}s</span>
-                        </>
-                      )}
-                    </div>
                   </div>
                 </div>
                 <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-3">
@@ -1449,36 +1427,29 @@ const InterviewSession = () => {
                 </p>
               </div>
 
-              {/* Card 2: Your Answer (Audio Waveform + Recording status / Interactive Textarea) */}
+              {/* Card 2: Your Answer (Audio Waveform + Real-time Dictation / Textarea) */}
               <div className="bg-slate-50/70 dark:bg-[#0D1527] rounded-2xl p-3 sm:p-3.5 border border-slate-200/70 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
                   <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                     Your Answer
                   </span>
                   <div className="flex items-center gap-2 text-xs font-semibold">
-                    <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
-                      {formatTime(recordingSeconds)}
-                    </span>
                     {isAiAsking ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
-                        <span>🔇 AI Speaking · Mic Muted</span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
+                        Waiting for question...
                       </span>
                     ) : session?.mode === 'text' ? (
                       <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
                         Typing Mode ⌨️
                       </span>
                     ) : (
-                      <>
+                      <div className="flex items-center gap-2">
                         {listening && !isPaused ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 animate-pulse shadow-2xs">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                              <span>🔴 Mic Live</span>
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80">
-                              Silence: {silenceSeconds}s
-                            </span>
-                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 animate-pulse shadow-2xs">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                            <span>Mic Live ({formatTime(recordingSeconds)})</span>
+                          </span>
                         ) : (
                           <button
                             type="button"
@@ -1488,10 +1459,20 @@ const InterviewSession = () => {
                             }}
                             className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
                           >
-                            <span>🎤 Mic Open (Speak now)</span>
+                            <span>🎤 Unmute Mic</span>
                           </button>
                         )}
-                      </>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border transition-all ${
+                            silenceSeconds <= 2
+                              ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 animate-pulse'
+                              : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80'
+                          }`}
+                          title="Auto-submits after 6s of silence"
+                        >
+                          Silence: {silenceSeconds}s
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1503,7 +1484,7 @@ const InterviewSession = () => {
                   </div>
                 )}
 
-                {/* Editable Text Area (allows typing in text mode and live editing/dictation in audio/video) */}
+                {/* Editable Text Area */}
                 <div className="mt-1">
                   <textarea
                     value={answerText}
@@ -1516,8 +1497,8 @@ const InterviewSession = () => {
                       session?.mode === 'text'
                         ? 'Type your detailed answer here...'
                         : isAiAsking
-                        ? 'AI is speaking the question... (Microphone will automatically open as soon as question ends)'
-                        : 'Speak into your microphone now (your words appear here in real-time)... If silent for 6s, your answer will automatically submit.'
+                        ? 'AI is speaking the question... Mic will open automatically when question ends.'
+                        : 'Speak into your microphone now (voice to text)... 6s silence will auto-submit.'
                     }
                     rows={session?.mode === 'text' ? 4 : 2}
                     className="w-full p-2 bg-white dark:bg-[#131E38] rounded-xl text-xs sm:text-[13px] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border border-slate-200 dark:border-slate-700/80 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all"
@@ -1526,10 +1507,10 @@ const InterviewSession = () => {
                     <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                       <span>
                         {isAiAsking
-                          ? '🔇 Microphone is closed while AI is speaking question.'
+                          ? '🔇 Mic is paused while AI is speaking.'
                           : listening
-                          ? `🟢 Live audio dictation active · Auto-submits after 6s silence (${silenceSeconds}s remaining)`
-                          : '⚪ Mic paused. Tap "Tap to Speak" or type answer'}
+                          ? `🟢 Live audio dictation · Auto-submits after 6s silence (${silenceSeconds}s remaining)`
+                          : '⚪ Mic paused. Tap unmute or type answer'}
                       </span>
                       <span>{answerText ? `${answerText.length} chars` : 'Ready to record'}</span>
                     </div>
@@ -1557,22 +1538,33 @@ const InterviewSession = () => {
                 </div>
               </div>
 
-              {/* Card 4: Tips Box */}
-              <div className="bg-blue-50/50 dark:bg-blue-950/30 rounded-2xl p-2.5 sm:p-3 border border-blue-100 dark:border-blue-900/60 flex items-start gap-2.5">
-                <div className="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 18h6"/><path d="M10 22h4"/>
-                    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/>
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block leading-none mb-0.5">
-                    Tips
+              {/* Card 4: Collapsible Tips Box */}
+              <div className="bg-blue-50/50 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/60 overflow-hidden transition-all">
+                <button
+                  type="button"
+                  onClick={() => setShowTip((prev) => !prev)}
+                  className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-blue-100/40 dark:hover:bg-blue-900/40 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">💡</span>
+                    <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">
+                      Interview Tip
+                    </span>
+                    {!showTip && (
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[180px] sm:max-w-[320px]">
+                        — {TIPS_LIST[current % TIPS_LIST.length]}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                    {showTip ? 'Hide ▲' : 'View ▼'}
                   </span>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug font-medium line-clamp-2">
+                </button>
+                {showTip && (
+                  <div className="px-3 pb-2.5 pt-0 text-[11px] text-slate-600 dark:text-slate-300 leading-snug font-medium border-t border-blue-100/60 dark:border-blue-900/40">
                     {TIPS_LIST[current % TIPS_LIST.length]}
-                  </p>
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons: Skip and Next Question */}
