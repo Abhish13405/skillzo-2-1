@@ -63,13 +63,13 @@ const Login = () => {
             Walk into every interview<br />already prepared for success.
           </h1>
           <p className="text-slate-600 dark:text-slate-300 text-base max-w-md leading-relaxed font-medium">
-            AI-driven real-time mock sessions, ATS resume scoring, and performance dials that
+            AI-Based real-time mock sessions and performance dials that
             show you exactly where you stand.
           </p>
         </div>
 
         <div className="relative z-10 text-xs text-slate-500 dark:text-slate-400 font-mono border-t border-blue-200/80 dark:border-slate-800 pt-4 leading-relaxed">
-          <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">© 2026 Skillzo Studio</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">©  Skillzo Studio</p>
           <p className="text-[11px] text-slate-600 dark:text-slate-400">
             <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha  . Jaya Maurya .Rajkumar verma. Kundan Bhardwaj
           </p>

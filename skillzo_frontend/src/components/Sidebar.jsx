@@ -67,12 +67,9 @@ const SidebarContent = ({ onClose }) => {
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
-  const isLeader = Boolean(
-    user?.is_staff ||
-    user?.is_superuser ||
-    (user?.email && user.email.toLowerCase().includes('abhish')) ||
-    (user?.username && user.username.toLowerCase().includes('abhish'))
-  )
+  const userEmail = (user?.email || '').toLowerCase().trim()
+  const isLeader = Boolean(userEmail === 'abhishekkushwaha13405@gmail.com' || userEmail === 'abhish@gmail.com')
+
 
   const visibleNavItems = isLeader
     ? [
