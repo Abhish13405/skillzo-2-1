@@ -1,6 +1,7 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
 
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -30,9 +31,10 @@ function App() {
       <Route path="/recordings" element={<ProtectedRoute featureName="Recordings"><Recordings /></ProtectedRoute>} />
       <Route path="/leader" element={<ProtectedRoute featureName="Leader Portal" requireLeader><LeaderPortal /></ProtectedRoute>} />
 
-      <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><InterviewSetup /></ProtectedRoute>} />
-      <Route path="/interview/:sessionId/session" element={<ProtectedRoute featureName="AI Interview Session"><InterviewSession /></ProtectedRoute>} />
-      <Route path="/interview/:sessionId/report" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
+      <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><ErrorBoundary><InterviewSetup /></ErrorBoundary></ProtectedRoute>} />
+      <Route path="/interview/:sessionId/session" element={<ProtectedRoute featureName="AI Interview Session"><ErrorBoundary><InterviewSession /></ErrorBoundary></ProtectedRoute>} />
+      <Route path="/interview/:sessionId/report" element={<ProtectedRoute featureName="Interview Report"><ErrorBoundary><InterviewReport /></ErrorBoundary></ProtectedRoute>} />
+
       <Route path="/interview/report/:sessionId" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
 
       {/* Root redirect */}

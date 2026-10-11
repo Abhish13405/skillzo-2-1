@@ -351,6 +351,9 @@ const InterviewSession = () => {
   const [session, setSession] = useState(null)
   const [loadingSession, setLoadingSession] = useState(true)
   const [current, setCurrent] = useState(0)
+  const questions = session?.questions || []
+  const question = questions[current] || null
+  const isLast = questions.length > 0 && current === questions.length - 1
   const [answerText, setAnswerText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [completing, setCompleting] = useState(false)
@@ -639,11 +642,22 @@ const InterviewSession = () => {
 
   // Load Session Detail and set up mode-based media
   useEffect(() => {
+    let isCancelled = false
     setLoadingSession(true)
+    setError('')
+
     getInterviewDetail(sessionId)
       .then((res) => {
+        if (isCancelled) return
         const s = res.data
         setSession(s)
+
+        // If session was already completed, automatically redirect to report
+        if (s?.status === 'completed') {
+          navigate(`/interview/${sessionId}/report`, { replace: true })
+          return
+        }
+
         const smode = s?.mode || 'text'
         if (smode === 'video') {
           setIsCameraActive(true)
@@ -665,17 +679,21 @@ const InterviewSession = () => {
         }
       })
       .catch((err) => {
+        if (isCancelled) return
         console.error('Failed to load session details:', err)
-        setError('Could not load session details. Please check your connection or return to dashboard.')
+        setError(err.response?.data?.error || 'Could not load session details. Please check your connection or return to dashboard.')
       })
       .finally(() => {
-        setLoadingSession(false)
+        if (!isCancelled) {
+          setLoadingSession(false)
+        }
       })
 
     return () => {
+      isCancelled = true
       stopAllMedia()
     }
-  }, [sessionId, startCamera, startAudioStream, stopCamera, stopAllMedia])
+  }, [sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Connect stream to video element
   useEffect(() => {
@@ -824,10 +842,6 @@ const InterviewSession = () => {
 
     return () => clearInterval(silenceInterval)
   }, [isAiAsking, isPaused, isCompleted, submitting, session, question, current])
-
-  const questions = session?.questions || []
-  const question = questions[current]
-  const isLast = current === questions.length - 1
 
   // Format MM:SS
   const formatTime = (totalSec) => {
@@ -1410,10 +1424,20 @@ const InterviewSession = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     {isAiAsking ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 animate-pulse">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                        AI is speaking
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 animate-pulse">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                          AI is speaking
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleSkipAiVoiceAndAnswerNow}
+                          className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer transition-all flex items-center gap-1"
+                          title="Skip AI voice reading and start answering right now"
+                        >
+                          ⚡ Answer Now
+                        </button>
+                      </div>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -1435,10 +1459,15 @@ const InterviewSession = () => {
                   </span>
                   <div className="flex items-center gap-2 text-xs font-semibold">
                     {isAiAsking ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
-                        Waiting for question...
-                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSkipAiVoiceAndAnswerNow}
+                        className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 flex items-center gap-1.5 cursor-pointer transition-all"
+                        title="Click to start answering immediately"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                        <span>⚡ Start Answering Now</span>
+                      </button>
                     ) : session?.mode === 'text' ? (
                       <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
                         Typing Mode ⌨️
