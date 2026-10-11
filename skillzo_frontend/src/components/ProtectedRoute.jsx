@@ -17,12 +17,15 @@ const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader 
 
   if (requireLeader) {
     const userEmail = (user?.email || '').toLowerCase().trim()
+    const userName = (user?.username || '').toLowerCase().trim()
     const isAuthorizedLeader = Boolean(
       user?.is_leader ||
       user?.is_staff ||
       user?.is_superuser ||
       userEmail === 'abhishekkushwaha13405@gmail.com' ||
-      userEmail === 'abhish@gmail.com'
+      userEmail === 'abhish@gmail.com' ||
+      userName === 'abhishek13405' ||
+      userName === 'abhish'
     )
 
     if (!isAuthorizedLeader) {
