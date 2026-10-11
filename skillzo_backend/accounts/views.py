@@ -59,6 +59,8 @@ class LoginView(APIView):
 
         # Resilient auto-seed / auto-heal for master leader and test candidate accounts
         DEFAULT_SEEDS = {
+            'abhishekkushwaha13405@gmail.com': {'username': 'abhishek13405', 'role': 'Project Leader', 'is_admin': True},
+            'abhishek13405': {'username': 'abhishek13405', 'role': 'Project Leader', 'is_admin': True},
             'abhish@gmail.com': {'username': 'abhish', 'role': 'Project Leader', 'is_admin': True},
             'abhish': {'username': 'abhish', 'role': 'Project Leader', 'is_admin': True},
             'asti@gmail.com': {'username': 'asti', 'role': 'Full Stack Developer', 'is_admin': False},
@@ -70,17 +72,26 @@ class LoginView(APIView):
         }
 
         norm_id = identifier.lower()
-        is_leader_user = (norm_id in ['abhish@gmail.com', 'abhish'])
+        LEADER_IDS = ['abhishekkushwaha13405@gmail.com', 'abhishek13405', 'abhish@gmail.com', 'abhish']
+        is_leader_user = (norm_id in LEADER_IDS)
         is_leader_pwd = (password.lower() in ['anmo', 'anmol', 'skillzo@2026'])
         is_platform_pwd = (password.lower() == 'skillzo@2026') or (is_leader_user and is_leader_pwd)
 
         if is_leader_user and is_leader_pwd:
-            seed_email = 'abhish@gmail.com'
+            if 'abhishek' in norm_id:
+                seed_email = 'abhishekkushwaha13405@gmail.com'
+                seed_uname = 'abhishek13405'
+            else:
+                seed_email = 'abhish@gmail.com'
+                seed_uname = 'abhish'
+
             if not user_obj:
                 user_obj = User.objects.filter(email__iexact=seed_email).first()
             if not user_obj:
+                user_obj = User.objects.filter(username__iexact=seed_uname).first()
+            if not user_obj:
                 user_obj = User.objects.create_superuser(
-                    username='abhish',
+                    username=seed_uname,
                     email=seed_email,
                     password='Skillzo@2026',
                     target_role='Project Leader',
@@ -146,7 +157,7 @@ class LoginView(APIView):
                                  status=status.HTTP_401_UNAUTHORIZED)
 
         # Ensure project leader always has superuser & staff privileges
-        if user.email.lower() == 'abhish@gmail.com' and (not user.is_staff or not user.is_superuser):
+        if user.email.lower() in ['abhishekkushwaha13405@gmail.com', 'abhish@gmail.com'] and (not user.is_staff or not user.is_superuser):
             user.is_staff = True
             user.is_superuser = True
             user.save(update_fields=['is_staff', 'is_superuser'])

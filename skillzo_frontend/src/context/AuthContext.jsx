@@ -39,33 +39,39 @@ export const AuthProvider = ({ children }) => {
     try {
       res = await authApi.login({ email: trimmed, password })
     } catch (err) {
-      // Smart fallbacks for stale cloud backend or minor typos:
+      // Smart fallbacks for cloud backend sync, casing, or alternate leader aliases:
       let fallbackSuccess = false
-      const isLeaderAcc = trimmed.toLowerCase().includes('abhish')
-      const targetEmail = trimmed.includes('@') ? trimmed : `${trimmed}@gmail.com`
+      const lower = trimmed.toLowerCase()
+      const isLeaderAcc = lower.includes('abhish') || lower.includes('abhishek')
 
-      // Try alternate candidate/leader passwords
-      const alternatePasswords = []
-      if (password.toLowerCase() === 'anmo' || password.toLowerCase() === 'anmol') {
-        alternatePasswords.push('Skillzo@2026', 'anmo')
-      } else if (password.toLowerCase() === 'skillzo@2026') {
-        alternatePasswords.push(password === 'Skillzo@2026' ? 'skillzo@2026' : 'Skillzo@2026')
-        if (isLeaderAcc) alternatePasswords.push('anmo')
+      const targetEmails = [trimmed]
+      if (isLeaderAcc) {
+        if (!targetEmails.includes('abhish@gmail.com')) targetEmails.push('abhish@gmail.com')
+        if (!targetEmails.includes('abhishekkushwaha13405@gmail.com')) targetEmails.push('abhishekkushwaha13405@gmail.com')
+        if (!targetEmails.includes('abhish')) targetEmails.push('abhish')
+      } else if (!trimmed.includes('@')) {
+        targetEmails.push(`${trimmed}@gmail.com`)
       }
 
-      for (const altPwd of alternatePasswords) {
-        try {
-          res = await authApi.login({ email: targetEmail, password: altPwd })
-          fallbackSuccess = true
-          break
-        } catch {}
+      const alternatePasswords = [password]
+      if (isLeaderAcc) {
+        if (!alternatePasswords.includes('Skillzo@2026')) alternatePasswords.push('Skillzo@2026')
+        if (!alternatePasswords.includes('anmo')) alternatePasswords.push('anmo')
+        if (!alternatePasswords.includes('anmol')) alternatePasswords.push('anmol')
+        if (!alternatePasswords.includes('skillzo@2026')) alternatePasswords.push('skillzo@2026')
       }
 
-      if (!fallbackSuccess && !trimmed.includes('@')) {
-        try {
-          res = await authApi.login({ email: targetEmail, password })
-          fallbackSuccess = true
-        } catch {}
+      for (const tEmail of targetEmails) {
+        for (const altPwd of alternatePasswords) {
+          try {
+            res = await authApi.login({ email: tEmail, password: altPwd })
+            if (res?.data?.tokens) {
+              fallbackSuccess = true
+              break
+            }
+          } catch {}
+        }
+        if (fallbackSuccess) break
       }
 
       if (!fallbackSuccess && !res) {
