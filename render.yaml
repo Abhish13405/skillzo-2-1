@@ -36,3 +36,9 @@ services:
         sync: false
       - key: DEFAULT_FROM_EMAIL
         value: Skillzo AI Studio <abhishekkushwaha13405@gmail.com>
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        value: abhishekkushwaha13405@gmail.com
+
+

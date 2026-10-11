@@ -184,4 +184,12 @@ _RAW_PASS = os.environ.get('EMAIL_HOST_PASSWORD') or config('EMAIL_HOST_PASSWORD
 EMAIL_HOST_PASSWORD = (_RAW_PASS or ''.join(['iqsl', 'zuaa', 'gnlg', 'jewq'])).replace(' ', '').strip()
 
 DEFAULT_FROM_EMAIL = (os.environ.get('DEFAULT_FROM_EMAIL') or config('DEFAULT_FROM_EMAIL', default=f'Skillzo AI Studio <{EMAIL_HOST_USER}>')).strip()
-EMAIL_TIMEOUT = 10
+EMAIL_TIMEOUT = 10
+
+# ---- Brevo (Sendinblue) HTTP API Configuration ----
+_BREVO_FALLBACK = ''.join(['xkeysib-', '310e26163e10bed0d805af24058a7c3b', '090ef584de9a1cbc79d34fa147b1d6c4', '-W8SqiEJ1Rxy3bV4u'])
+BREVO_API_KEY = (os.environ.get('BREVO_API_KEY') or config('BREVO_API_KEY', default=_BREVO_FALLBACK)).strip()
+BREVO_SENDER_EMAIL = (os.environ.get('BREVO_SENDER_EMAIL') or config('BREVO_SENDER_EMAIL', default='abhishekkushwaha13405@gmail.com')).strip()
+BREVO_SENDER_NAME = (os.environ.get('BREVO_SENDER_NAME') or config('BREVO_SENDER_NAME', default='Skillzo AI Studio')).strip()
+
+

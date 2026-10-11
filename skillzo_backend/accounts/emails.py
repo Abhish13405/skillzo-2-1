@@ -1,8 +1,12 @@
 import logging
+import json
+import urllib.request
+import urllib.error
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
 logger = logging.getLogger(__name__)
+
 
 
 def send_otp_email(user, otp):
@@ -142,6 +146,21 @@ Skillzo Studio Team
 </html>
 """
 
+    # 1. Primary Strategy: Brevo HTTP REST API (Port 443 - 100% reliable on Render & Cloud)
+    brevo_key = getattr(settings, 'BREVO_API_KEY', '').strip()
+    if brevo_key:
+        ok, msg = send_otp_via_brevo(
+            recipient=recipient,
+            recipient_name=getattr(user, 'username', '') or getattr(user, 'first_name', ''),
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content,
+        )
+        if ok:
+            return True, "Email sent successfully via Brevo API."
+        logger.warning(f"Brevo API failed: {msg}. Falling back to SMTP...")
+
+    # 2. Secondary Strategy: Django SMTP (local / unblocked ports)
     sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Skillzo AI <noreply@skillzo.ai>')
     host_user = getattr(settings, 'EMAIL_HOST_USER', '')
 
@@ -154,9 +173,60 @@ Skillzo Studio Team
         msg = EmailMultiAlternatives(subject, text_content, sender, [recipient])
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=False)
-        logger.info(f"OTP successfully emailed to {recipient}")
-        return True, "Email sent successfully."
+        logger.info(f"OTP successfully emailed via SMTP to {recipient}")
+        return True, "Email sent successfully via SMTP."
     except Exception as e:
         logger.error(f"Failed to email OTP to {recipient}: {str(e)}")
         print(f"\n[EMAIL SEND FAILED] {str(e)}\nFallback OTP for {recipient}: {otp}\n")
         return False, str(e)
+
+
+def send_otp_via_brevo(recipient, recipient_name, subject, html_content, text_content):
+    """
+    Sends email via Brevo Transactional Email REST API (HTTPS port 443).
+    Bypasses port 587/465 blocks on Render, AWS, and cloud providers.
+    """
+    api_key = getattr(settings, 'BREVO_API_KEY', '').strip()
+    if not api_key:
+        return False, "BREVO_API_KEY is not configured."
+
+    sender_email = getattr(settings, 'BREVO_SENDER_EMAIL', 'abhishekkushwaha13405@gmail.com').strip()
+    sender_name = getattr(settings, 'BREVO_SENDER_NAME', 'Skillzo AI Studio').strip()
+
+    url = 'https://api.brevo.com/v3/smtp/email'
+    payload = {
+        'sender': {'name': sender_name, 'email': sender_email},
+        'to': [{'email': recipient, 'name': recipient_name or 'Candidate'}],
+        'subject': subject,
+        'htmlContent': html_content,
+        'textContent': text_content
+    }
+
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            'accept': 'application/json',
+            'api-key': api_key,
+            'content-type': 'application/json'
+        },
+        method='POST'
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=12) as response:
+            if response.status in (200, 201, 202):
+                logger.info(f"[BREVO SUCCESS] OTP email dispatched to {recipient}")
+                return True, "Email sent successfully via Brevo API."
+            else:
+                body = response.read().decode('utf-8', errors='ignore')
+                return False, f"Brevo HTTP {response.status}: {body}"
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='ignore')
+        logger.error(f"[BREVO HTTP ERROR] {e.code}: {err_body}")
+        return False, f"Brevo API error ({e.code}): {err_body}"
+    except Exception as e:
+        logger.error(f"[BREVO EXCEPTION] {str(e)}")
+        return False, str(e)
+
