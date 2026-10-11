@@ -17,7 +17,13 @@ const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader 
 
   if (requireLeader) {
     const userEmail = (user?.email || '').toLowerCase().trim()
-    const isAuthorizedLeader = (userEmail === 'abhishekkushwaha13405@gmail.com' || userEmail === 'abhish@gmail.com')
+    const isAuthorizedLeader = Boolean(
+      user?.is_leader ||
+      user?.is_staff ||
+      user?.is_superuser ||
+      userEmail === 'abhishekkushwaha13405@gmail.com' ||
+      userEmail === 'abhish@gmail.com'
+    )
 
     if (!isAuthorizedLeader) {
       return (
@@ -30,7 +36,7 @@ const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader 
               Leader Portal Access Restricted
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-              This portal is strictly reserved for Project Leader (<strong>abhishekkushwaha13405@gmail.com</strong>). Other accounts do not have permission to view or manage leader controls.
+              This portal is strictly reserved for authorized Project Leaders and Administrators. Your account does not have clearance to view or manage leader controls.
             </p>
             <a
               href="/dashboard"

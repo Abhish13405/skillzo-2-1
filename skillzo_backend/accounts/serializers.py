@@ -46,15 +46,24 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    is_leader = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'phone', 'profile_photo',
             'college_or_company', 'target_role', 'bio',
             'current_streak', 'longest_streak',
-            'is_staff', 'is_superuser',
+            'is_staff', 'is_superuser', 'is_leader',
         ]
-        read_only_fields = ['id', 'email', 'current_streak', 'longest_streak', 'is_staff', 'is_superuser']
+        read_only_fields = ['id', 'email', 'current_streak', 'longest_streak', 'is_staff', 'is_superuser', 'is_leader']
+
+    def get_is_leader(self, obj):
+        return bool(
+            obj.is_superuser or
+            obj.is_staff or
+            (obj.email and obj.email.lower() in ['abhishekkushwaha13405@gmail.com', 'abhish@gmail.com'])
+        )
 
 
 class ForgotPasswordRequestSerializer(serializers.Serializer):

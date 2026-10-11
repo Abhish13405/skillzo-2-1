@@ -8,6 +8,19 @@ from interview.models import InterviewSession
 from interview.serializers import InterviewSessionSerializer
 
 
+class IsLeaderUser(permissions.BasePermission):
+    """Allows access only to authenticated leaders (staff, superuser, or designated leader emails)."""
+    def has_permission(self, request, view):
+        user = request.user
+        if not (user and user.is_authenticated):
+            return False
+        return bool(
+            user.is_superuser or
+            user.is_staff or
+            (user.email and user.email.lower() in ['abhishekkushwaha13405@gmail.com', 'abhish@gmail.com'])
+        )
+
+
 class DashboardSummaryView(APIView):
     """
     GET /api/dashboard/summary/
@@ -20,11 +33,10 @@ class DashboardSummaryView(APIView):
 
     def get(self, request):
         user = request.user
-        is_leader = (
+        is_leader = bool(
             user.is_staff or
             user.is_superuser or
-            (user.email and 'abhish' in user.email.lower()) or
-            (user.username and 'abhish' in user.username.lower())
+            (user.email and user.email.lower() in ['abhishekkushwaha13405@gmail.com', 'abhish@gmail.com'])
         )
 
         # For regular candidates, fetch their completed/answered sessions.
@@ -70,7 +82,7 @@ class DashboardSummaryView(APIView):
         completed_today = completed.filter(completed_at__date=today).count()
 
         leader_stats = None
-        if user.is_staff or user.is_superuser or (user.email and user.email.lower() == 'abhish@gmail.com'):
+        if is_leader:
             from django.contrib.auth import get_user_model
             from resume_analysis.models import Resume
             UserModel = get_user_model()
@@ -103,19 +115,9 @@ class LeaderPortalStatsView(APIView):
     GET /api/dashboard/leader-stats/
     Dedicated endpoint for the Project Leader Portal.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsLeaderUser]
 
     def get(self, request):
-        user = request.user
-        is_leader = (
-            user.is_staff or 
-            user.is_superuser or 
-            (user.email and 'abhish' in user.email.lower()) or
-            (user.username and 'abhish' in user.username.lower())
-        )
-        if not is_leader:
-            return Response({"error": "Leader access required."}, status=403)
-
         from django.contrib.auth import get_user_model
         from resume_analysis.models import Resume
         UserModel = get_user_model()

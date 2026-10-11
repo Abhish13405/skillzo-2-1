@@ -17,11 +17,13 @@ const History = () => {
   const [filterDiff, setFilterDiff] = useState('All')
   const [downloadingId, setDownloadingId] = useState(null)
 
+  const userEmail = (user?.email || '').toLowerCase().trim()
   const isLeader = Boolean(
+    user?.is_leader ||
     user?.is_staff ||
     user?.is_superuser ||
-    (user?.email && user.email.toLowerCase().includes('abhish')) ||
-    (user?.username && user.username.toLowerCase().includes('abhish'))
+    userEmail === 'abhishekkushwaha13405@gmail.com' ||
+    userEmail === 'abhish@gmail.com'
   )
   const [showAllCandidates, setShowAllCandidates] = useState(isLeader)
 

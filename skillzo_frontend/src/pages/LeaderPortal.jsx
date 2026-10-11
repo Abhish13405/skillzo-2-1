@@ -109,7 +109,15 @@ const LeaderPortal = () => {
   const { user } = useAuth()
 
   const userEmail = (user?.email || '').toLowerCase().trim()
-  const isLeader = Boolean(user && (userEmail === 'abhishekkushwaha13405@gmail.com' || userEmail === 'abhish@gmail.com'))
+  const isLeader = Boolean(
+    user && (
+      user.is_leader ||
+      user.is_staff ||
+      user.is_superuser ||
+      userEmail === 'abhishekkushwaha13405@gmail.com' ||
+      userEmail === 'abhish@gmail.com'
+    )
+  )
 
 
   const [stats, setStats] = useState(null)
