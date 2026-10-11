@@ -88,8 +88,8 @@ const ForgotPassword = () => {
       setError('Please enter the complete 6-digit OTP code.')
       return
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.')
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters long.')
       return
     }
     if (newPassword !== confirmPassword) {
@@ -238,7 +238,7 @@ const ForgotPassword = () => {
                 className="input-field"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
+                placeholder="Enter new password (min 8 characters)"
               />
             </div>
 
