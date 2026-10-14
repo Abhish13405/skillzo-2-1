@@ -1,6 +1,9 @@
 import axios from 'axios'
 
 const getApiBaseUrl = () => {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
   if (typeof window === 'undefined') return 'http://127.0.0.1:8000/api'
   const hostname = window.location.hostname
   const isLocal =
@@ -13,7 +16,7 @@ const getApiBaseUrl = () => {
   if (isLocal) {
     return `http://${hostname}:8000/api`
   }
-  return 'https://skillzo-2-1-2.onrender.com/api'
+  return 'https://skillzo-2-1-6.onrender.com/api'
 }
 
 export const API_BASE_URL = getApiBaseUrl()

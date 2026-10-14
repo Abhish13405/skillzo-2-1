@@ -75,6 +75,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
   const finalTranscriptRef = useRef('')
   const currentSessionFinalRef = useRef('')
   const restartTimerRef = useRef(null)
+  const startRef = useRef(null)
 
   const start = useCallback(() => {
     const SpeechAPI = getSpeechRecognitionAPI()
@@ -170,10 +171,9 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
       if (!isExplicitlyStoppedRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
-          if (!isExplicitlyStoppedRef.current && recognitionRef.current) {
+          if (!isExplicitlyStoppedRef.current && startRef.current) {
             try {
-              recognitionRef.current.start()
-              setListening(true)
+              startRef.current()
             } catch (err) {
               console.warn('Speech recognition restart caught:', err)
             }
@@ -191,6 +191,8 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
       console.warn('Recognition start caught:', e)
     }
   }, [onTranscript, onSpeechActivity])
+
+  startRef.current = start
 
   const stop = useCallback(() => {
     isExplicitlyStoppedRef.current = true
@@ -810,6 +812,7 @@ const InterviewSession = () => {
     stopMic()
     cancelSpeech()
     resetTranscript()
+    setIsMicActive(false)
 
     // Disable hardware audio tracks while AI speaks so speaker output is not captured in mic
     if (streamRef.current) {

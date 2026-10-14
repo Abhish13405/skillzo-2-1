@@ -32,6 +32,7 @@ const LeaderPortal = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all') // 'all', 'interviewed', 'resumes'
+  const [userSort, setUserSort] = useState('latest') // 'latest', 'interviews', 'score', 'alpha'
   const [error, setError] = useState('')
 
   // Detailed Candidate Inspector Modal
@@ -70,12 +71,23 @@ const LeaderPortal = () => {
             const localRecs = await getAllRecordings(null, true)
             const combined = [...serverRecs]
             for (const lr of (localRecs || [])) {
-              if (!combined.some((c) => String(c.sessionId) === String(lr.sessionId) && String(c.questionNumber) === String(lr.questionNumber))) {
+              const alreadyExists = combined.some((c) =>
+                (c.sessionId && lr.sessionId && String(c.sessionId) === String(lr.sessionId) && String(c.questionNumber) === String(lr.questionNumber)) ||
+                (c.id && lr.id && String(c.id) === String(lr.id))
+              )
+              if (!alreadyExists) {
                 combined.push(lr)
               }
             }
+            // CRITICAL: Sort strictly descending by timestamp so newest live clips are always on top!
+            combined.sort((a, b) => {
+              const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
+              const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
+              return tB - tA
+            })
             setRecordings(combined)
           } catch {
+            serverRecs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
             setRecordings(serverRecs)
           }
         } else {
@@ -237,13 +249,27 @@ const LeaderPortal = () => {
     return true
   })
 
-  // Selected candidate's matching vault recordings
+  // Sorted Candidates: defaults to newest registered user first
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    if (userSort === 'interviews') return (b.total_interviews || 0) - (a.total_interviews || 0)
+    if (userSort === 'score') return (b.best_score || b.avg_score || 0) - (a.best_score || a.avg_score || 0)
+    if (userSort === 'alpha') return (a.username || '').localeCompare(b.username || '')
+    return (b.id || 0) - (a.id || 0)
+  })
+
+  // Selected candidate's matching vault recordings (strictly newest first)
   const candidateRecordings = selectedCandidate
-    ? recordings.filter(
-        (r) =>
-          (r.userEmail && r.userEmail.toLowerCase() === selectedCandidate.email.toLowerCase()) ||
-          (r.userId && String(r.userId) === String(selectedCandidate.id))
-      )
+    ? recordings
+        .filter(
+          (r) =>
+            (r.userEmail && r.userEmail.toLowerCase() === selectedCandidate.email.toLowerCase()) ||
+            (r.userId && String(r.userId) === String(selectedCandidate.id))
+        )
+        .sort((a, b) => {
+          const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
+          const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
+          return tB - tA
+        })
     : []
 
   return (
@@ -421,6 +447,21 @@ const LeaderPortal = () => {
                 </button>
               )}
             </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-mono text-[10px] uppercase font-bold text-slate-400">Sort:</span>
+              <select
+                value={userSort}
+                onChange={(e) => setUserSort(e.target.value)}
+                className="input-field py-1 px-2 text-xs rounded-lg cursor-pointer bg-white dark:bg-[#131E38] border-slate-200 dark:border-slate-800"
+              >
+                <option value="latest">Newest Registered</option>
+                <option value="interviews">Most Interviews</option>
+                <option value="score">Highest Score</option>
+                <option value="alpha">Name (A-Z)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -440,14 +481,14 @@ const LeaderPortal = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filteredUsers.length === 0 ? (
+              {sortedUsers.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="text-center py-8 text-slate-400 text-xs">
                     No registered candidates match your search or filter.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u, idx) => (
+                sortedUsers.map((u, idx) => (
                   <tr
                     key={u.id}
                     onClick={() => {

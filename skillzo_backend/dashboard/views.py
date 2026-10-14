@@ -190,6 +190,7 @@ class LeaderPortalStatsView(APIView):
                         "speaking_time_seconds": ans.speaking_time_seconds,
                     }
                     if vid_url or aud_url:
+                        ans_time = ans.answered_at or s.started_at
                         server_recordings.append({
                             "id": f"srv_{ans.id}",
                             "sessionId": s.id,
@@ -203,8 +204,10 @@ class LeaderPortalStatsView(APIView):
                             "questionText": q.question_text,
                             "url": vid_url or aud_url,
                             "durationSeconds": ans.speaking_time_seconds or 0,
-                            "createdAt": ans.answered_at.strftime('%d %b %Y, %I:%M %p') if ans.answered_at else "—",
+                            "createdAt": ans_time.isoformat() if ans_time else "",
+                            "displayDate": ans_time.strftime('%d %b %Y, %I:%M %p') if ans_time else "—",
                             "score": ans.overall_score,
+                            "timestamp": ans_time.timestamp() if ans_time else 0,
                         })
 
                 session_questions.append({
@@ -282,6 +285,8 @@ class LeaderPortalStatsView(APIView):
             }
             for s in InterviewSession.objects.select_related('user').order_by('-id')[:25]
         ]
+
+        server_recordings.sort(key=lambda r: r.get("timestamp", 0), reverse=True)
 
         return Response({
             "is_leader": True,
