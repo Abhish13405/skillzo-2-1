@@ -373,6 +373,15 @@ const LeaderPortal = () => {
           >
             <span>📼 Video Vault</span>
           </Link>
+
+          <a
+            href="https://skillzo-2-1-2.onrender.com/admin"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-primary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm"
+          >
+            <span>Django Admin ↗</span>
+          </a>
         </div>
       </div>
 
