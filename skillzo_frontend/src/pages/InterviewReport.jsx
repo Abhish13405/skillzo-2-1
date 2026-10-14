@@ -4,10 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
 import ReadinessDial from '../components/ReadinessDial'
-import { getInterviewDetail } from '../api/interview'
+import { getInterviewDetail, uploadInterviewRecording } from '../api/interview'
 import { useAuth } from '../context/AuthContext'
 import { downloadInterviewReportPdf } from '../utils/generatePdfReport'
-import { getAllRecordings } from '../utils/recordingsDb'
+import { getAllRecordings, markRecordingUploaded, formatBytes } from '../utils/recordingsDb'
 
 // ─── Certificate print component ────────────────────────────────────────────
 const Certificate = React.forwardRef(({ session, user }, ref) => {
@@ -124,13 +124,29 @@ const InterviewReport = () => {
   const [session, setSession] = useState(null)
   const [error, setError] = useState(null)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [localClips, setLocalClips] = useState([])
+  const [uploadingQNum, setUploadingQNum] = useState(null)
   const certRef = useRef(null)
+
+  const loadLocalClips = async () => {
+    try {
+      const allClips = await getAllRecordings(user, true)
+      const matching = allClips.filter((c) => String(c.sessionId) === String(sessionId))
+      setLocalClips(matching)
+      return matching
+    } catch (e) {
+      console.warn('Could not load local clips for report:', e)
+      return []
+    }
+  }
 
   useEffect(() => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
     }
     setError(null)
+    loadLocalClips()
+
     getInterviewDetail(sessionId)
       .then((res) => {
         setSession(res.data)
@@ -187,6 +203,49 @@ const InterviewReport = () => {
         setError('Report not found for this interview session. The backend database might have restarted.')
       })
   }, [sessionId])
+
+  const handleUploadReportClip = async (clip, questionId, qNum) => {
+    if (!clip?.blob) return
+    setUploadingQNum(qNum)
+    try {
+      const fd = new FormData()
+      fd.append('file', clip.blob, `${clip.mode || 'video'}_${sessionId}_Q${qNum}.webm`)
+      if (questionId) fd.append('question_id', questionId)
+      fd.append('order', qNum)
+      fd.append('mode', clip.mode || 'video')
+      if (clip.durationSeconds) fd.append('speaking_time_seconds', clip.durationSeconds)
+
+      const res = await uploadInterviewRecording(sessionId, fd)
+      const cloudUrl = res.data?.cloud_url || res.data?.cloud_video_url || res.data?.cloud_audio_url
+      if (cloudUrl) {
+        await markRecordingUploaded(clip.id, cloudUrl)
+        setSession((prev) => {
+          if (!prev) return prev
+          const updatedQs = (prev.questions || []).map((q, idx) => {
+            if (q.id === questionId || (idx + 1) === qNum) {
+              const currentAns = q.answer || {}
+              return {
+                ...q,
+                answer: {
+                  ...currentAns,
+                  video_url: (clip.mode !== 'audio' ? cloudUrl : currentAns.video_url),
+                  audio_url: (clip.mode === 'audio' ? cloudUrl : currentAns.audio_url),
+                },
+              }
+            }
+            return q
+          })
+          return { ...prev, questions: updatedQs }
+        })
+        await loadLocalClips()
+      }
+    } catch (err) {
+      console.error('Failed to upload report clip:', err)
+      alert('Upload to cloud failed. Please check your internet connection.')
+    } finally {
+      setUploadingQNum(null)
+    }
+  }
 
   const handleDownloadPdf = () => {
     if (!session) return
@@ -401,34 +460,67 @@ const InterviewReport = () => {
                     )}
 
                     {/* Candidate Recorded Video / Audio Answer Clip */}
-                    {(ans.video_url || ans.audio_url) && (
-                      <div className="bg-slate-900/90 dark:bg-black/90 p-3.5 rounded-xl border border-slate-800 text-xs space-y-2">
-                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-300">
-                          <span className="flex items-center gap-1.5 font-bold">
-                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                            <span>Candidate {ans.video_url ? '📹 Video' : '🎙️ Audio'} Recording</span>
-                          </span>
-                          {ans.speaking_time_seconds ? (
-                            <span className="text-slate-400">{ans.speaking_time_seconds}s</span>
-                          ) : null}
+                    {(() => {
+                      const localClip = localClips.find(
+                        (c) => Number(c.questionNumber) === Number(q.order) || Number(c.questionNumber) === (i + 1)
+                      )
+                      const mediaUrl = ans.video_url || ans.audio_url || (localClip?.blob ? URL.createObjectURL(localClip.blob) : null)
+                      if (!mediaUrl) return null
+
+                      const isCloud = Boolean(
+                        (ans.video_url && ans.video_url.includes('cloudinary')) ||
+                        (ans.audio_url && ans.audio_url.includes('cloudinary')) ||
+                        localClip?.uploadedToCloud ||
+                        localClip?.cloudUrl
+                      )
+                      const isVideo = Boolean(ans.video_url || localClip?.mode !== 'audio')
+
+                      return (
+                        <div className="bg-slate-900/90 dark:bg-black/90 p-3.5 rounded-xl border border-slate-800 text-xs space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-mono text-slate-300 flex-wrap gap-2">
+                            <span className="flex items-center gap-1.5 font-bold">
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                              <span>Candidate {isVideo ? '📹 Video' : '🎙️ Audio'} Recording</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {ans.speaking_time_seconds || localClip?.durationSeconds ? (
+                                <span className="text-slate-400 font-mono">{ans.speaking_time_seconds || localClip?.durationSeconds}s</span>
+                              ) : null}
+                              {isCloud ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
+                                  <span>☁️</span> Cloudinary Uploaded
+                                </span>
+                              ) : localClip?.blob ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUploadReportClip(localClip, q.id, i + 1)}
+                                  disabled={uploadingQNum === (i + 1)}
+                                  className="px-2.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-xs"
+                                  title="Upload this clip to Cloudinary so Project Leader can watch it"
+                                >
+                                  {uploadingQNum === (i + 1) ? 'Uploading...' : '☁️ Upload to Cloud'}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                          {isVideo ? (
+                            <video
+                              src={mediaUrl}
+                              controls
+                              preload="metadata"
+                              className="w-full max-h-72 rounded-lg bg-black object-contain"
+                            />
+                          ) : (
+                            <audio
+                              src={mediaUrl}
+                              controls
+                              preload="metadata"
+                              className="w-full"
+                            />
+                          )}
                         </div>
-                        {ans.video_url ? (
-                          <video
-                            src={ans.video_url}
-                            controls
-                            preload="metadata"
-                            className="w-full max-h-72 rounded-lg bg-black object-contain"
-                          />
-                        ) : (
-                          <audio
-                            src={ans.audio_url}
-                            controls
-                            preload="metadata"
-                            className="w-full"
-                          />
-                        )}
-                      </div>
-                    )}
+                      )
+                    })()}
 
                     {ans.strengths?.length > 0 && (
                       <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs">

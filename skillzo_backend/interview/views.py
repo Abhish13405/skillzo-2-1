@@ -155,32 +155,54 @@ class UploadRecordingView(APIView):
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
         question_id = request.data.get('question_id')
-        if not question_id:
-            return Response({"error": "question_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        question = None
+        if question_id:
+            try:
+                question = InterviewQuestion.objects.get(pk=question_id, session=session)
+            except (InterviewQuestion.DoesNotExist, ValueError):
+                pass
 
-        try:
-            question = InterviewQuestion.objects.get(pk=question_id, session=session)
-        except InterviewQuestion.DoesNotExist:
-            return Response({"error": "Question not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not question:
+            order = request.data.get('order') or request.data.get('question_number') or request.data.get('questionNumber')
+            if order:
+                try:
+                    question = InterviewQuestion.objects.filter(session=session, order=int(order)).first()
+                except (ValueError, TypeError):
+                    pass
+
+        if not question:
+            question = InterviewQuestion.objects.filter(session=session).order_by('order').first()
+
+        if not question:
+            return Response({"error": "No question found for this interview session."}, status=status.HTTP_404_NOT_FOUND)
 
         answer, _ = InterviewAnswer.objects.get_or_create(
             question=question,
-            defaults={'answer_text': 'Recording uploaded.'}
+            defaults={'answer_text': 'Verbal answer submitted.'}
         )
 
-        if 'video_file' in request.FILES:
-            vf = request.FILES['video_file']
-            answer.video_file = vf
-            cloud_url = upload_media_to_cloud(vf, resource_type='video')
-            if cloud_url:
-                answer.cloud_video_url = cloud_url
+        file_obj = (
+            request.FILES.get('video_file') or
+            request.FILES.get('audio_file') or
+            request.FILES.get('file') or
+            request.FILES.get('blob')
+        )
+        mode = request.data.get('mode', '').lower()
 
-        if 'audio_file' in request.FILES:
-            af = request.FILES['audio_file']
-            answer.audio_file = af
-            cloud_url = upload_media_to_cloud(af, resource_type='video')
-            if cloud_url:
-                answer.cloud_audio_url = cloud_url
+        uploaded_cloud_url = None
+        if file_obj:
+            content_type = getattr(file_obj, 'content_type', '').lower()
+            is_audio = ('audio' in content_type) or (mode == 'audio')
+            if is_audio:
+                answer.audio_file = file_obj
+                uploaded_cloud_url = upload_media_to_cloud(file_obj, resource_type='video')
+                if uploaded_cloud_url:
+                    answer.cloud_audio_url = uploaded_cloud_url
+            else:
+                answer.video_file = file_obj
+                uploaded_cloud_url = upload_media_to_cloud(file_obj, resource_type='video')
+                if uploaded_cloud_url:
+                    answer.cloud_video_url = uploaded_cloud_url
 
         if request.data.get('speaking_time_seconds'):
             try:
@@ -189,7 +211,9 @@ class UploadRecordingView(APIView):
                 pass
 
         answer.save()
-        return Response(InterviewAnswerSerializer(answer, context={'request': request}).data)
+        resp_data = InterviewAnswerSerializer(answer, context={'request': request}).data
+        resp_data['cloud_url'] = uploaded_cloud_url or answer.cloud_video_url or answer.cloud_audio_url
+        return Response(resp_data)
 
 
 class CompleteInterviewView(APIView):

@@ -9,7 +9,9 @@ import {
   clearAllRecordings,
   getTotalStorageUsed,
   formatBytes,
+  markRecordingUploaded,
 } from '../utils/recordingsDb'
+import { uploadInterviewRecording } from '../api/interview'
 
 const Recordings = () => {
   const { user } = useAuth()
@@ -32,6 +34,9 @@ const Recordings = () => {
   const [search, setSearch] = useState('')
   const [storageInfo, setStorageInfo] = useState({ totalBytes: 0, formatted: '0 KB', count: 0 })
   const [activePlayback, setActivePlayback] = useState(null) // Recording object being played in modal
+  const [uploadingId, setUploadingId] = useState(null)
+  const [uploadAllLoading, setUploadAllLoading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState('')
   const [viewScope, setViewScope] = useState(() => {
     const params = new URLSearchParams(location.search)
     if (params.get('view') === 'all' && isLeader) return 'all'
@@ -98,6 +103,74 @@ const Recordings = () => {
     setTimeout(() => URL.revokeObjectURL(url), 2000)
   }
 
+  // Upload single recording to Cloudinary
+  const handleUploadToCloud = async (rec, e) => {
+    e?.stopPropagation()
+    if (!rec?.blob || !rec?.sessionId) {
+      alert('Cannot upload: Recording clip or session is missing.')
+      return
+    }
+    setUploadingId(rec.id)
+    setUploadMsg('')
+    try {
+      const fd = new FormData()
+      fd.append('file', rec.blob, `${rec.mode || 'video'}_${rec.sessionId}_Q${rec.questionNumber}.webm`)
+      fd.append('order', rec.questionNumber)
+      fd.append('mode', rec.mode || 'video')
+      if (rec.durationSeconds) fd.append('speaking_time_seconds', rec.durationSeconds)
+
+      const res = await uploadInterviewRecording(rec.sessionId, fd)
+      const cloudUrl = res.data?.cloud_url || res.data?.cloud_video_url || res.data?.cloud_audio_url
+      if (cloudUrl) {
+        await markRecordingUploaded(rec.id, cloudUrl)
+      }
+      setUploadMsg(`✓ Question ${rec.questionNumber} clip uploaded to Cloudinary! Visible now on Project Leader Portal.`)
+      await loadData()
+    } catch (err) {
+      console.error('Upload failed:', err)
+      alert('Upload to cloud failed. Please check your internet connection or verify the interview session.')
+    } finally {
+      setUploadingId(null)
+    }
+  }
+
+  // Upload all un-uploaded recordings to Cloudinary in batch
+  const handleUploadAllToCloud = async () => {
+    const unuploaded = recordings.filter((r) => !r.uploadedToCloud && !r.cloudUrl && r.blob && r.sessionId && r.sessionId !== 'practice')
+    if (unuploaded.length === 0) {
+      alert('All recordings are already uploaded to Cloudinary!')
+      return
+    }
+    if (!window.confirm(`Upload ${unuploaded.length} recording(s) to Cloudinary for Project Leader access?`)) return
+
+    setUploadAllLoading(true)
+    setUploadMsg('')
+    let count = 0
+    try {
+      for (const rec of unuploaded) {
+        const fd = new FormData()
+        fd.append('file', rec.blob, `${rec.mode || 'video'}_${rec.sessionId}_Q${rec.questionNumber}.webm`)
+        fd.append('order', rec.questionNumber)
+        fd.append('mode', rec.mode || 'video')
+        if (rec.durationSeconds) fd.append('speaking_time_seconds', rec.durationSeconds)
+
+        const res = await uploadInterviewRecording(rec.sessionId, fd)
+        const cloudUrl = res.data?.cloud_url || res.data?.cloud_video_url || res.data?.cloud_audio_url
+        if (cloudUrl) {
+          await markRecordingUploaded(rec.id, cloudUrl)
+          count++
+        }
+      }
+      setUploadMsg(`✓ Successfully uploaded ${count} recording(s) to Cloudinary! Visible now on Leader Portal.`)
+      await loadData()
+    } catch (err) {
+      console.error('Batch upload error:', err)
+      alert(`Uploaded ${count} clips before encountering an issue.`)
+    } finally {
+      setUploadAllLoading(false)
+    }
+  }
+
   // Filter recordings
   const filtered = recordings.filter((r) => {
     const matchMode = filterMode === 'all' || r.mode === filterMode
@@ -131,6 +204,26 @@ const Recordings = () => {
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400/80 font-sans font-medium">({storageInfo.count} clips)</span>
           </div>
 
+          {recordings.some((r) => !r.uploadedToCloud && !r.cloudUrl && r.blob && r.sessionId && r.sessionId !== 'practice') && (
+            <button
+              onClick={handleUploadAllToCloud}
+              disabled={uploadAllLoading}
+              className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 px-3 py-1.5 rounded-xl transition-all border border-emerald-300 dark:border-emerald-800 cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+              title="Upload all local interview clips to Cloudinary so Project Leader can watch them"
+            >
+              {uploadAllLoading ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  <span>Uploading to Cloud...</span>
+                </>
+              ) : (
+                <>
+                  <span>☁️ Upload All to Cloud</span>
+                </>
+              )}
+            </button>
+          )}
+
           {recordings.length > 0 && (
             <button
               onClick={handleClearAll}
@@ -146,6 +239,13 @@ const Recordings = () => {
           </Link>
         </div>
       </div>
+
+      {uploadMsg && (
+        <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs">
+          <span>{uploadMsg}</span>
+          <button onClick={() => setUploadMsg('')} className="text-emerald-600 hover:text-emerald-800 font-bold px-1.5 cursor-pointer">✕</button>
+        </div>
+      )}
 
       {/* ─── Leader View Toggle Bar ─── */}
       {isLeader && (
@@ -357,16 +457,39 @@ const Recordings = () => {
                 </div>
 
                 {/* Card Actions */}
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex-wrap">
                   <button
                     onClick={() => setActivePlayback({ ...rec, blobUrl })}
                     className="flex-1 py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors text-center cursor-pointer shadow-2xs"
                   >
                     Play ▶️
                   </button>
+
+                  {rec.uploadedToCloud || rec.cloudUrl ? (
+                    <span
+                      className="px-2 py-1.5 rounded-xl text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shrink-0"
+                      title="Uploaded to Cloudinary and visible on Project Leader Portal"
+                    >
+                      <span>☁️</span> Cloud
+                    </span>
+                  ) : rec.sessionId && rec.sessionId !== 'practice' ? (
+                    <button
+                      onClick={(e) => handleUploadToCloud(rec, e)}
+                      disabled={uploadingId === rec.id}
+                      className="py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs disabled:opacity-50 shrink-0"
+                      title="Upload clip to Cloudinary so Project Leader can watch it"
+                    >
+                      {uploadingId === rec.id ? (
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span>☁️ Upload</span>
+                      )}
+                    </button>
+                  ) : null}
+
                   <button
                     onClick={(e) => handleDownload(rec, e)}
-                    className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer shrink-0"
                     title="Download Video/Audio File (.webm)"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

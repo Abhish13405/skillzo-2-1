@@ -187,3 +187,33 @@ export const getTotalStorageUsed = async (filterUser = null, showAll = false) =>
   }
 }
 
+/**
+ * Mark a local recording as uploaded to cloud with remote cloud URL
+ */
+export const markRecordingUploaded = async (id, cloudUrl) => {
+  try {
+    const db = await openDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      const store = tx.objectStore(STORE_NAME)
+      const getReq = store.get(id)
+      getReq.onsuccess = () => {
+        const data = getReq.result
+        if (data) {
+          data.uploadedToCloud = true
+          data.cloudUrl = cloudUrl
+          const putReq = store.put(data)
+          putReq.onsuccess = () => resolve(true)
+          putReq.onerror = () => resolve(false)
+        } else {
+          resolve(false)
+        }
+      }
+      getReq.onerror = () => resolve(false)
+    })
+  } catch (err) {
+    console.error('Failed to mark recording uploaded:', err)
+    return false
+  }
+}
+

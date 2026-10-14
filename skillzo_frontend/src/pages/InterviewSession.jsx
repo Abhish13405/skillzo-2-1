@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getInterviewDetail, submitAnswer, completeInterview } from '../api/interview'
+import { getInterviewDetail, submitAnswer, completeInterview, uploadInterviewRecording } from '../api/interview'
 import { useAuth } from '../context/AuthContext'
-import { saveRecording } from '../utils/recordingsDb'
+import { saveRecording, getAllRecordings, markRecordingUploaded } from '../utils/recordingsDb'
 
 // ─── Ultra-Low Space Codec Detection Helper (Minimizes file size) ──────────────
 const getBestMimeType = (mode) => {
@@ -423,6 +423,8 @@ const InterviewSession = () => {
   const [isCompleted, setIsCompleted] = useState(false)
   const [error, setError] = useState('')
   const [showTip, setShowTip] = useState(false)
+  const [uploadingCloud, setUploadingCloud] = useState(false)
+  const [cloudUploadStatus, setCloudUploadStatus] = useState('idle') // 'idle', 'uploading', 'done', 'error'
 
   // Control Bar States (NO screen sharing)
   const [isCameraActive, setIsCameraActive] = useState(false)
@@ -595,8 +597,8 @@ const InterviewSession = () => {
         const mimeType = getBestMimeType(mode)
         const options = {}
         if (mimeType) options.mimeType = mimeType
-        if (hasVideo) options.videoBitsPerSecond = 350000
-        if (hasAudio) options.audioBitsPerSecond = 48000
+        if (hasVideo) options.videoBitsPerSecond = 200000
+        if (hasAudio) options.audioBitsPerSecond = 32000
         recorder = new MediaRecorder(activeStream, options)
       } catch (optErr) {
         console.warn('MediaRecorder with bitrates failed, trying with mimeType only:', optErr)
@@ -972,14 +974,8 @@ const InterviewSession = () => {
         speaking_time_seconds: speakingTime,
       }
 
-      if (recResult?.blob && recResult.blob.size > 0) {
-        if (session?.mode === 'video') {
-          answerPayload.video_file = recResult.blob
-        } else if (session?.mode === 'audio') {
-          answerPayload.audio_file = recResult.blob
-        }
-      }
-
+      // Clip is already saved locally on candidate device in IndexedDB via saveRecording()
+      // Submitting only text answer and speaking time ensures 0 lag and candidate cloud upload choice
       await submitAnswer(sessionId, answerPayload)
       advanceToNextOrFinish()
     } catch {
@@ -1124,6 +1120,44 @@ const InterviewSession = () => {
     }
   }
 
+  // Optional: Upload all local session clips to Cloudinary for Project Leader visibility
+  const handleUploadSessionRecordingsToCloud = async () => {
+    setUploadingCloud(true)
+    setError('')
+    try {
+      const allClips = await getAllRecordings(user, true)
+      const sessionClips = allClips.filter((c) => String(c.sessionId) === String(sessionId))
+      if (sessionClips.length === 0) {
+        alert('No local recorded clips found for this session.')
+        setUploadingCloud(false)
+        return
+      }
+
+      for (const clip of sessionClips) {
+        if (clip.blob) {
+          const fd = new FormData()
+          fd.append('file', clip.blob, `${clip.mode || 'video'}_${sessionId}_Q${clip.questionNumber}.webm`)
+          fd.append('order', clip.questionNumber)
+          fd.append('mode', clip.mode || 'video')
+          if (clip.durationSeconds) fd.append('speaking_time_seconds', clip.durationSeconds)
+
+          const res = await uploadInterviewRecording(sessionId, fd)
+          const cloudUrl = res.data?.cloud_url || res.data?.cloud_video_url || res.data?.cloud_audio_url
+          if (cloudUrl) {
+            await markRecordingUploaded(clip.id, cloudUrl)
+          }
+        }
+      }
+      setCloudUploadStatus('done')
+    } catch (err) {
+      console.error('Failed to upload recordings to cloud:', err)
+      setError('Could not upload all recordings to cloud. You can still view them locally or upload from the Recordings page.')
+      setCloudUploadStatus('error')
+    } finally {
+      setUploadingCloud(false)
+    }
+  }
+
   if (loadingSession || !session) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F4F6FB] dark:bg-[#080D1A] p-4 text-center font-sans">
@@ -1214,10 +1248,51 @@ const InterviewSession = () => {
             <p className="text-slate-500 dark:text-slate-400 text-xs mb-4 leading-relaxed">
               All questions have been completed. Your camera and microphone are safely turned off.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 text-[11px] font-mono font-bold mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 text-[11px] font-mono font-bold mb-4">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               Camera & Microphone: OFF
             </div>
+
+            {/* Cloudinary Upload Option (Leader Portal visibility) */}
+            <div className="p-3.5 mb-4 bg-slate-50 dark:bg-[#131E38]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-left text-xs shadow-2xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 text-xs">
+                  <span>☁️ Cloud Backup & Leader Access</span>
+                </span>
+                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                  cloudUploadStatus === 'done'
+                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                    : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                }`}>
+                  {cloudUploadStatus === 'done' ? '✅ Cloud Uploaded' : 'Optional Choice'}
+                </span>
+              </div>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mb-2.5 leading-relaxed">
+                Your video/audio is saved securely on your device. Upload to Cloudinary to make it visible to the Project Leader on the Leader Portal.
+              </p>
+              {cloudUploadStatus === 'done' ? (
+                <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px] flex items-center gap-1.5">
+                  <span>✓</span> Clips uploaded to Cloudinary! Visible now on Project Leader Portal.
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleUploadSessionRecordingsToCloud}
+                  disabled={uploadingCloud}
+                  className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  {uploadingCloud ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Uploading clips to Cloudinary...</span>
+                    </>
+                  ) : (
+                    <span>☁️ Upload Recordings to Cloud (Leader Portal)</span>
+                  )}
+                </button>
+              )}
+            </div>
+
             <div className="flex flex-col gap-2.5">
               <button
                 onClick={handleOpenFeedback}

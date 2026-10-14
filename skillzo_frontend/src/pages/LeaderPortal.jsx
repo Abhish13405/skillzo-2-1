@@ -62,34 +62,20 @@ const LeaderPortal = () => {
 
     getLeaderStats()
       .then(async (res) => {
-        if (res.data && Array.isArray(res.data.users)) {
-          setStats(res.data)
+        if (res.data && (Array.isArray(res.data.users) || Array.isArray(res.data.all_users))) {
+          const userList = res.data.users || res.data.all_users || []
+          setStats({ ...res.data, users: userList, all_users: userList })
 
-          // Merge server recordings with local browser recordings
-          const serverRecs = res.data.server_recordings || []
-          try {
-            const localRecs = await getAllRecordings(null, true)
-            const combined = [...serverRecs]
-            for (const lr of (localRecs || [])) {
-              const alreadyExists = combined.some((c) =>
-                (c.sessionId && lr.sessionId && String(c.sessionId) === String(lr.sessionId) && String(c.questionNumber) === String(lr.questionNumber)) ||
-                (c.id && lr.id && String(c.id) === String(lr.id))
-              )
-              if (!alreadyExists) {
-                combined.push(lr)
-              }
-            }
-            // CRITICAL: Sort strictly descending by timestamp so newest live clips are always on top!
-            combined.sort((a, b) => {
-              const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
-              const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
-              return tB - tA
-            })
-            setRecordings(combined)
-          } catch {
-            serverRecs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-            setRecordings(serverRecs)
-          }
+          // Leader Portal ONLY displays recordings that candidates uploaded to cloud CDN
+          const serverRecs = (res.data.server_recordings || []).filter((r) =>
+            r.url && (r.url.startsWith('http://') || r.url.startsWith('https://'))
+          )
+          serverRecs.sort((a, b) => {
+            const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
+            const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
+            return tB - tA
+          })
+          setRecordings(serverRecs)
         } else {
           setError('Received invalid data format from server.')
         }
@@ -267,6 +253,9 @@ const LeaderPortal = () => {
     const seen = new Set()
 
     const addRec = (rec) => {
+      if (!rec || !rec.url) return
+      // Strict Leader Portal Rule: Only show recordings uploaded to Cloudinary
+      if (!rec.url.includes('cloudinary') && !rec.url.includes('res.cloudinary.com')) return
       const key = rec.id || rec.url || `${rec.sessionId}_${rec.questionNumber}`
       if (key && !seen.has(key)) {
         seen.add(key)
@@ -294,23 +283,26 @@ const LeaderPortal = () => {
         if (Array.isArray(s.questions)) {
           s.questions.forEach((q) => {
             if (q.answer && (q.answer.video_url || q.answer.audio_url)) {
-              addRec({
-                id: `cand_ans_${q.answer.id}`,
-                sessionId: s.id,
-                userId: selectedCandidate.id,
-                userEmail: selectedCandidate.email,
-                candidateName: selectedCandidate.username,
-                jobRole: s.role || 'AI Interview',
-                difficulty: s.difficulty || 'Intermediate',
-                mode: q.answer.video_url ? 'video' : 'audio',
-                questionNumber: q.order,
-                questionText: q.question_text,
-                url: q.answer.video_url || q.answer.audio_url,
-                durationSeconds: q.answer.speaking_time_seconds || 0,
-                score: q.answer.overall_score,
-                displayDate: s.started_at,
-                createdAt: s.started_at,
-              })
+              const cloudUrl = q.answer.video_url || q.answer.audio_url
+              if (cloudUrl && (cloudUrl.includes('cloudinary') || cloudUrl.includes('res.cloudinary.com'))) {
+                addRec({
+                  id: `cand_ans_${q.answer.id}`,
+                  sessionId: s.id,
+                  userId: selectedCandidate.id,
+                  userEmail: selectedCandidate.email,
+                  candidateName: selectedCandidate.username,
+                  jobRole: s.role || 'AI Interview',
+                  difficulty: s.difficulty || 'Intermediate',
+                  mode: q.answer.video_url ? 'video' : 'audio',
+                  questionNumber: q.order,
+                  questionText: q.question_text,
+                  url: cloudUrl,
+                  durationSeconds: q.answer.speaking_time_seconds || 0,
+                  score: q.answer.overall_score,
+                  displayDate: s.started_at,
+                  createdAt: s.started_at,
+                })
+              }
             }
           })
         }
@@ -834,34 +826,56 @@ const LeaderPortal = () => {
                             </div>
                           </div>
 
-                          {/* Candidate Answer Video Playback Buttons */}
-                          {s.questions?.some((q) => q.answer?.video_url || q.answer?.audio_url) && (
-                            <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider mr-1">
-                                📹 Candidate Videos:
+                          {/* Candidate Questions & Answers Transcript */}
+                          {s.questions?.length > 0 && (
+                            <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2">
+                              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider block">
+                                📝 Interview Q&A Transcript:
                               </span>
                               {s.questions.map((q) => {
-                                const vid = q.answer?.video_url || q.answer?.audio_url
-                                if (!vid) return null
+                                const ans = q.answer
+                                const vid = ans?.video_url || ans?.audio_url
                                 return (
-                                  <button
-                                    key={q.id}
-                                    type="button"
-                                    onClick={() => setActivePlayback({
-                                      id: `q_${q.id}`,
-                                      jobRole: s.role,
-                                      questionNumber: q.order,
-                                      questionText: q.question_text,
-                                      mode: q.answer?.video_url ? 'video' : 'audio',
-                                      url: vid,
-                                      durationSeconds: q.answer?.speaking_time_seconds,
-                                      userEmail: selectedCandidate.email,
-                                    })}
-                                    className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                                    title={`Watch Candidate Answer for Question ${q.order}`}
-                                  >
-                                    <span>▶ Q{q.order} Video</span>
-                                  </button>
+                                  <div key={q.id} className="p-2 rounded-lg bg-white dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <p className="text-slate-900 dark:text-white font-semibold text-[11px] leading-tight">
+                                        <span className="text-blue-600 font-bold mr-1">Q{q.order}.</span>
+                                        {q.question_text}
+                                      </p>
+                                      {ans?.overall_score !== undefined && ans?.overall_score !== null && (
+                                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 shrink-0">
+                                          Score: {ans.overall_score}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {ans?.answer_text ? (
+                                      <p className="text-slate-600 dark:text-slate-300 text-[10px] mt-1 pl-2.5 border-l-2 border-blue-400 dark:border-blue-600 italic">
+                                        "{ans.answer_text}"
+                                      </p>
+                                    ) : (
+                                      <p className="text-slate-400 text-[10px] mt-0.5 italic">No answer submitted.</p>
+                                    )}
+                                    {vid && (
+                                      <div className="mt-1.5 flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => setActivePlayback({
+                                            id: `q_${q.id}`,
+                                            jobRole: s.role,
+                                            questionNumber: q.order,
+                                            questionText: q.question_text,
+                                            mode: ans?.video_url ? 'video' : 'audio',
+                                            url: vid,
+                                            durationSeconds: ans?.speaking_time_seconds,
+                                            userEmail: selectedCandidate.email,
+                                          })}
+                                          className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <span>▶ Watch Cloud Clip ({ans?.speaking_time_seconds || 0}s)</span>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 )
                               })}
                             </div>
@@ -977,8 +991,14 @@ const LeaderPortal = () => {
               {candidateTab === 'recordings' && (
                 <div>
                   {!candidateRecordings.length ? (
-                    <div className="text-center py-8 text-slate-400 text-xs bg-slate-50 dark:bg-[#080D1A] rounded-xl border border-slate-100 dark:border-slate-800">
-                      No video or audio clips recorded on this browser session for this candidate.
+                    <div className="text-center py-8 px-4 text-xs bg-slate-50 dark:bg-[#080D1A] rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1.5">
+                      <div className="text-3xl mb-1">🔒</div>
+                      <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                        No Cloud Recordings Uploaded
+                      </p>
+                      <p className="text-slate-500 dark:text-slate-400 text-xs max-w-md mx-auto leading-relaxed">
+                        The candidate's video/audio was recorded locally on their system in ultra-low storage. Clips appear here only when the candidate clicks <strong>"Upload to Cloud ☁️"</strong>. All signup details and written question responses are preserved and visible under the <strong>Interviews</strong> tab.
+                      </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

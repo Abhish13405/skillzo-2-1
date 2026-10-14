@@ -179,8 +179,9 @@ class LeaderPortalStatsView(APIView):
                 ans_data = None
                 if hasattr(q, 'answer') and q.answer:
                     ans = q.answer
-                    vid_url = ans.cloud_video_url or (request.build_absolute_uri(ans.video_file.url) if ans.video_file else None)
-                    aud_url = ans.cloud_audio_url or (request.build_absolute_uri(ans.audio_file.url) if ans.audio_file else None)
+                    # Leader Portal strictly receives cloud URLs only when uploaded to cloud
+                    vid_url = ans.cloud_video_url if ans.cloud_video_url else None
+                    aud_url = ans.cloud_audio_url if ans.cloud_audio_url else None
                     ans_data = {
                         "id": ans.id,
                         "answer_text": ans.answer_text,
@@ -189,7 +190,9 @@ class LeaderPortalStatsView(APIView):
                         "audio_url": aud_url,
                         "speaking_time_seconds": ans.speaking_time_seconds,
                     }
-                    if vid_url or aud_url:
+                    # Only include recording in Leader Portal if candidate uploaded to cloud!
+                    cloud_url = ans.cloud_video_url or ans.cloud_audio_url
+                    if cloud_url:
                         ans_time = ans.answered_at or s.started_at
                         server_recordings.append({
                             "id": f"srv_{ans.id}",
@@ -199,10 +202,10 @@ class LeaderPortalStatsView(APIView):
                             "candidateName": s.user.username if s.user else "Candidate",
                             "jobRole": s.job_role or "AI Interview",
                             "difficulty": s.difficulty or "Intermediate",
-                            "mode": "video" if vid_url else "audio",
+                            "mode": "video" if ans.cloud_video_url else "audio",
                             "questionNumber": q.order,
                             "questionText": q.question_text,
-                            "url": vid_url or aud_url,
+                            "url": cloud_url,
                             "durationSeconds": ans.speaking_time_seconds or 0,
                             "createdAt": ans_time.isoformat() if ans_time else "",
                             "displayDate": ans_time.strftime('%d %b %Y, %I:%M %p') if ans_time else "—",
@@ -297,6 +300,7 @@ class LeaderPortalStatsView(APIView):
             "total_interviews": InterviewSession.objects.count(),
             "total_resumes": Resume.objects.count(),
             "users": all_users,
+            "all_users": all_users,
             "recent_sessions": recent_sessions,
             "server_recordings": server_recordings,
         })
