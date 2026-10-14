@@ -126,7 +126,7 @@ const Dashboard = () => {
               </div>
             </div>
             <a
-              href="https://skillzo-2-1-6.onrender.com/admin"
+              href="https://skillzo-2-1-2.onrender.com/admin"
               target="_blank"
               rel="noreferrer"
               className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-sm"
