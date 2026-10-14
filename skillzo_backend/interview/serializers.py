@@ -13,17 +13,38 @@ class SubmitAnswerSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     answer_text = serializers.CharField()
     speaking_time_seconds = serializers.IntegerField(required=False, allow_null=True)
+    video_file = serializers.FileField(required=False, allow_null=True)
+    audio_file = serializers.FileField(required=False, allow_null=True)
 
 
 class InterviewAnswerSerializer(serializers.ModelSerializer):
+    video_url = serializers.SerializerMethodField()
+    audio_url = serializers.SerializerMethodField()
+
     class Meta:
         model = InterviewAnswer
         fields = [
             'id', 'answer_text', 'speaking_time_seconds', 'answered_at',
             'technical_knowledge', 'communication', 'grammar', 'confidence',
             'problem_solving', 'overall_score', 'strengths', 'improvements',
-            'ideal_answer_summary',
+            'ideal_answer_summary', 'video_file', 'audio_file', 'video_url', 'audio_url',
         ]
+
+    def get_video_url(self, obj):
+        if obj.video_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.video_file.url)
+            return obj.video_file.url
+        return None
+
+    def get_audio_url(self, obj):
+        if obj.audio_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.audio_file.url)
+            return obj.audio_file.url
+        return None
 
 
 class InterviewQuestionSerializer(serializers.ModelSerializer):

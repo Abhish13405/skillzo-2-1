@@ -1,6 +1,6 @@
 from django.utils import timezone
 from django.db.models import Q
-from rest_framework import permissions, status
+from rest_framework import permissions, status, parsers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -60,7 +60,7 @@ class StartInterviewView(APIView):
                 category=q.get('category', ''),
             )
 
-        return Response(InterviewSessionSerializer(session).data, status=status.HTTP_201_CREATED)
+        return Response(InterviewSessionSerializer(session, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 class SubmitAnswerView(APIView):
@@ -68,11 +68,12 @@ class SubmitAnswerView(APIView):
     POST /api/interview/<session_id>/answer/
     Called after EVERY question, in ALL three modes:
       - Text mode: answer_text = what user typed
-      - Audio mode: answer_text = Web Speech API transcript (frontend converts speech->text first)
-      - Video mode: answer_text = transcript extracted from the recorded video's audio
-    Evaluation always goes through the same groq_service.evaluate_answer().
+      - Audio mode: answer_text = Web Speech API transcript + raw audio_file
+      - Video mode: answer_text = transcript + candidate's recorded video_file
+    Saves the media file directly to disk and evaluates answer via Groq.
     """
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def post(self, request, session_id):
         try:
@@ -101,24 +102,80 @@ class SubmitAnswerView(APIView):
             return Response({"error": f"Evaluation failed: {str(e)}"},
                              status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        defaults = {
+            'answer_text': data['answer_text'],
+            'speaking_time_seconds': data.get('speaking_time_seconds'),
+            'technical_knowledge': evaluation.get('technical_knowledge', 0),
+            'communication': evaluation.get('communication', 0),
+            'grammar': evaluation.get('grammar', 0),
+            'confidence': evaluation.get('confidence', 0),
+            'problem_solving': evaluation.get('problem_solving', 0),
+            'overall_score': evaluation.get('overall_score', 0),
+            'strengths': evaluation.get('strengths', []),
+            'improvements': evaluation.get('improvements', []),
+            'ideal_answer_summary': evaluation.get('ideal_answer_summary', ''),
+        }
+
+        # Save video or audio recording file if attached in multipart request
+        if 'video_file' in request.FILES:
+            defaults['video_file'] = request.FILES['video_file']
+        elif data.get('video_file'):
+            defaults['video_file'] = data['video_file']
+
+        if 'audio_file' in request.FILES:
+            defaults['audio_file'] = request.FILES['audio_file']
+        elif data.get('audio_file'):
+            defaults['audio_file'] = data['audio_file']
+
         answer, _ = InterviewAnswer.objects.update_or_create(
             question=question,
-            defaults={
-                'answer_text': data['answer_text'],
-                'speaking_time_seconds': data.get('speaking_time_seconds'),
-                'technical_knowledge': evaluation.get('technical_knowledge', 0),
-                'communication': evaluation.get('communication', 0),
-                'grammar': evaluation.get('grammar', 0),
-                'confidence': evaluation.get('confidence', 0),
-                'problem_solving': evaluation.get('problem_solving', 0),
-                'overall_score': evaluation.get('overall_score', 0),
-                'strengths': evaluation.get('strengths', []),
-                'improvements': evaluation.get('improvements', []),
-                'ideal_answer_summary': evaluation.get('ideal_answer_summary', ''),
-            }
+            defaults=defaults,
         )
 
-        return Response(InterviewAnswerSerializer(answer).data)
+        return Response(InterviewAnswerSerializer(answer, context={'request': request}).data)
+
+
+class UploadRecordingView(APIView):
+    """
+    POST /api/interview/<session_id>/upload-recording/
+    Asynchronous multipart endpoint to attach or update video/audio file for a question.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def post(self, request, session_id):
+        try:
+            session = InterviewSession.objects.get(pk=session_id, user=request.user)
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        question_id = request.data.get('question_id')
+        if not question_id:
+            return Response({"error": "question_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            question = InterviewQuestion.objects.get(pk=question_id, session=session)
+        except InterviewQuestion.DoesNotExist:
+            return Response({"error": "Question not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        answer, _ = InterviewAnswer.objects.get_or_create(
+            question=question,
+            defaults={'answer_text': 'Recording uploaded.'}
+        )
+
+        if 'video_file' in request.FILES:
+            answer.video_file = request.FILES['video_file']
+        if 'audio_file' in request.FILES:
+            answer.audio_file = request.FILES['audio_file']
+
+        if request.data.get('speaking_time_seconds'):
+            try:
+                answer.speaking_time_seconds = int(request.data.get('speaking_time_seconds'))
+            except (ValueError, TypeError):
+                pass
+
+        answer.save()
+        return Response(InterviewAnswerSerializer(answer, context={'request': request}).data)
 
 
 class CompleteInterviewView(APIView):
@@ -174,7 +231,7 @@ class CompleteInterviewView(APIView):
         session.verdict = report.get('verdict', '')
         session.save()
 
-        return Response(InterviewSessionSerializer(session).data)
+        return Response(InterviewSessionSerializer(session, context={'request': request}).data)
 
 
 class InterviewHistoryView(APIView):
@@ -209,7 +266,7 @@ class InterviewHistoryView(APIView):
         sessions = base_qs.filter(
             Q(status='completed') | Q(questions__answer__isnull=False)
         ).distinct().order_by('-started_at')
-        return Response(InterviewSessionSerializer(sessions, many=True).data)
+        return Response(InterviewSessionSerializer(sessions, many=True, context={'request': request}).data)
 
 
 class InterviewDetailView(APIView):
@@ -246,4 +303,4 @@ class InterviewDetailView(APIView):
                         session.completed_at = session.started_at or timezone.now()
                     session.save(update_fields=['overall_score', 'status', 'completed_at'])
 
-        return Response(InterviewSessionSerializer(session).data)
+        return Response(InterviewSessionSerializer(session, context={'request': request}).data)

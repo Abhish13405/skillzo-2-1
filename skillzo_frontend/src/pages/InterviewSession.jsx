@@ -637,7 +637,7 @@ const InterviewSession = () => {
               userId: user?.id,
               userEmail: user?.email,
             })
-            resolve(saved)
+            resolve({ saved, blob, durationSeconds, mode })
             return
           }
         } catch (e) {
@@ -927,14 +927,24 @@ const InterviewSession = () => {
     const speakingTime = Math.round((Date.now() - startTime.current) / 1000)
 
     try {
-      // Save recorded response clip before submitting
-      await stopAndSaveRecording(current + 1, question?.question_text)
+      // Save recorded response clip locally and attach for server upload
+      const recResult = await stopAndSaveRecording(current + 1, question?.question_text)
 
-      await submitAnswer(sessionId, {
+      const answerPayload = {
         question_id: question.id,
         answer_text: answerText.trim() || (isAutoSubmit ? 'No verbal response (silence).' : 'Passed without verbal response.'),
         speaking_time_seconds: speakingTime,
-      })
+      }
+
+      if (recResult?.blob && recResult.blob.size > 0) {
+        if (session?.mode === 'video') {
+          answerPayload.video_file = recResult.blob
+        } else if (session?.mode === 'audio') {
+          answerPayload.audio_file = recResult.blob
+        }
+      }
+
+      await submitAnswer(sessionId, answerPayload)
       advanceToNextOrFinish()
     } catch {
       setError('Could not submit answer. Please try again.')

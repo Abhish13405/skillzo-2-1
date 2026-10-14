@@ -400,6 +400,36 @@ const InterviewReport = () => {
                       </div>
                     )}
 
+                    {/* Candidate Recorded Video / Audio Answer Clip */}
+                    {(ans.video_url || ans.audio_url) && (
+                      <div className="bg-slate-900/90 dark:bg-black/90 p-3.5 rounded-xl border border-slate-800 text-xs space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-300">
+                          <span className="flex items-center gap-1.5 font-bold">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            <span>Candidate {ans.video_url ? '📹 Video' : '🎙️ Audio'} Recording</span>
+                          </span>
+                          {ans.speaking_time_seconds ? (
+                            <span className="text-slate-400">{ans.speaking_time_seconds}s</span>
+                          ) : null}
+                        </div>
+                        {ans.video_url ? (
+                          <video
+                            src={ans.video_url}
+                            controls
+                            preload="metadata"
+                            className="w-full max-h-72 rounded-lg bg-black object-contain"
+                          />
+                        ) : (
+                          <audio
+                            src={ans.audio_url}
+                            controls
+                            preload="metadata"
+                            className="w-full"
+                          />
+                        )}
+                      </div>
+                    )}
+
                     {ans.strengths?.length > 0 && (
                       <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs">
                         <strong className="text-emerald-700 dark:text-emerald-300 block mb-1 font-semibold">✓ Key Strengths:</strong>

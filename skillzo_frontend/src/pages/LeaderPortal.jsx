@@ -60,9 +60,24 @@ const LeaderPortal = () => {
     setError('')
 
     getLeaderStats()
-      .then((res) => {
+      .then(async (res) => {
         if (res.data && Array.isArray(res.data.users)) {
           setStats(res.data)
+
+          // Merge server recordings with local browser recordings
+          const serverRecs = res.data.server_recordings || []
+          try {
+            const localRecs = await getAllRecordings(null, true)
+            const combined = [...serverRecs]
+            for (const lr of (localRecs || [])) {
+              if (!combined.some((c) => String(c.sessionId) === String(lr.sessionId) && String(c.questionNumber) === String(lr.questionNumber))) {
+                combined.push(lr)
+              }
+            }
+            setRecordings(combined)
+          } catch {
+            setRecordings(serverRecs)
+          }
         } else {
           setError('Received invalid data format from server.')
         }
@@ -78,6 +93,7 @@ const LeaderPortal = () => {
       })
       .finally(() => {
         setLoading(false)
+        setLoadingRecs(false)
         if (isManual) setRefreshing(false)
       })
   }
@@ -89,16 +105,16 @@ const LeaderPortal = () => {
     }
 
     fetchLeaderData(false)
-    loadRecordings()
   }, [isLeader])
 
-  // Download candidate video
+  // Download candidate video (supports both local blob and remote server URL)
   const handleDownloadRec = (rec, e) => {
     e?.stopPropagation()
-    if (!rec?.blob) return
-    const url = URL.createObjectURL(rec.blob)
+    const url = rec?.blob ? URL.createObjectURL(rec.blob) : (rec?.url || rec?.blobUrl)
+    if (!url) return
     const a = document.createElement('a')
     a.href = url
+    a.target = '_blank'
     const ext = 'webm'
     const safeRole = String(rec.jobRole || 'interview').replace(/[^a-zA-Z0-9_-]/g, '_')
     const userTag = rec.userEmail ? `_${rec.userEmail.split('@')[0]}` : ''
@@ -106,7 +122,7 @@ const LeaderPortal = () => {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 2000)
+    if (rec?.blob) setTimeout(() => URL.revokeObjectURL(url), 2000)
   }
 
   // Delete recording from vault
@@ -677,42 +693,77 @@ const LeaderPortal = () => {
                       {selectedCandidate.sessions.map((s) => (
                         <div
                           key={s.id}
-                          className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131E38]/50 flex items-center justify-between gap-3 text-xs"
+                          className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131E38]/50 text-xs"
                         >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900 dark:text-white">
-                                {s.role}
-                              </span>
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                {s.difficulty}
-                              </span>
-                              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
-                                s.status === 'completed'
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
-                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400'
-                              }`}>
-                                {s.status}
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {s.role}
+                                </span>
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                  {s.difficulty}
+                                </span>
+                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                                  s.status === 'completed'
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
+                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400'
+                                }`}>
+                                  {s.status}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-mono block mt-1">
+                                Session ID #{s.id} · Started {s.started_at}
                               </span>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-mono block mt-1">
-                              Session ID #{s.id} · Started {s.started_at}
-                            </span>
+
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-xs">
+                                Score: {s.score}/100
+                              </span>
+                              <Link
+                                to={`/interview/report/${s.id}`}
+                                target="_blank"
+                                className="btn-primary py-1 px-2.5 text-xs inline-flex items-center gap-1 shadow-2xs"
+                              >
+                                <span>Report</span>
+                                <span>↗</span>
+                              </Link>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-xs">
-                              Score: {s.score}/100
-                            </span>
-                            <Link
-                              to={`/interview/report/${s.id}`}
-                              target="_blank"
-                              className="btn-primary py-1 px-2.5 text-xs inline-flex items-center gap-1 shadow-2xs"
-                            >
-                              <span>Report</span>
-                              <span>↗</span>
-                            </Link>
-                          </div>
+                          {/* Candidate Answer Video Playback Buttons */}
+                          {s.questions?.some((q) => q.answer?.video_url || q.answer?.audio_url) && (
+                            <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider mr-1">
+                                📹 Candidate Videos:
+                              </span>
+                              {s.questions.map((q) => {
+                                const vid = q.answer?.video_url || q.answer?.audio_url
+                                if (!vid) return null
+                                return (
+                                  <button
+                                    key={q.id}
+                                    type="button"
+                                    onClick={() => setActivePlayback({
+                                      id: `q_${q.id}`,
+                                      jobRole: s.role,
+                                      questionNumber: q.order,
+                                      questionText: q.question_text,
+                                      mode: q.answer?.video_url ? 'video' : 'audio',
+                                      url: vid,
+                                      durationSeconds: q.answer?.speaking_time_seconds,
+                                      userEmail: selectedCandidate.email,
+                                    })}
+                                    className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                    title={`Watch Candidate Answer for Question ${q.order}`}
+                                  >
+                                    <span>▶ Q{q.order} Video</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -830,7 +881,7 @@ const LeaderPortal = () => {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {candidateRecordings.map((rec) => {
-                        const blobUrl = rec.blob ? URL.createObjectURL(rec.blob) : null
+                        const blobUrl = rec.blob ? URL.createObjectURL(rec.blob) : (rec.url || null)
                         return (
                           <div
                             key={rec.id}
@@ -1014,7 +1065,7 @@ const LeaderPortal = () => {
             {recordings
               .filter((r) => recFilter === 'all' || r.mode === recFilter)
               .map((rec) => {
-                const blobUrl = rec.blob ? URL.createObjectURL(rec.blob) : null
+                const blobUrl = rec.blob ? URL.createObjectURL(rec.blob) : (rec.url || null)
                 const dateStr = new Date(rec.createdAt).toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'short',
@@ -1215,11 +1266,11 @@ const LeaderPortal = () => {
 
             <div className="w-full bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center shadow-inner">
               {activePlayback.mode === 'video' ? (
-                <video src={activePlayback.blobUrl} controls autoPlay className="w-full h-full object-contain" />
+                <video src={activePlayback.blobUrl || activePlayback.url} controls autoPlay className="w-full h-full object-contain" />
               ) : (
                 <div className="flex flex-col items-center justify-center gap-3 w-full p-4 text-center">
                   <span className="text-3xl">🎙️</span>
-                  <audio src={activePlayback.blobUrl} controls autoPlay className="w-full max-w-sm" />
+                  <audio src={activePlayback.blobUrl || activePlayback.url} controls autoPlay className="w-full max-w-sm" />
                 </div>
               )}
             </div>

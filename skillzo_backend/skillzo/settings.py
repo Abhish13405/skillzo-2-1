@@ -107,6 +107,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'   # resumes, audio/video recordings stored here
 os.makedirs(MEDIA_ROOT / 'resumes', exist_ok=True)
+os.makedirs(MEDIA_ROOT / 'interview_video', exist_ok=True)
+os.makedirs(MEDIA_ROOT / 'interview_audio', exist_ok=True)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

@@ -166,12 +166,54 @@ class LeaderPortalStatsView(APIView):
                 "feedback": r.feedback or [],
             })
 
-        all_sessions = InterviewSession.objects.all().order_by('-started_at')
+        all_sessions = InterviewSession.objects.prefetch_related('questions__answer', 'user').order_by('-started_at')
         sessions_by_user = {}
+        server_recordings = []
         for s in all_sessions:
             uid = s.user_id
             if uid not in sessions_by_user:
                 sessions_by_user[uid] = []
+
+            session_questions = []
+            for q in s.questions.all():
+                ans_data = None
+                if hasattr(q, 'answer') and q.answer:
+                    ans = q.answer
+                    vid_url = request.build_absolute_uri(ans.video_file.url) if ans.video_file else None
+                    aud_url = request.build_absolute_uri(ans.audio_file.url) if ans.audio_file else None
+                    ans_data = {
+                        "id": ans.id,
+                        "answer_text": ans.answer_text,
+                        "overall_score": ans.overall_score,
+                        "video_url": vid_url,
+                        "audio_url": aud_url,
+                        "speaking_time_seconds": ans.speaking_time_seconds,
+                    }
+                    if vid_url or aud_url:
+                        server_recordings.append({
+                            "id": f"srv_{ans.id}",
+                            "sessionId": s.id,
+                            "userId": s.user_id,
+                            "userEmail": s.user.email if s.user else "",
+                            "candidateName": s.user.username if s.user else "Candidate",
+                            "jobRole": s.job_role or "AI Interview",
+                            "difficulty": s.difficulty or "Intermediate",
+                            "mode": "video" if vid_url else "audio",
+                            "questionNumber": q.order,
+                            "questionText": q.question_text,
+                            "url": vid_url or aud_url,
+                            "durationSeconds": ans.speaking_time_seconds or 0,
+                            "createdAt": ans.answered_at.strftime('%d %b %Y, %I:%M %p') if ans.answered_at else "—",
+                            "score": ans.overall_score,
+                        })
+
+                session_questions.append({
+                    "id": q.id,
+                    "order": q.order,
+                    "question_text": q.question_text,
+                    "answer": ans_data,
+                })
+
             sessions_by_user[uid].append({
                 "id": s.id,
                 "role": s.job_role or "General",
@@ -180,6 +222,7 @@ class LeaderPortalStatsView(APIView):
                 "status": s.status,
                 "started_at": s.started_at.strftime('%d %b %Y, %I:%M %p') if s.started_at else "—",
                 "completed_at": s.completed_at.strftime('%d %b %Y, %I:%M %p') if s.completed_at else "—",
+                "questions": session_questions,
             })
 
         all_users = []
@@ -247,5 +290,6 @@ class LeaderPortalStatsView(APIView):
             "total_resumes": Resume.objects.count(),
             "users": all_users,
             "recent_sessions": recent_sessions,
+            "server_recordings": server_recordings,
         })
 

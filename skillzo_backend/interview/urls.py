@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
-    StartInterviewView, SubmitAnswerView, CompleteInterviewView,
-    InterviewHistoryView, InterviewDetailView,
+    StartInterviewView, SubmitAnswerView, UploadRecordingView,
+    CompleteInterviewView, InterviewHistoryView, InterviewDetailView,
 )
 
 urlpatterns = [
@@ -9,5 +9,6 @@ urlpatterns = [
     path('history/', InterviewHistoryView.as_view(), name='interview-history'),
     path('<int:session_id>/', InterviewDetailView.as_view(), name='interview-detail'),
     path('<int:session_id>/answer/', SubmitAnswerView.as_view(), name='interview-answer'),
+    path('<int:session_id>/upload-recording/', UploadRecordingView.as_view(), name='interview-upload-recording'),
     path('<int:session_id>/complete/', CompleteInterviewView.as_view(), name='interview-complete'),
 ]
