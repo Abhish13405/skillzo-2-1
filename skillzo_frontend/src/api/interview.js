@@ -31,6 +31,7 @@ export const submitAnswer = (sessionId, data) => {
 export const uploadInterviewRecording = (sessionId, formData) =>
   api.post(`/interview/${sessionId}/upload-recording/`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
   })
 
 export const completeInterview = (sessionId) => api.post(`/interview/${sessionId}/complete/`)

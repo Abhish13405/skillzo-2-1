@@ -67,30 +67,39 @@ const getSpeechRecognitionAPI = () => {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null
 }
 
-const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
+const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN') => {
   const recognitionRef = useRef(null)
   const isExplicitlyStoppedRef = useRef(true)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
+  const [speechError, setSpeechError] = useState('')
   const accumulatedRef = useRef('')
-  const activeSessionFinalRef = useRef('')
+  const latestFullTranscriptRef = useRef('')
   const restartTimerRef = useRef(null)
   const isRunningRef = useRef(false)
   const onTranscriptRef = useRef(onTranscript)
   const onSpeechActivityRef = useRef(onSpeechActivity)
+  const languageRef = useRef(language)
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript
     onSpeechActivityRef.current = onSpeechActivity
-  })
+    languageRef.current = language
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.lang = language
+      } catch {}
+    }
+  }, [onTranscript, onSpeechActivity, language])
 
   const start = useCallback(() => {
     const SpeechAPI = getSpeechRecognitionAPI()
     if (!SpeechAPI) return
 
     isExplicitlyStoppedRef.current = false
+    setSpeechError('')
 
-    // If recognition is already actively running, do not re-instantiate or abort!
+    // If recognition is already actively running, do not re-instantiate or abort
     if (recognitionRef.current && isRunningRef.current) {
       setListening(true)
       return
@@ -101,7 +110,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
       restartTimerRef.current = null
     }
 
-    // Clean up any stale previous instance without letting its onend trigger ghost restarts
+    // Clean up any stale previous instance without ghost triggers
     if (recognitionRef.current) {
       const old = recognitionRef.current
       old.onend = null
@@ -122,18 +131,17 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
       return
     }
 
-    activeSessionFinalRef.current = ''
-    recognition.continuous = true
+    // continuous: false is 100x more reliable across all Chromium versions (never hangs)
+    // Combined with immediate restart on onend, it creates continuous dictation without socket freezing!
+    recognition.continuous = false
     recognition.interimResults = true
     recognition.maxAlternatives = 1
-    // Prioritize device language or Indian English for accent and technical keywords
-    recognition.lang = (typeof navigator !== 'undefined' && navigator.language?.startsWith('en'))
-      ? navigator.language
-      : 'en-IN'
+    recognition.lang = languageRef.current || 'en-IN'
 
     recognition.onstart = () => {
       isRunningRef.current = true
       setListening(true)
+      setSpeechError('')
     }
 
     recognition.onspeechstart = () => {
@@ -146,61 +154,65 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
 
     recognition.onresult = (event) => {
       onSpeechActivityRef.current?.()
-      let sessionFinal = ''
-      let sessionInterim = ''
+      let turnFinal = ''
+      let turnInterim = ''
 
-      for (let i = 0; i < event.results.length; i++) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const item = event.results[i]
         const text = item[0]?.transcript || ''
         if (item.isFinal) {
-          sessionFinal += text + ' '
+          turnFinal += text + ' '
         } else {
-          sessionInterim += text
+          turnInterim += text
         }
       }
 
-      activeSessionFinalRef.current = sessionFinal.trim()
+      if (turnFinal) {
+        accumulatedRef.current = [accumulatedRef.current, turnFinal.trim()]
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      }
 
-      const full = [accumulatedRef.current, sessionFinal.trim(), sessionInterim.trim()]
+      const full = [accumulatedRef.current, turnInterim.trim()]
         .filter(Boolean)
         .join(' ')
         .replace(/\s+/g, ' ')
         .trim()
 
       if (full) {
+        latestFullTranscriptRef.current = full
         onTranscriptRef.current?.(full)
       }
     }
 
     recognition.onerror = (event) => {
-      // 'no-speech' or 'audio-capture' are standard quiet pauses, let onend handle clean restart
-      if (event.error === 'no-speech' || event.error === 'audio-capture') {
+      if (event.error === 'no-speech') {
+        // Normal silence pause, onend will cleanly cycle
         return
       }
       if (event.error === 'not-allowed') {
-        console.warn('Microphone permission blocked for speech recognition')
+        setSpeechError('Microphone permission blocked. Please allow mic in browser.')
         isExplicitlyStoppedRef.current = true
         isRunningRef.current = false
         setListening(false)
         return
       }
-      console.warn('Speech recognition warning:', event.error)
+      if (event.error === 'audio-capture') {
+        console.warn('Microphone busy or device contention:', event.error)
+      }
     }
 
     recognition.onend = () => {
       isRunningRef.current = false
 
-      // Commit finalized words from this recognition session before restarting
-      if (activeSessionFinalRef.current) {
-        accumulatedRef.current = [accumulatedRef.current, activeSessionFinalRef.current]
-          .filter(Boolean)
-          .join(' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-        activeSessionFinalRef.current = ''
+      // Always preserve latest text in accumulatedRef so no words are ever wiped out
+      if (latestFullTranscriptRef.current) {
+        accumulatedRef.current = latestFullTranscriptRef.current.trim()
       }
 
-      // Keep-alive: only if user has not explicitly stopped the mic
+      // Seamless auto-restart if user hasn't explicitly muted or stopped
       if (!isExplicitlyStoppedRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
@@ -219,7 +231,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
               console.warn('Speech recognition restart caught:', err)
             }
           }
-        }, 300)
+        }, 80)
       } else {
         setListening(false)
       }
@@ -234,19 +246,22 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
     } catch (e) {
       isRunningRef.current = false
       console.warn('Recognition start caught:', e)
+      // Retry in 300ms if initial start collided with audio hardware
+      if (!isExplicitlyStoppedRef.current) {
+        setTimeout(() => {
+          if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
+            start()
+          }
+        }, 300)
+      }
     }
   }, [])
 
   const stop = useCallback(() => {
     isExplicitlyStoppedRef.current = true
     isRunningRef.current = false
-    if (activeSessionFinalRef.current) {
-      accumulatedRef.current = [accumulatedRef.current, activeSessionFinalRef.current]
-        .filter(Boolean)
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-      activeSessionFinalRef.current = ''
+    if (latestFullTranscriptRef.current) {
+      accumulatedRef.current = latestFullTranscriptRef.current.trim()
     }
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
@@ -267,15 +282,15 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
 
   const resetTranscript = useCallback(() => {
     accumulatedRef.current = ''
-    activeSessionFinalRef.current = ''
+    latestFullTranscriptRef.current = ''
   }, [])
 
   const syncTranscript = useCallback((text) => {
     accumulatedRef.current = text ? text.trim() : ''
-    activeSessionFinalRef.current = ''
+    latestFullTranscriptRef.current = text ? text.trim() : ''
   }, [])
 
-  return { listening, supported, start, stop, resetTranscript, syncTranscript }
+  return { listening, supported, speechError, start, stop, resetTranscript, syncTranscript }
 }
 
 // ─── Speech Synthesis Hook ───────────────────────────────────────────────────
@@ -545,6 +560,7 @@ const InterviewSession = () => {
 
   // ─── Silence Auto-Submit & Speech Handlers ─────────────────────────
   const [silenceSeconds, setSilenceSeconds] = useState(10)
+  const [speechLang, setSpeechLang] = useState('en-IN')
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
 
@@ -562,11 +578,12 @@ const InterviewSession = () => {
   const {
     listening,
     supported: speechSupported,
+    speechError,
     start: startMic,
     stop: stopMic,
     resetTranscript,
     syncTranscript,
-  } = useSpeechRecognition(handleTranscript, handleSpeechActivity)
+  } = useSpeechRecognition(handleTranscript, handleSpeechActivity, speechLang)
   const { speak, cancel: cancelSpeech, speaking } = useSpeechSynthesis()
 
   // Hardware Camera Stop
@@ -859,6 +876,25 @@ const InterviewSession = () => {
     }
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
+  // Reactive Speech Recognition Watcher:
+  // Ensures mic turns ON once AI finishes asking, and stays ON without interruptions while candidate speaks
+  useEffect(() => {
+    const mode = session?.mode || 'video'
+    if (mode === 'text' || isPaused || isCompleted || isAiAsking || isCountingDown) {
+      if (listening) {
+        stopMic()
+      }
+      return
+    }
+
+    if (isMicActive && !listening) {
+      const timer = setTimeout(() => {
+        startMic()
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, isMicActive, listening, startMic, stopMic])
+
   // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
   // THIS is the EXACT moment when the mic automatically opens and the 10s silence timer starts!
   const handleAiFinishedAsking = useCallback(() => {
@@ -872,16 +908,8 @@ const InterviewSession = () => {
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(10)
 
-    // Unmute hardware audio tracks so microphone captures clearly
-    if (streamRef.current) {
-      streamRef.current.getAudioTracks().forEach((track) => {
-        track.enabled = true
-      })
-    }
-
     if (session?.mode !== 'text' && !isPaused) {
       setIsMicActive(true)
-      // Slight 100ms guard for hardware audio track to be fully unmuted before Web Speech API attaches
       setTimeout(() => {
         startMic()
       }, 100)
@@ -929,13 +957,6 @@ const InterviewSession = () => {
     cancelSpeech()
     resetTranscript()
     setIsMicActive(false)
-
-    // Disable hardware audio tracks while AI speaks so speaker output is not captured in mic
-    if (streamRef.current) {
-      streamRef.current.getAudioTracks().forEach((track) => {
-        track.enabled = false
-      })
-    }
 
     setIsAiAsking(true)
     setIsCountingDown(false)
@@ -1217,25 +1238,36 @@ const InterviewSession = () => {
         return
       }
 
+      let uploadedAny = false
       for (const clip of sessionClips) {
         if (clip.blob) {
-          const fd = new FormData()
-          fd.append('file', clip.blob, `${clip.mode || 'video'}_${sessionId}_Q${clip.questionNumber}.webm`)
-          fd.append('order', clip.questionNumber)
-          fd.append('mode', clip.mode || 'video')
-          if (clip.durationSeconds) fd.append('speaking_time_seconds', clip.durationSeconds)
+          try {
+            const fd = new FormData()
+            fd.append('file', clip.blob, `${clip.mode || 'video'}_${sessionId}_Q${clip.questionNumber}.webm`)
+            fd.append('order', clip.questionNumber)
+            fd.append('mode', clip.mode || 'video')
+            if (clip.durationSeconds) fd.append('speaking_time_seconds', clip.durationSeconds)
 
-          const res = await uploadInterviewRecording(sessionId, fd)
-          const cloudUrl = res.data?.cloud_url || res.data?.cloud_video_url || res.data?.cloud_audio_url
-          if (cloudUrl) {
-            await markRecordingUploaded(clip.id, cloudUrl)
+            const res = await uploadInterviewRecording(sessionId, fd)
+            const cloudUrl = res.data?.cloud_url || res.data?.cloud_video_url || res.data?.cloud_audio_url
+            if (cloudUrl) {
+              await markRecordingUploaded(clip.id, cloudUrl)
+              uploadedAny = true
+            }
+          } catch (clipErr) {
+            console.warn(`Upload clip Q${clip.questionNumber} warning:`, clipErr)
           }
         }
       }
-      setCloudUploadStatus('done')
+
+      if (uploadedAny) {
+        setCloudUploadStatus('done')
+      } else {
+        throw new Error('Upload attempt returned no cloud URL.')
+      }
     } catch (err) {
       console.error('Failed to upload recordings to cloud:', err)
-      setError('Could not upload all recordings to cloud. You can still view them locally or upload from the Recordings page.')
+      setError('Could not complete cloud upload. Please check your internet connection and try clicking Upload again.')
       setCloudUploadStatus('error')
     } finally {
       setUploadingCloud(false)
@@ -1712,6 +1744,35 @@ const InterviewSession = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold">
+                    {/* Dictation Language Selector: English (IN) vs Hindi */}
+                    {session?.mode !== 'text' && (
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/60 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('en-IN')}
+                          className={`px-1.5 py-0.5 rounded-md transition-all font-bold ${
+                            speechLang === 'en-IN'
+                              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
+                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                          }`}
+                          title="Dictate in English (Indian Accent)"
+                        >
+                          🇮🇳 EN
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('hi-IN')}
+                          className={`px-1.5 py-0.5 rounded-md transition-all font-bold ${
+                            speechLang === 'hi-IN'
+                              ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-2xs font-extrabold'
+                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                          }`}
+                          title="Dictate in Hindi (हिंदी में बोलें)"
+                        >
+                          🇮🇳 हिंदी
+                        </button>
+                      </div>
+                    )}
                     {isAiAsking ? (
                       <button
                         type="button"
@@ -1765,6 +1826,23 @@ const InterviewSession = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Speech Error Warning if any */}
+                {speechError && (
+                  <div className="mb-2 p-2 bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 text-xs rounded-xl border border-amber-200 dark:border-amber-800 flex items-center justify-between gap-2">
+                    <span>⚠️ {speechError}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMicActive(true)
+                        startMic()
+                      }}
+                      className="px-2 py-0.5 bg-amber-200 dark:bg-amber-800 rounded font-bold hover:bg-amber-300 cursor-pointer"
+                    >
+                      Retry Mic
+                    </button>
+                  </div>
+                )}
 
                 {/* Browser Unsupported Speech Warning */}
                 {session?.mode !== 'text' && !speechSupported && (
