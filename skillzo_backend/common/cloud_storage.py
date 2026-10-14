@@ -27,15 +27,27 @@ def init_cloudinary():
 
     try:
         import cloudinary
-        if CLOUDINARY_URL:
-            cloudinary.config(cloudinary_url=CLOUDINARY_URL)
-        else:
+        if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
             cloudinary.config(
                 cloud_name=CLOUDINARY_CLOUD_NAME,
                 api_key=CLOUDINARY_API_KEY,
                 api_secret=CLOUDINARY_API_SECRET,
                 secure=True,
             )
+        elif CLOUDINARY_URL:
+            import re
+            m = re.match(r'cloudinary://([^:]+):([^@]+)@(.+)', CLOUDINARY_URL.strip())
+            if m:
+                k, s, c = m.groups()
+                cloudinary.config(
+                    cloud_name=c,
+                    api_key=k,
+                    api_secret=s,
+                    secure=True,
+                )
+            else:
+                cloudinary.config(cloudinary_url=CLOUDINARY_URL, secure=True)
+
         _cloudinary_initialized = True
         logger.info("Cloudinary storage successfully initialized for remote video storage.")
         return True
