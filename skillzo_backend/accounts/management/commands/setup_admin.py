@@ -11,6 +11,8 @@ class Command(BaseCommand):
         accounts = [
             {'username': 'abhish', 'email': 'abhish@gmail.com', 'is_admin': True, 'role': 'Project Leader', 'password': 'Skillzo@2026'},
             {'username': 'abhishek13405', 'email': 'abhishekkushwaha13405@gmail.com', 'is_admin': True, 'role': 'Project Leader', 'password': 'Skillzo@2026'},
+            {'username': 'raj', 'email': 'raj@gmail.com', 'is_admin': False, 'role': 'Python Developer', 'password': 'Skillzo@2026'},
+            {'username': 'demo', 'email': 'abhishekkushwaha965@gmail.com', 'is_admin': False, 'role': 'Full Stack Developer', 'password': 'Skillzo@2026'},
             {'username': 'asti', 'email': 'asti@gmail.com', 'is_admin': False, 'role': 'Full Stack Developer', 'password': 'Skillzo@2026'},
             {'username': 'jai', 'email': 'jai@gmail.com', 'is_admin': False, 'role': 'Frontend Developer', 'password': 'Skillzo@2026'},
             {'username': 'b', 'email': 'b@gmail.com', 'is_admin': False, 'role': 'Backend Developer', 'password': 'Skillzo@2026'},

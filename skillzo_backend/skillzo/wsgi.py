@@ -28,8 +28,10 @@ try:
         user.save()
         print(f"[WSGI BOOT] Configured leader account: {email}")
 
-    # 2. Seed initial candidates so Leaderboard has registered candidates
+    # 2. Seed registered candidates so they are PERMANENTLY preserved on boot
     candidate_seeds = [
+        ('raj@gmail.com', 'raj', 'Python Developer'),
+        ('abhishekkushwaha965@gmail.com', 'demo', 'Full Stack Developer'),
         ('asti@gmail.com', 'asti', 'Full Stack Developer'),
         ('jai@gmail.com', 'jai', 'Frontend Developer'),
         ('b@gmail.com', 'b', 'Backend Developer'),
