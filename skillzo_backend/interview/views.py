@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from common.groq_service import groq_service
+from common.cloud_storage import upload_media_to_cloud
 from .models import InterviewSession, InterviewQuestion, InterviewAnswer
 from .serializers import (
     StartInterviewSerializer, SubmitAnswerSerializer,
@@ -117,15 +118,19 @@ class SubmitAnswerView(APIView):
         }
 
         # Save video or audio recording file if attached in multipart request
-        if 'video_file' in request.FILES:
-            defaults['video_file'] = request.FILES['video_file']
-        elif data.get('video_file'):
-            defaults['video_file'] = data['video_file']
+        uploaded_video = request.FILES.get('video_file') or data.get('video_file')
+        if uploaded_video:
+            defaults['video_file'] = uploaded_video
+            cloud_url = upload_media_to_cloud(uploaded_video, resource_type='video')
+            if cloud_url:
+                defaults['cloud_video_url'] = cloud_url
 
-        if 'audio_file' in request.FILES:
-            defaults['audio_file'] = request.FILES['audio_file']
-        elif data.get('audio_file'):
-            defaults['audio_file'] = data['audio_file']
+        uploaded_audio = request.FILES.get('audio_file') or data.get('audio_file')
+        if uploaded_audio:
+            defaults['audio_file'] = uploaded_audio
+            cloud_url = upload_media_to_cloud(uploaded_audio, resource_type='video')
+            if cloud_url:
+                defaults['cloud_audio_url'] = cloud_url
 
         answer, _ = InterviewAnswer.objects.update_or_create(
             question=question,
@@ -164,9 +169,18 @@ class UploadRecordingView(APIView):
         )
 
         if 'video_file' in request.FILES:
-            answer.video_file = request.FILES['video_file']
+            vf = request.FILES['video_file']
+            answer.video_file = vf
+            cloud_url = upload_media_to_cloud(vf, resource_type='video')
+            if cloud_url:
+                answer.cloud_video_url = cloud_url
+
         if 'audio_file' in request.FILES:
-            answer.audio_file = request.FILES['audio_file']
+            af = request.FILES['audio_file']
+            answer.audio_file = af
+            cloud_url = upload_media_to_cloud(af, resource_type='video')
+            if cloud_url:
+                answer.cloud_audio_url = cloud_url
 
         if request.data.get('speaking_time_seconds'):
             try:

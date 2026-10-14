@@ -73,9 +73,11 @@ class InterviewAnswer(models.Model):
     question = models.OneToOneField(InterviewQuestion, on_delete=models.CASCADE, related_name='answer')
     answer_text = models.TextField()
 
-    # Phase 2 fields (audio/video) -- already modeled now so no migration surprises later
+    # Phase 2 fields (audio/video) -- local disk and cloud CDN support
     audio_file = models.FileField(upload_to='interview_audio/', blank=True, null=True)
     video_file = models.FileField(upload_to='interview_video/', blank=True, null=True)
+    cloud_video_url = models.URLField(max_length=500, blank=True, null=True)
+    cloud_audio_url = models.URLField(max_length=500, blank=True, null=True)
     speaking_time_seconds = models.IntegerField(blank=True, null=True)
 
     answered_at = models.DateTimeField(auto_now_add=True)

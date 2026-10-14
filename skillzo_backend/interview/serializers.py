@@ -27,10 +27,12 @@ class InterviewAnswerSerializer(serializers.ModelSerializer):
             'id', 'answer_text', 'speaking_time_seconds', 'answered_at',
             'technical_knowledge', 'communication', 'grammar', 'confidence',
             'problem_solving', 'overall_score', 'strengths', 'improvements',
-            'ideal_answer_summary', 'video_file', 'audio_file', 'video_url', 'audio_url',
+            'ideal_answer_summary', 'video_file', 'audio_file', 'cloud_video_url', 'cloud_audio_url', 'video_url', 'audio_url',
         ]
 
     def get_video_url(self, obj):
+        if obj.cloud_video_url:
+            return obj.cloud_video_url
         if obj.video_file:
             request = self.context.get('request')
             if request:
@@ -39,6 +41,8 @@ class InterviewAnswerSerializer(serializers.ModelSerializer):
         return None
 
     def get_audio_url(self, obj):
+        if obj.cloud_audio_url:
+            return obj.cloud_audio_url
         if obj.audio_file:
             request = self.context.get('request')
             if request:

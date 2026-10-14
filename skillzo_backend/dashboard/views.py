@@ -178,9 +178,8 @@ class LeaderPortalStatsView(APIView):
             for q in s.questions.all():
                 ans_data = None
                 if hasattr(q, 'answer') and q.answer:
-                    ans = q.answer
-                    vid_url = request.build_absolute_uri(ans.video_file.url) if ans.video_file else None
-                    aud_url = request.build_absolute_uri(ans.audio_file.url) if ans.audio_file else None
+                    vid_url = ans.cloud_video_url or (request.build_absolute_uri(ans.video_file.url) if ans.video_file else None)
+                    aud_url = ans.cloud_audio_url or (request.build_absolute_uri(ans.audio_file.url) if ans.audio_file else None)
                     ans_data = {
                         "id": ans.id,
                         "answer_text": ans.answer_text,
