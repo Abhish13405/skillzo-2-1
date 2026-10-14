@@ -72,29 +72,44 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
   const isExplicitlyStoppedRef = useRef(true)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
-  const committedTranscriptRef = useRef('')
-  const latestTurnFinalRef = useRef('')
-  const latestTurnInterimRef = useRef('')
+  const accumulatedRef = useRef('')
+  const activeSessionFinalRef = useRef('')
   const restartTimerRef = useRef(null)
-  const startRef = useRef(null)
-  const isStartingRef = useRef(false)
+  const isRunningRef = useRef(false)
+  const onTranscriptRef = useRef(onTranscript)
+  const onSpeechActivityRef = useRef(onSpeechActivity)
+
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript
+    onSpeechActivityRef.current = onSpeechActivity
+  })
 
   const start = useCallback(() => {
     const SpeechAPI = getSpeechRecognitionAPI()
     if (!SpeechAPI) return
 
     isExplicitlyStoppedRef.current = false
-    setListening(true)
+
+    // If recognition is already actively running, do not re-instantiate or abort!
+    if (recognitionRef.current && isRunningRef.current) {
+      setListening(true)
+      return
+    }
 
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
     }
 
-    // Clean up existing instance if any
+    // Clean up any stale previous instance without letting its onend trigger ghost restarts
     if (recognitionRef.current) {
+      const old = recognitionRef.current
+      old.onend = null
+      old.onerror = null
+      old.onresult = null
+      old.onstart = null
       try {
-        recognitionRef.current.abort()
+        old.abort()
       } catch {}
       recognitionRef.current = null
     }
@@ -107,6 +122,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
       return
     }
 
+    activeSessionFinalRef.current = ''
     recognition.continuous = true
     recognition.interimResults = true
     recognition.maxAlternatives = 1
@@ -116,56 +132,55 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
       : 'en-IN'
 
     recognition.onstart = () => {
-      isStartingRef.current = true
+      isRunningRef.current = true
       setListening(true)
     }
 
     recognition.onspeechstart = () => {
-      onSpeechActivity?.()
+      onSpeechActivityRef.current?.()
     }
 
     recognition.onsoundstart = () => {
-      onSpeechActivity?.()
+      onSpeechActivityRef.current?.()
     }
 
     recognition.onresult = (event) => {
-      onSpeechActivity?.()
-      let turnFinal = ''
-      let turnInterim = ''
+      onSpeechActivityRef.current?.()
+      let sessionFinal = ''
+      let sessionInterim = ''
 
       for (let i = 0; i < event.results.length; i++) {
         const item = event.results[i]
         const text = item[0]?.transcript || ''
         if (item.isFinal) {
-          turnFinal += text + ' '
+          sessionFinal += text + ' '
         } else {
-          turnInterim += text
+          sessionInterim += text
         }
       }
 
-      latestTurnFinalRef.current = turnFinal
-      latestTurnInterimRef.current = turnInterim
+      activeSessionFinalRef.current = sessionFinal.trim()
 
-      const parts = [
-        committedTranscriptRef.current,
-        turnFinal,
-        turnInterim
-      ].filter(Boolean)
+      const full = [accumulatedRef.current, sessionFinal.trim(), sessionInterim.trim()]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
 
-      const full = parts.join(' ').replace(/\s+/g, ' ').trim()
       if (full) {
-        onTranscript(full)
+        onTranscriptRef.current?.(full)
       }
     }
 
     recognition.onerror = (event) => {
-      // 'no-speech' or 'audio-capture' are standard quiet pauses, ignore and let onend restart
+      // 'no-speech' or 'audio-capture' are standard quiet pauses, let onend handle clean restart
       if (event.error === 'no-speech' || event.error === 'audio-capture') {
         return
       }
       if (event.error === 'not-allowed') {
         console.warn('Microphone permission blocked for speech recognition')
         isExplicitlyStoppedRef.current = true
+        isRunningRef.current = false
         setListening(false)
         return
       }
@@ -173,32 +188,38 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
     }
 
     recognition.onend = () => {
-      isStartingRef.current = false
+      isRunningRef.current = false
 
-      // Commit finalized words + any leftover interim speech
-      const turnSpeech = (latestTurnFinalRef.current + ' ' + latestTurnInterimRef.current).trim()
-      if (turnSpeech) {
-        committedTranscriptRef.current = [committedTranscriptRef.current, turnSpeech]
+      // Commit finalized words from this recognition session before restarting
+      if (activeSessionFinalRef.current) {
+        accumulatedRef.current = [accumulatedRef.current, activeSessionFinalRef.current]
           .filter(Boolean)
           .join(' ')
           .replace(/\s+/g, ' ')
           .trim()
-        latestTurnFinalRef.current = ''
-        latestTurnInterimRef.current = ''
+        activeSessionFinalRef.current = ''
       }
 
-      // If mic should stay ON, immediately restart in 50ms without dropping listening state!
+      // Keep-alive: only if user has not explicitly stopped the mic
       if (!isExplicitlyStoppedRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
-          if (!isExplicitlyStoppedRef.current && startRef.current) {
+          if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
             try {
-              startRef.current()
+              if (recognitionRef.current) {
+                const old = recognitionRef.current
+                old.onend = null
+                old.onerror = null
+                old.onresult = null
+                try { old.abort() } catch {}
+                recognitionRef.current = null
+              }
+              start()
             } catch (err) {
               console.warn('Speech recognition restart caught:', err)
             }
           }
-        }, 50)
+        }, 300)
       } else {
         setListening(false)
       }
@@ -208,26 +229,36 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
 
     try {
       recognition.start()
-      isStartingRef.current = true
+      isRunningRef.current = true
       setListening(true)
     } catch (e) {
-      isStartingRef.current = false
+      isRunningRef.current = false
       console.warn('Recognition start caught:', e)
     }
-  }, [onTranscript, onSpeechActivity])
-
-  startRef.current = start
+  }, [])
 
   const stop = useCallback(() => {
     isExplicitlyStoppedRef.current = true
-    isStartingRef.current = false
+    isRunningRef.current = false
+    if (activeSessionFinalRef.current) {
+      accumulatedRef.current = [accumulatedRef.current, activeSessionFinalRef.current]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      activeSessionFinalRef.current = ''
+    }
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
     }
     if (recognitionRef.current) {
+      const old = recognitionRef.current
+      old.onend = null
+      old.onerror = null
+      old.onresult = null
       try {
-        recognitionRef.current.abort()
+        old.abort()
       } catch {}
       recognitionRef.current = null
     }
@@ -235,15 +266,13 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
   }, [])
 
   const resetTranscript = useCallback(() => {
-    committedTranscriptRef.current = ''
-    latestTurnFinalRef.current = ''
-    latestTurnInterimRef.current = ''
+    accumulatedRef.current = ''
+    activeSessionFinalRef.current = ''
   }, [])
 
   const syncTranscript = useCallback((text) => {
-    committedTranscriptRef.current = text ? text.trim() : ''
-    latestTurnFinalRef.current = ''
-    latestTurnInterimRef.current = ''
+    accumulatedRef.current = text ? text.trim() : ''
+    activeSessionFinalRef.current = ''
   }, [])
 
   return { listening, supported, start, stop, resetTranscript, syncTranscript }
@@ -311,6 +340,9 @@ const useSpeechSynthesis = () => {
   const [speaking, setSpeaking] = useState(false)
   const [voices, setVoices] = useState([])
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
+  const activeUtteranceRef = useRef(null)
+  const resumeIntervalRef = useRef(null)
+  const watchdogTimerRef = useRef(null)
 
   useEffect(() => {
     if (!supported) return
@@ -328,6 +360,8 @@ const useSpeechSynthesis = () => {
       if (window.speechSynthesis) {
         window.speechSynthesis.onvoiceschanged = null
       }
+      if (resumeIntervalRef.current) clearInterval(resumeIntervalRef.current)
+      if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current)
     }
   }, [supported])
 
@@ -338,11 +372,29 @@ const useSpeechSynthesis = () => {
         return
       }
 
+      if (resumeIntervalRef.current) {
+        clearInterval(resumeIntervalRef.current)
+        resumeIntervalRef.current = null
+      }
+      if (watchdogTimerRef.current) {
+        clearTimeout(watchdogTimerRef.current)
+        watchdogTimerRef.current = null
+      }
+
       let ended = false
       const finishOnce = () => {
         if (!ended) {
           ended = true
+          if (resumeIntervalRef.current) {
+            clearInterval(resumeIntervalRef.current)
+            resumeIntervalRef.current = null
+          }
+          if (watchdogTimerRef.current) {
+            clearTimeout(watchdogTimerRef.current)
+            watchdogTimerRef.current = null
+          }
           setSpeaking(false)
+          activeUtteranceRef.current = null
           onEnd?.()
         }
       }
@@ -361,21 +413,38 @@ const useSpeechSynthesis = () => {
           utterance.lang = 'en-US'
         }
 
-        utterance.pitch = 1.18
-        utterance.rate = 0.94
+        utterance.pitch = 1.15
+        utterance.rate = 0.95
 
-        utterance.onstart = () => setSpeaking(true)
-        utterance.onend = finishOnce
-        utterance.onerror = finishOnce
+        utterance.onstart = () => {
+          setSpeaking(true)
+        }
+        utterance.onend = () => {
+          finishOnce()
+        }
+        utterance.onerror = () => {
+          finishOnce()
+        }
 
+        activeUtteranceRef.current = utterance
+        setSpeaking(true)
         window.speechSynthesis.speak(utterance)
 
-        // Safety fallback: if audio autoplay blocked by browser or onend missed
-        const wordCount = text.split(/\s+/).length
-        const estimatedDurationMs = Math.max(3000, Math.min(12000, wordCount * 360))
-        setTimeout(() => {
-          finishOnce()
-        }, estimatedDurationMs)
+        // Chromium keep-alive: prevents Chromium engine from silently auto-pausing long utterances
+        resumeIntervalRef.current = setInterval(() => {
+          if (!window.speechSynthesis.speaking) {
+            finishOnce()
+          } else if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume()
+          }
+        }, 1000)
+
+        // Generous watchdog (35s) ONLY in case browser engine completely hangs
+        watchdogTimerRef.current = setTimeout(() => {
+          if (!ended && !window.speechSynthesis.speaking) {
+            finishOnce()
+          }
+        }, 35000)
       } catch (err) {
         console.warn('Speech synthesis caught error:', err)
         finishOnce()
@@ -385,10 +454,21 @@ const useSpeechSynthesis = () => {
   )
 
   const cancel = useCallback(() => {
-    if (supported) {
-      window.speechSynthesis.cancel()
+    if (resumeIntervalRef.current) {
+      clearInterval(resumeIntervalRef.current)
+      resumeIntervalRef.current = null
+    }
+    if (watchdogTimerRef.current) {
+      clearTimeout(watchdogTimerRef.current)
+      watchdogTimerRef.current = null
+    }
+    if (supported && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel()
+      } catch {}
     }
     setSpeaking(false)
+    activeUtteranceRef.current = null
   }, [supported])
 
   return { speak, cancel, speaking, supported }
@@ -466,6 +546,7 @@ const InterviewSession = () => {
   // ─── Silence Auto-Submit & Speech Handlers ─────────────────────────
   const [silenceSeconds, setSilenceSeconds] = useState(10)
   const lastSpeechTimeRef = useRef(Date.now())
+  const aiFinishedForQuestionRef = useRef(false)
 
   const handleSpeechActivity = useCallback(() => {
     lastSpeechTimeRef.current = Date.now()
@@ -580,9 +661,8 @@ const InterviewSession = () => {
     if (mode === 'text') return // text mode does not record media
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      try {
-        mediaRecorderRef.current.stop()
-      } catch {}
+      // Already actively recording this turn, do not abort or wipe out recorded chunks
+      return
     }
 
     try {
@@ -782,6 +862,9 @@ const InterviewSession = () => {
   // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
   // THIS is the EXACT moment when the mic automatically opens and the 10s silence timer starts!
   const handleAiFinishedAsking = useCallback(() => {
+    if (aiFinishedForQuestionRef.current) return
+    aiFinishedForQuestionRef.current = true
+
     setIsAiAsking(false)
     setIsCountingDown(false)
     setSpeechCountdown(0)
@@ -841,6 +924,7 @@ const InterviewSession = () => {
   // When question loads/changes: AI reads the question, mic remains strictly OFF!
   useEffect(() => {
     if (!session || isCompleted) return
+    aiFinishedForQuestionRef.current = false
     stopMic()
     cancelSpeech()
     resetTranscript()
@@ -875,14 +959,14 @@ const InterviewSession = () => {
       })
     }, 250)
 
-    // Safety fallback: If speech synthesis fails to fire onend in certain browser conditions
-    const textLen = q.question_text ? q.question_text.length : 50
-    const maxSpeechDurationMs = Math.max(8000, Math.min(25000, textLen * 95))
+    // Safety fallback: ONLY trigger fallback if speech synthesis is NOT speaking and didn't fire
     const fallbackTimer = setTimeout(() => {
-      if (isAiAsking) {
-        handleAiFinishedAsking()
+      if (!aiFinishedForQuestionRef.current) {
+        if (!window.speechSynthesis || !window.speechSynthesis.speaking) {
+          handleAiFinishedAsking()
+        }
       }
-    }, maxSpeechDurationMs)
+    }, 35000)
 
     return () => {
       clearTimeout(startTimer)
