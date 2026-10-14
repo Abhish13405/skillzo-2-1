@@ -14,6 +14,14 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (form.password !== form.confirm_password) {
+      setError('Passwords do not match.')
+      return
+    }
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
     setLoading(true)
     try {
       await signup({
@@ -24,8 +32,23 @@ const Signup = () => {
       navigate('/dashboard')
     } catch (err) {
       const data = err.response?.data
-      const firstError = data ? Object.values(data)[0] : null
-      setError(Array.isArray(firstError) ? firstError[0] : firstError || 'Signup failed. Try again.')
+      let msg = ''
+      if (typeof data?.error === 'string') {
+        msg = data.error
+      } else if (typeof data?.detail === 'string') {
+        msg = data.detail
+      } else if (data) {
+        const firstVal = Object.values(data)[0]
+        msg = Array.isArray(firstVal) ? firstVal[0] : (typeof firstVal === 'string' ? firstVal : '')
+      }
+      if (!msg) {
+        if (!err.response || err.code === 'ECONNABORTED' || err.response?.status >= 500) {
+          msg = 'Cloud server is connecting. Please wait a few seconds and try again.'
+        } else {
+          msg = 'Signup failed. Please try again.'
+        }
+      }
+      setError(msg)
     } finally {
       setLoading(false)
     }
