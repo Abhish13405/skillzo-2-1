@@ -258,19 +258,71 @@ const LeaderPortal = () => {
   })
 
   // Selected candidate's matching vault recordings (strictly newest first)
-  const candidateRecordings = selectedCandidate
-    ? recordings
-        .filter(
-          (r) =>
-            (r.userEmail && r.userEmail.toLowerCase() === selectedCandidate.email.toLowerCase()) ||
-            (r.userId && String(r.userId) === String(selectedCandidate.id))
-        )
-        .sort((a, b) => {
-          const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
-          const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
-          return tB - tA
-        })
-    : []
+  const candidateRecordings = (() => {
+    if (!selectedCandidate) return []
+    const candEmail = (selectedCandidate.email || '').toLowerCase()
+    const candId = String(selectedCandidate.id || '')
+
+    const list = []
+    const seen = new Set()
+
+    const addRec = (rec) => {
+      const key = rec.id || rec.url || `${rec.sessionId}_${rec.questionNumber}`
+      if (key && !seen.has(key)) {
+        seen.add(key)
+        list.push(rec)
+      }
+    }
+
+    // 1. Direct recordings attached to candidate from backend
+    if (Array.isArray(selectedCandidate.recordings)) {
+      selectedCandidate.recordings.forEach(addRec)
+    }
+
+    // 2. Global recordings matching candidate email or id
+    recordings
+      .filter(
+        (r) =>
+          (r.userEmail && r.userEmail.toLowerCase() === candEmail) ||
+          (r.userId && String(r.userId) === candId)
+      )
+      .forEach(addRec)
+
+    // 3. Session answers with video/audio
+    if (Array.isArray(selectedCandidate.sessions)) {
+      selectedCandidate.sessions.forEach((s) => {
+        if (Array.isArray(s.questions)) {
+          s.questions.forEach((q) => {
+            if (q.answer && (q.answer.video_url || q.answer.audio_url)) {
+              addRec({
+                id: `cand_ans_${q.answer.id}`,
+                sessionId: s.id,
+                userId: selectedCandidate.id,
+                userEmail: selectedCandidate.email,
+                candidateName: selectedCandidate.username,
+                jobRole: s.role || 'AI Interview',
+                difficulty: s.difficulty || 'Intermediate',
+                mode: q.answer.video_url ? 'video' : 'audio',
+                questionNumber: q.order,
+                questionText: q.question_text,
+                url: q.answer.video_url || q.answer.audio_url,
+                durationSeconds: q.answer.speaking_time_seconds || 0,
+                score: q.answer.overall_score,
+                displayDate: s.started_at,
+                createdAt: s.started_at,
+              })
+            }
+          })
+        }
+      })
+    }
+
+    return list.sort((a, b) => {
+      const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
+      const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
+      return tB - tA
+    })
+  })()
 
   return (
     <AppShell>

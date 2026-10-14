@@ -178,6 +178,7 @@ class LeaderPortalStatsView(APIView):
             for q in s.questions.all():
                 ans_data = None
                 if hasattr(q, 'answer') and q.answer:
+                    ans = q.answer
                     vid_url = ans.cloud_video_url or (request.build_absolute_uri(ans.video_file.url) if ans.video_file else None)
                     aud_url = ans.cloud_audio_url or (request.build_absolute_uri(ans.audio_file.url) if ans.audio_file else None)
                     ans_data = {
@@ -238,6 +239,8 @@ class LeaderPortalStatsView(APIView):
             latest_ats = analyzed_res[0].get('ats_score') if analyzed_res else None
             extracted_skills = analyzed_res[0].get('extracted_skills', []) if analyzed_res else []
 
+            u_recordings = [r for r in server_recordings if r.get('userId') == u.id]
+
             all_users.append({
                 "id": u.id,
                 "username": u.username,
@@ -269,6 +272,7 @@ class LeaderPortalStatsView(APIView):
                 "extracted_skills": extracted_skills,
                 "resumes": u_resumes,
                 "sessions": u_sessions,
+                "recordings": u_recordings,
             })
 
         recent_sessions = [
