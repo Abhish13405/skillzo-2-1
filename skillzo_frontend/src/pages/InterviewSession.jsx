@@ -69,19 +69,22 @@ const getSpeechRecognitionAPI = () => {
 
 const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
   const recognitionRef = useRef(null)
-  const isExplicitlyStoppedRef = useRef(false)
+  const isExplicitlyStoppedRef = useRef(true)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
-  const finalTranscriptRef = useRef('')
-  const currentSessionFinalRef = useRef('')
+  const committedTranscriptRef = useRef('')
+  const latestTurnFinalRef = useRef('')
+  const latestTurnInterimRef = useRef('')
   const restartTimerRef = useRef(null)
   const startRef = useRef(null)
+  const isStartingRef = useRef(false)
 
   const start = useCallback(() => {
     const SpeechAPI = getSpeechRecognitionAPI()
     if (!SpeechAPI) return
 
     isExplicitlyStoppedRef.current = false
+    setListening(true)
 
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
@@ -107,10 +110,15 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
     recognition.continuous = true
     recognition.interimResults = true
     recognition.maxAlternatives = 1
-    // Prioritize device language or Indian/US English
+    // Prioritize device language or Indian English for accent and technical keywords
     recognition.lang = (typeof navigator !== 'undefined' && navigator.language?.startsWith('en'))
       ? navigator.language
       : 'en-IN'
+
+    recognition.onstart = () => {
+      isStartingRef.current = true
+      setListening(true)
+    }
 
     recognition.onspeechstart = () => {
       onSpeechActivity?.()
@@ -122,52 +130,64 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
 
     recognition.onresult = (event) => {
       onSpeechActivity?.()
-      let interim = ''
-      let sessionFinal = ''
+      let turnFinal = ''
+      let turnInterim = ''
 
       for (let i = 0; i < event.results.length; i++) {
         const item = event.results[i]
         const text = item[0]?.transcript || ''
         if (item.isFinal) {
-          sessionFinal += text + ' '
+          turnFinal += text + ' '
         } else {
-          interim += text
+          turnInterim += text
         }
       }
 
-      currentSessionFinalRef.current = sessionFinal
+      latestTurnFinalRef.current = turnFinal
+      latestTurnInterimRef.current = turnInterim
 
-      const base = finalTranscriptRef.current ? finalTranscriptRef.current.trim() + ' ' : ''
-      const combined = (base + sessionFinal + interim).trim()
-      if (combined) {
-        onTranscript(combined)
+      const parts = [
+        committedTranscriptRef.current,
+        turnFinal,
+        turnInterim
+      ].filter(Boolean)
+
+      const full = parts.join(' ').replace(/\s+/g, ' ').trim()
+      if (full) {
+        onTranscript(full)
       }
     }
 
     recognition.onerror = (event) => {
-      // 'no-speech' or 'audio-capture' happens naturally when candidate is thinking
+      // 'no-speech' or 'audio-capture' are standard quiet pauses, ignore and let onend restart
       if (event.error === 'no-speech' || event.error === 'audio-capture') {
         return
       }
       if (event.error === 'not-allowed') {
         console.warn('Microphone permission blocked for speech recognition')
-        setListening(false)
         isExplicitlyStoppedRef.current = true
+        setListening(false)
         return
       }
-      console.warn('Speech recognition status:', event.error)
+      console.warn('Speech recognition warning:', event.error)
     }
 
     recognition.onend = () => {
-      // Commit what was finalized in this recognition turn into the persistent accumulator
-      if (currentSessionFinalRef.current) {
-        const prevBase = finalTranscriptRef.current ? finalTranscriptRef.current.trim() + ' ' : ''
-        finalTranscriptRef.current = (prevBase + currentSessionFinalRef.current).trim()
-        currentSessionFinalRef.current = ''
-      }
-      setListening(false)
+      isStartingRef.current = false
 
-      // Gracefully auto-restart if we should still be listening and candidate hasn't finished
+      // Commit finalized words + any leftover interim speech
+      const turnSpeech = (latestTurnFinalRef.current + ' ' + latestTurnInterimRef.current).trim()
+      if (turnSpeech) {
+        committedTranscriptRef.current = [committedTranscriptRef.current, turnSpeech]
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+        latestTurnFinalRef.current = ''
+        latestTurnInterimRef.current = ''
+      }
+
+      // If mic should stay ON, immediately restart in 50ms without dropping listening state!
       if (!isExplicitlyStoppedRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
@@ -178,7 +198,9 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
               console.warn('Speech recognition restart caught:', err)
             }
           }
-        }, 120)
+        }, 50)
+      } else {
+        setListening(false)
       }
     }
 
@@ -186,8 +208,10 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
 
     try {
       recognition.start()
+      isStartingRef.current = true
       setListening(true)
     } catch (e) {
+      isStartingRef.current = false
       console.warn('Recognition start caught:', e)
     }
   }, [onTranscript, onSpeechActivity])
@@ -196,6 +220,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
 
   const stop = useCallback(() => {
     isExplicitlyStoppedRef.current = true
+    isStartingRef.current = false
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
@@ -210,13 +235,15 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity) => {
   }, [])
 
   const resetTranscript = useCallback(() => {
-    finalTranscriptRef.current = ''
-    currentSessionFinalRef.current = ''
+    committedTranscriptRef.current = ''
+    latestTurnFinalRef.current = ''
+    latestTurnInterimRef.current = ''
   }, [])
 
   const syncTranscript = useCallback((text) => {
-    finalTranscriptRef.current = text ? text.trim() : ''
-    currentSessionFinalRef.current = ''
+    committedTranscriptRef.current = text ? text.trim() : ''
+    latestTurnFinalRef.current = ''
+    latestTurnInterimRef.current = ''
   }, [])
 
   return { listening, supported, start, stop, resetTranscript, syncTranscript }
@@ -751,7 +778,7 @@ const InterviewSession = () => {
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
   // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
-  // THIS is the EXACT moment when the mic automatically opens and the 6s silence timer starts!
+  // THIS is the EXACT moment when the mic automatically opens and the 10s silence timer starts!
   const handleAiFinishedAsking = useCallback(() => {
     setIsAiAsking(false)
     setIsCountingDown(false)
@@ -769,7 +796,10 @@ const InterviewSession = () => {
 
     if (session?.mode !== 'text' && !isPaused) {
       setIsMicActive(true)
-      startMic()
+      // Slight 100ms guard for hardware audio track to be fully unmuted before Web Speech API attaches
+      setTimeout(() => {
+        startMic()
+      }, 100)
       startRecording()
     }
   }, [session, isPaused, startMic, startRecording])
@@ -860,14 +890,17 @@ const InterviewSession = () => {
   }, [current, session, isCompleted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── 10-Second Silence Auto-Submit Effect ────────────────────────────────────
-  // Only counts down if candidate has already provided an answer (>= 15 chars) and then goes silent for 10s
+  // Once the candidate answers via speech or text:
+  // - While speaking, silence timer continuously stays reset at 10s.
+  // - Once candidate stops speaking (pauses for 10s of continuous silence),
+  //   it automatically submits answer and advances directly to the next question with AI.
   useEffect(() => {
     if (isAiAsking || isPaused || isCompleted || submitting || !session || !question) return
     if (session?.mode === 'text') return
 
     const silenceInterval = setInterval(() => {
-      // If candidate has not answered yet, do NOT auto-submit; let them think!
-      if (!answerText || answerText.trim().length < 15) {
+      // If candidate has not answered/spoken anything yet, do NOT auto-submit immediately; let them think
+      if (!answerText || !answerText.trim()) {
         lastSpeechTimeRef.current = Date.now()
         setSilenceSeconds(10)
         return
@@ -1614,9 +1647,9 @@ const InterviewSession = () => {
                         {isAiAsking
                           ? '🔇 Mic is paused while AI is speaking.'
                           : listening
-                          ? answerText?.trim().length >= 15
-                            ? `🟢 Live Voice Dictation Active · Silence timer: ${silenceSeconds}s`
-                            : '🟢 Mic Live · Listening... Speak your answer (you can also edit with keyboard)'
+                          ? answerText?.trim()
+                            ? `🟢 Live Voice Dictation Active · Silence auto-advance in: ${silenceSeconds}s`
+                            : '🟢 Mic Live · Listening... Speak your answer now'
                           : '⚪ Mic paused. Tap unmute or type answer'}
                       </span>
                       <span className="font-semibold text-slate-600 dark:text-slate-300">
