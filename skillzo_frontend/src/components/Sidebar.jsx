@@ -65,7 +65,23 @@ const navItems = [
 const SidebarContent = ({ onClose }) => {
   const { user, logout, loginAsGuest, openAuthModal } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const [guestActivating, setGuestActivating] = useState(false)
   const navigate = useNavigate()
+
+  const handleEnterGuest = async () => {
+    setGuestActivating(true)
+    try {
+      await loginAsGuest()
+      if (onClose) onClose()
+      navigate('/interview/setup')
+    } catch (err) {
+      console.error('Guest activation error:', err)
+      if (onClose) onClose()
+      navigate('/interview/setup')
+    } finally {
+      setGuestActivating(false)
+    }
+  }
 
   const userEmail = (user?.email || '').toLowerCase().trim()
   const userName = (user?.username || '').toLowerCase().trim()
@@ -182,7 +198,7 @@ const SidebarContent = ({ onClose }) => {
           </span>
         </button>
 
-        {user ? (
+        {user && !user.is_guest ? (
           <>
             <div className="flex items-center gap-2.5 mb-2 p-1.5 rounded-xl bg-white dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800 shadow-2xs">
               <div className="w-7 h-7 rounded-lg bg-brand-100 dark:bg-blue-950 text-brand-700 dark:text-blue-400 border border-brand-200 dark:border-blue-800 flex items-center justify-center font-display font-bold text-xs shrink-0">
@@ -195,33 +211,77 @@ const SidebarContent = ({ onClose }) => {
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-blue-400 hover:bg-brand-50 dark:hover:bg-[#131E38] py-1.5 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-800"
+              className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-blue-400 hover:bg-brand-50 dark:hover:bg-[#131E38] py-1.5 rounded-lg transition-all duration-150 border border-transparent hover:border-brand-100 dark:hover:border-slate-800 cursor-pointer"
             >
               <Icons.Logout />
               Sign out
             </button>
           </>
+        ) : user?.is_guest ? (
+          <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 shadow-xs">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                ⚡
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Guest Mode (Active)</p>
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">Ready to practice</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { if (onClose) onClose(); navigate('/interview/setup') }}
+              className="w-full py-2 px-2.5 mb-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold text-center transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>🚀 Start AI Interview</span>
+              <span>→</span>
+            </button>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                onClick={() => { if (onClose) onClose(); navigate('/login') }}
+                className="py-1 px-1.5 rounded-md bg-white dark:bg-[#131E38] border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-[10px] font-bold text-center cursor-pointer transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => { if (onClose) onClose(); navigate('/signup') }}
+                className="py-1 px-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold text-center shadow-xs cursor-pointer transition-colors"
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
         ) : (
-          <div className="p-2 rounded-xl bg-white dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800 shadow-xs">
+          <div className="p-2.5 rounded-xl bg-white dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-xs">
             <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#131E38] text-slate-600 dark:text-slate-300 flex items-center justify-center font-display font-bold text-xs shrink-0">
-                G
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-display font-bold text-sm shrink-0">
+                ⚡
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Guest Mode</p>
-                <p className="text-[10px] text-slate-400 truncate">Sign up to save prep data</p>
+                <p className="text-[10px] text-slate-400 truncate">No email or signup needed</p>
               </div>
             </div>
+
+            {/* Direct button right from sidebar as requested by user */}
+            <button
+              onClick={handleEnterGuest}
+              disabled={guestActivating}
+              className="w-full py-2 px-2.5 mb-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold text-center transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>⚡</span>
+              <span>{guestActivating ? 'Entering Guest Mode...' : 'Enter Guest Mode →'}</span>
+            </button>
+
             <div className="grid grid-cols-2 gap-1.5">
               <button
-                onClick={() => navigate('/login')}
-                className="py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-[#1C2C50] text-slate-800 dark:text-slate-200 text-xs font-bold text-center transition-colors border border-transparent dark:border-slate-800"
+                onClick={() => { if (onClose) onClose(); navigate('/login') }}
+                className="py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold text-center transition-colors border border-transparent dark:border-slate-800 cursor-pointer"
               >
                 Log In
               </button>
               <button
-                onClick={() => navigate('/signup')}
-                className="py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold text-center transition-colors shadow-xs dark:shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+                onClick={() => { if (onClose) onClose(); navigate('/signup') }}
+                className="py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold text-center transition-colors shadow-xs cursor-pointer"
               >
                 Sign Up
               </button>
