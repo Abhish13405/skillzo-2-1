@@ -70,13 +70,14 @@ const getSpeechRecognitionAPI = () => {
 const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN') => {
   const recognitionRef = useRef(null)
   const isExplicitlyStoppedRef = useRef(true)
+  const isRunningRef = useRef(false)
+  const isStartingRef = useRef(false)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
   const [speechError, setSpeechError] = useState('')
   const accumulatedRef = useRef('')
   const latestFullTranscriptRef = useRef('')
   const restartTimerRef = useRef(null)
-  const isRunningRef = useRef(false)
   const onTranscriptRef = useRef(onTranscript)
   const onSpeechActivityRef = useRef(onSpeechActivity)
   const languageRef = useRef(language)
@@ -99,8 +100,8 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     isExplicitlyStoppedRef.current = false
     setSpeechError('')
 
-    // If recognition is already actively running, do not re-instantiate or abort
-    if (recognitionRef.current && isRunningRef.current) {
+    // If already actively running or in the middle of starting, do not duplicate start
+    if (isRunningRef.current || isStartingRef.current) {
       setListening(true)
       return
     }
@@ -131,15 +132,15 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       return
     }
 
-    // continuous: false is 100x more reliable across all Chromium versions (never hangs)
-    // Combined with immediate restart on onend, it creates continuous dictation without socket freezing!
-    recognition.continuous = false
+    // continuous: true keeps the mic open continuously without rapid stop/start cycles
+    recognition.continuous = true
     recognition.interimResults = true
     recognition.maxAlternatives = 1
     recognition.lang = languageRef.current || 'en-IN'
 
     recognition.onstart = () => {
       isRunningRef.current = true
+      isStartingRef.current = false
       setListening(true)
       setSpeechError('')
     }
@@ -157,7 +158,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       let turnFinal = ''
       let turnInterim = ''
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const item = event.results[i]
         const text = item[0]?.transcript || ''
         if (item.isFinal) {
@@ -167,19 +168,13 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
         }
       }
 
-      if (turnFinal) {
-        accumulatedRef.current = [accumulatedRef.current, turnFinal.trim()]
-          .filter(Boolean)
-          .join(' ')
-          .replace(/\s+/g, ' ')
-          .trim()
+      const currentSpeech = (turnFinal + turnInterim).replace(/\s+/g, ' ').trim()
+      let full = ''
+      if (accumulatedRef.current) {
+        full = currentSpeech ? `${accumulatedRef.current} ${currentSpeech}`.trim() : accumulatedRef.current
+      } else {
+        full = currentSpeech
       }
-
-      const full = [accumulatedRef.current, turnInterim.trim()]
-        .filter(Boolean)
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim()
 
       if (full) {
         latestFullTranscriptRef.current = full
@@ -188,14 +183,15 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     }
 
     recognition.onerror = (event) => {
-      if (event.error === 'no-speech') {
-        // Normal silence pause, onend will cleanly cycle
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        // Normal silence pause or explicit stop, ignore safely
         return
       }
       if (event.error === 'not-allowed') {
-        setSpeechError('Microphone permission blocked. Please allow mic in browser.')
+        setSpeechError('Microphone permission blocked. Please allow mic in browser address bar.')
         isExplicitlyStoppedRef.current = true
         isRunningRef.current = false
+        isStartingRef.current = false
         setListening(false)
         return
       }
@@ -206,32 +202,21 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
     recognition.onend = () => {
       isRunningRef.current = false
+      isStartingRef.current = false
 
       // Always preserve latest text in accumulatedRef so no words are ever wiped out
       if (latestFullTranscriptRef.current) {
         accumulatedRef.current = latestFullTranscriptRef.current.trim()
       }
 
-      // Seamless auto-restart if user hasn't explicitly muted or stopped
+      // Seamless auto-restart only if user hasn't explicitly muted or stopped
       if (!isExplicitlyStoppedRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
           if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
-            try {
-              if (recognitionRef.current) {
-                const old = recognitionRef.current
-                old.onend = null
-                old.onerror = null
-                old.onresult = null
-                try { old.abort() } catch {}
-                recognitionRef.current = null
-              }
-              start()
-            } catch (err) {
-              console.warn('Speech recognition restart caught:', err)
-            }
+            start()
           }
-        }, 80)
+        }, 400)
       } else {
         setListening(false)
       }
@@ -240,26 +225,19 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     recognitionRef.current = recognition
 
     try {
+      isStartingRef.current = true
       recognition.start()
-      isRunningRef.current = true
-      setListening(true)
     } catch (e) {
+      isStartingRef.current = false
       isRunningRef.current = false
       console.warn('Recognition start caught:', e)
-      // Retry in 300ms if initial start collided with audio hardware
-      if (!isExplicitlyStoppedRef.current) {
-        setTimeout(() => {
-          if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
-            start()
-          }
-        }, 300)
-      }
     }
   }, [])
 
   const stop = useCallback(() => {
     isExplicitlyStoppedRef.current = true
     isRunningRef.current = false
+    isStartingRef.current = false
     if (latestFullTranscriptRef.current) {
       accumulatedRef.current = latestFullTranscriptRef.current.trim()
     }
@@ -272,6 +250,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       old.onend = null
       old.onerror = null
       old.onresult = null
+      old.onstart = null
       try {
         old.abort()
       } catch {}
@@ -876,24 +855,13 @@ const InterviewSession = () => {
     }
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
-  // Reactive Speech Recognition Watcher:
-  // Ensures mic turns ON once AI finishes asking, and stays ON without interruptions while candidate speaks
+  // Stop mic when AI is asking question, during countdown, when paused, completed, or in text mode
   useEffect(() => {
     const mode = session?.mode || 'video'
     if (mode === 'text' || isPaused || isCompleted || isAiAsking || isCountingDown) {
-      if (listening) {
-        stopMic()
-      }
-      return
+      stopMic()
     }
-
-    if (isMicActive && !listening) {
-      const timer = setTimeout(() => {
-        startMic()
-      }, 100)
-      return () => clearTimeout(timer)
-    }
-  }, [isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, isMicActive, listening, startMic, stopMic])
+  }, [isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, stopMic])
 
   // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
   // THIS is the EXACT moment when the mic automatically opens and the 10s silence timer starts!
@@ -1887,34 +1855,67 @@ const InterviewSession = () => {
 
                 {/* Editable Text Area for Live Transcript & Answers */}
                 <div className="mt-1">
+                  {isAiAsking && (
+                    <div className="mb-1.5 flex items-center justify-between px-2.5 py-1 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800/80 text-[11px] text-indigo-700 dark:text-indigo-300">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                        AI is reading question aloud...
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSkipAiVoiceAndAnswerNow}
+                        className="font-bold underline hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer"
+                      >
+                        ⚡ Skip Voice & Answer Now
+                      </button>
+                    </div>
+                  )}
                   <textarea
                     value={answerText}
                     onChange={(e) => {
+                      if (isAiAsking) {
+                        handleSkipAiVoiceAndAnswerNow()
+                      }
                       setAnswerText(e.target.value)
                       syncTranscript(e.target.value)
+                      handleSpeechActivity()
                     }}
                     onKeyDown={handleTextareaKeyDown}
                     placeholder={
                       session?.mode === 'text'
                         ? 'Type your detailed answer here...'
                         : isAiAsking
-                        ? 'AI is speaking the question... Mic will open automatically when question ends.'
-                        : 'Speak into your microphone now — what you say will appear right here in real time...'
+                        ? 'AI is speaking the question... (Click "⚡ Skip Voice & Answer Now" or start typing here to answer immediately)'
+                        : 'Speak into your microphone — your words will type here in real time (or type with keyboard)...'
                     }
                     rows={session?.mode === 'text' ? 5 : 4}
                     className="w-full p-2.5 bg-white dark:bg-[#131E38] rounded-xl text-xs sm:text-[13px] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border border-slate-200 dark:border-slate-700/80 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all min-h-[90px]"
                   />
                   {session?.mode !== 'text' && (
                     <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                      <span>
-                        {isAiAsking
-                          ? '🔇 Mic is paused while AI is speaking.'
-                          : listening
-                          ? answerText?.trim()
-                            ? `🟢 Live Voice Dictation Active · Silence auto-advance in: ${silenceSeconds}s`
-                            : '🟢 Mic Live · Listening... Speak your answer now'
-                          : '⚪ Mic paused. Tap unmute or type answer'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {isAiAsking
+                            ? '🔇 AI is reading question... Mic opens right after.'
+                            : listening
+                            ? answerText?.trim()
+                              ? `🟢 Voice Live · Transcribing · Silence timer: ${silenceSeconds}s`
+                              : '🟢 Mic Live · Listening... Speak your answer now'
+                            : '⚪ Mic paused. Tap unmute or type answer'}
+                        </span>
+                        {!isAiAsking && !listening && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMicActive(true)
+                              startMic()
+                            }}
+                            className="px-2 py-0.5 rounded bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/60 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 font-sans font-bold cursor-pointer text-[10px]"
+                          >
+                            🎤 Turn Mic On
+                          </button>
+                        )}
+                      </div>
                       <span className="font-semibold text-slate-600 dark:text-slate-300">
                         {answerText ? `${answerText.length} chars` : 'Ready to speak'}
                       </span>

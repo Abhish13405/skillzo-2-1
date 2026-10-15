@@ -81,54 +81,7 @@ const InterviewSetup = () => {
         <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Customize your target role, difficulty level, and practice format.</p>
       </div>
 
-      {/* 1-Click Instant Start Hero Banner */}
-      <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-md flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">⚡</span>
-            <span className="text-xs uppercase tracking-wider font-mono font-bold text-blue-200">1-Click Instant Practice</span>
-          </div>
-          <h2 className="text-lg font-display font-extrabold text-white mt-0.5">
-            Start {finalRole || 'Python Developer'} Interview ({difficulty || 'Intermediate'})
-          </h2>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span className="text-xs text-blue-100 font-semibold">Select Format:</span>
-            {MODES.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setMode(m.id)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  mode === m.id
-                    ? 'bg-white text-blue-700 shadow-sm ring-2 ring-white/80'
-                    : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
-                }`}
-              >
-                <span>{m.icon}</span>
-                <span>{m.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={handleStart}
-          disabled={loading}
-          className="py-3 px-6 bg-white hover:bg-blue-50 text-blue-700 font-extrabold rounded-xl shadow-md text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer shrink-0"
-        >
-          {loading ? (
-            <>
-              <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              <span>Preparing Questions...</span>
-            </>
-          ) : (
-            <>
-              <span>🚀 Launch {MODES.find(m => m.id === mode)?.label || 'Interview'}</span>
-              <span>→</span>
-            </>
-          )}
-        </button>
-      </div>
+
 
       {/* Stepper */}
       <div className="flex items-center gap-2 sm:gap-3 mb-5 sm:mb-6 bg-white dark:bg-[#0D1527] p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-craft">
