@@ -32,6 +32,12 @@ const getBestMimeType = (mode) => {
   return ''
 }
 
+// ─── Mobile Device Detection Helper ───────────────────────────────────────────
+const isMobileDevice = () => {
+  if (typeof window === 'undefined' || !navigator.userAgent) return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
 // ─── Real-time Audio Waveform Component (Compact & Adaptive) ─────────────────
 const AudioWaveformBars = ({ isRecording = true, isPaused = false }) => {
   const heights = [
@@ -132,8 +138,10 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       return
     }
 
-    // continuous: true keeps the mic open continuously without rapid stop/start cycles
-    recognition.continuous = true
+    const isMobile = isMobileDevice()
+    // CRITICAL: On mobile Android Chrome, continuous = true blocks onresult from emitting!
+    // continuous must be false on mobile so each phrase immediately emits onresult.
+    recognition.continuous = !isMobile
     recognition.interimResults = true
     recognition.maxAlternatives = 1
     recognition.lang = languageRef.current || 'en-IN'
@@ -155,30 +163,28 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
     recognition.onresult = (event) => {
       onSpeechActivityRef.current?.()
-      let turnFinal = ''
-      let turnInterim = ''
+      let interim = ''
+      let newFinal = ''
 
-      for (let i = 0; i < event.results.length; i++) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const item = event.results[i]
         const text = item[0]?.transcript || ''
         if (item.isFinal) {
-          turnFinal += text + ' '
+          newFinal += text + ' '
         } else {
-          turnInterim += text
+          interim += text
         }
       }
 
-      const currentSpeech = (turnFinal + turnInterim).replace(/\s+/g, ' ').trim()
-      let full = ''
-      if (accumulatedRef.current) {
-        full = currentSpeech ? `${accumulatedRef.current} ${currentSpeech}`.trim() : accumulatedRef.current
-      } else {
-        full = currentSpeech
+      if (newFinal) {
+        accumulatedRef.current = `${accumulatedRef.current} ${newFinal}`.replace(/\s+/g, ' ').trim()
       }
 
-      if (full) {
-        latestFullTranscriptRef.current = full
-        onTranscriptRef.current?.(full)
+      const fullText = (interim ? `${accumulatedRef.current} ${interim}` : accumulatedRef.current).replace(/\s+/g, ' ').trim()
+
+      if (fullText) {
+        latestFullTranscriptRef.current = fullText
+        onTranscriptRef.current?.(fullText)
       }
     }
 
@@ -188,7 +194,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
         return
       }
       if (event.error === 'not-allowed') {
-        setSpeechError('Microphone permission blocked. Please allow mic in browser address bar.')
+        setSpeechError('Microphone blocked. Please tap 🔒 in browser address bar and Allow Microphone.')
         isExplicitlyStoppedRef.current = true
         isRunningRef.current = false
         isStartingRef.current = false
@@ -196,7 +202,14 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
         return
       }
       if (event.error === 'audio-capture') {
-        console.warn('Microphone busy or device contention:', event.error)
+        console.warn('Microphone busy or device contention, auto-recovering:', event.error)
+        if (!isExplicitlyStoppedRef.current) {
+          setTimeout(() => {
+            if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
+              start()
+            }
+          }, 400)
+        }
       }
     }
 
@@ -216,7 +229,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
           if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
             start()
           }
-        }, 400)
+        }, isMobile ? 120 : 350)
       } else {
         setListening(false)
       }
@@ -587,8 +600,14 @@ const InterviewSession = () => {
     setIsCameraActive(false)
   }, [])
 
-  // Hardware Camera Start (captures selfie video + microphone for unified recordings)
+  // Hardware Camera Start (captures selfie video + microphone on desktop, leaves mic for STT on mobile)
   const startCamera = useCallback(async () => {
+    const isMobile = isMobileDevice()
+    // On mobile (Android/iOS), requesting audio in getUserMedia locks the hardware mic,
+    // which starves webkitSpeechRecognition and prevents live voice-to-text typing.
+    // On desktop, the OS audio mixer supports both concurrently.
+    const requestAudio = !isMobile
+
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -596,7 +615,11 @@ const InterviewSession = () => {
           width: { ideal: 640 }, // 640x480 gives crisp clarity while keeping storage ultra-compact
           height: { ideal: 480 },
         },
-        audio: true,
+        audio: requestAudio ? {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } : false,
       })
       streamRef.current = s
       setStream(s)
@@ -605,7 +628,7 @@ const InterviewSession = () => {
         videoRef.current.srcObject = s
       }
     } catch (err) {
-      console.warn('Camera with audio failed, falling back to video and separate audio:', err)
+      console.warn('Camera with audio failed, falling back to video only:', err)
       try {
         const s = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -615,13 +638,6 @@ const InterviewSession = () => {
           },
           audio: false,
         })
-        // Attempt to acquire separate audio stream and attach tracks (crucial for mobile)
-        try {
-          const aStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-          aStream.getAudioTracks().forEach((track) => s.addTrack(track))
-        } catch (audioErr) {
-          console.warn('Could not acquire separate audio track:', audioErr)
-        }
         streamRef.current = s
         setStream(s)
         setIsCameraActive(true)
@@ -637,6 +653,9 @@ const InterviewSession = () => {
 
   // Audio Only Stream for Audio Mode
   const startAudioStream = useCallback(async () => {
+    const isMobile = isMobileDevice()
+    if (isMobile) return // On mobile, leave the mic exclusively for SpeechRecognition so voice typing works
+
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = s
