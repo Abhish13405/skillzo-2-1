@@ -515,8 +515,8 @@ const InterviewSession = () => {
   const [isCountingDown, setIsCountingDown] = useState(true)
   const [isAiAsking, setIsAiAsking] = useState(true) // True while AI reads question; timer and recording ONLY start after
 
-  // Timers
-  const [questionSeconds, setQuestionSeconds] = useState(60)
+  // Timers: 30 seconds per question
+  const [questionSeconds, setQuestionSeconds] = useState(30)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const startTime = useRef(Date.now())
 
@@ -538,20 +538,20 @@ const InterviewSession = () => {
   }, [stream])
 
   // ─── Silence Auto-Submit & Speech Handlers ─────────────────────────
-  const [silenceSeconds, setSilenceSeconds] = useState(10)
+  const [silenceSeconds, setSilenceSeconds] = useState(5)
   const [speechLang, setSpeechLang] = useState('en-IN')
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
 
   const handleSpeechActivity = useCallback(() => {
     lastSpeechTimeRef.current = Date.now()
-    setSilenceSeconds(10)
+    setSilenceSeconds(5)
   }, [])
 
   const handleTranscript = useCallback((t) => {
     setAnswerText(t)
     lastSpeechTimeRef.current = Date.now()
-    setSilenceSeconds(10)
+    setSilenceSeconds(5)
   }, [])
 
   const {
@@ -864,7 +864,7 @@ const InterviewSession = () => {
   }, [isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, stopMic])
 
   // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
-  // THIS is the EXACT moment when the mic automatically opens and the 10s silence timer starts!
+  // THIS is the EXACT moment when the mic automatically opens and the 5s silence timer starts!
   const handleAiFinishedAsking = useCallback(() => {
     if (aiFinishedForQuestionRef.current) return
     aiFinishedForQuestionRef.current = true
@@ -874,7 +874,7 @@ const InterviewSession = () => {
     setSpeechCountdown(0)
     startTime.current = Date.now()
     lastSpeechTimeRef.current = Date.now()
-    setSilenceSeconds(10)
+    setSilenceSeconds(5)
 
     if (session?.mode !== 'text' && !isPaused) {
       setIsMicActive(true)
@@ -896,8 +896,9 @@ const InterviewSession = () => {
     setIsCountingDown(false)
     setSpeechCountdown(0)
     const q = session?.questions?.[current]
-    if (q?.question_text) {
-      speak(q.question_text, () => {
+    const qText = current === 0 ? "Introduce yourself." : (q?.question_text || '')
+    if (qText) {
+      speak(qText, () => {
         handleAiFinishedAsking()
       })
     } else {
@@ -905,7 +906,7 @@ const InterviewSession = () => {
     }
   }, [session, current, speak, handleAiFinishedAsking])
 
-  // Timers: Count down question duration AFTER AI finishes asking
+  // Timers: Count down question duration AFTER AI finishes asking (30 seconds limit)
   useEffect(() => {
     if (isPaused || isCompleted || isAiAsking) return
 
@@ -927,13 +928,14 @@ const InterviewSession = () => {
     setIsMicActive(false)
 
     setIsAiAsking(true)
-    setQuestionSeconds(60)
+    setQuestionSeconds(30)
     setRecordingSeconds(0)
-    setSilenceSeconds(10)
+    setSilenceSeconds(5)
     lastSpeechTimeRef.current = Date.now()
 
     const q = session.questions?.[current]
-    if (!q?.question_text) {
+    const effectiveQuestionText = current === 0 ? "Introduce yourself." : (q?.question_text || '')
+    if (!effectiveQuestionText) {
       handleAiFinishedAsking()
       return
     }
@@ -968,7 +970,7 @@ const InterviewSession = () => {
     const startTimer = setTimeout(() => {
       setIsCountingDown(false)
       setSpeechCountdown(0)
-      speak(q.question_text, () => {
+      speak(effectiveQuestionText, () => {
         // AI finished speaking the question -> IMMEDIATELY open mic & candidate answering turn begins!
         handleAiFinishedAsking()
       })
@@ -991,33 +993,33 @@ const InterviewSession = () => {
     }
   }, [current, session, isCompleted]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── 10-Second Silence Auto-Submit Effect ────────────────────────────────────
+  // ─── 5-Second Silence Auto-Submit Effect ────────────────────────────────────
   // Once the candidate answers via speech or text:
-  // - While speaking, silence timer continuously stays reset at 10s.
-  // - Once candidate stops speaking (pauses for 10s of continuous silence),
+  // - While speaking, silence timer continuously stays reset at 5s.
+  // - Once candidate stops speaking (pauses for 5s of continuous silence),
   //   it automatically submits answer and advances directly to the next question with AI.
   useEffect(() => {
     if (isAiAsking || isPaused || isCompleted || submitting || !session || !question) return
     if (session?.mode === 'text') return
 
     const silenceInterval = setInterval(() => {
-      // If candidate has not answered/spoken anything substantial yet (min 8 chars), do NOT auto-submit; let them think peacefully
-      if (!answerText || !answerText.trim() || answerText.trim().length < 8) {
+      // If candidate has not answered/spoken anything substantial yet (min 4 chars), do NOT auto-submit; let them think peacefully
+      if (!answerText || !answerText.trim() || answerText.trim().length < 4) {
         lastSpeechTimeRef.current = Date.now()
-        setSilenceSeconds(10)
+        setSilenceSeconds(5)
         return
       }
 
       const elapsed = Math.floor((Date.now() - lastSpeechTimeRef.current) / 1000)
-      const remaining = Math.max(0, 10 - elapsed)
+      const remaining = Math.max(0, 5 - elapsed)
       setSilenceSeconds(remaining)
 
       if (remaining <= 0) {
         clearInterval(silenceInterval)
-        // 10s silence after candidate finished speaking -> Auto submit answer & advance
+        // 5s silence after candidate finished speaking -> Auto submit answer & advance
         handleSubmitRef.current(true)
       }
-    }, 400)
+    }, 300)
 
     return () => clearInterval(silenceInterval)
   }, [isAiAsking, isPaused, isCompleted, submitting, session, question, current, answerText])
@@ -1044,9 +1046,9 @@ const InterviewSession = () => {
         })
       }
       setIsAiAsking(true)
-      setQuestionSeconds(60)
+      setQuestionSeconds(30)
       setRecordingSeconds(0)
-      setSilenceSeconds(10)
+      setSilenceSeconds(5)
       lastSpeechTimeRef.current = Date.now()
       setCurrent((c) => c + 1)
       setAnswerText('')
@@ -1707,8 +1709,9 @@ const InterviewSession = () => {
                     </span>
                     <button
                       onClick={() => {
-                        if (question?.question_text && !isAiAsking) {
-                          speak(question.question_text)
+                        const qText = current === 0 ? "Introduce yourself." : question?.question_text
+                        if (qText && !isAiAsking) {
+                          speak(qText)
                         }
                       }}
                       disabled={isAiAsking}
@@ -1738,15 +1741,21 @@ const InterviewSession = () => {
                         </button>
                       </div>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono border transition-all ${
+                        questionSeconds <= 5
+                          ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 animate-pulse'
+                          : questionSeconds <= 10
+                          ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                          : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 5 ? 'bg-rose-500' : questionSeconds <= 10 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                         Time: {questionSeconds}s
                       </span>
                     )}
                   </div>
                 </div>
                 <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-3">
-                  {question?.question_text || 'Tell me about a time you solved a difficult problem.'}
+                  {current === 0 ? "Introduce yourself." : (question?.question_text || 'Tell me about a time you solved a difficult problem.')}
                 </p>
               </div>
 
@@ -1827,14 +1836,14 @@ const InterviewSession = () => {
                             <span>🎤 Unmute Mic</span>
                           </button>
                         )}
-                        {answerText?.trim().length >= 15 ? (
+                        {answerText?.trim().length >= 4 ? (
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border transition-all ${
-                              silenceSeconds <= 3
+                              silenceSeconds <= 2
                                 ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 animate-pulse'
                                 : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80'
                             }`}
-                            title="Auto-submits after 10s of quiet once you stop speaking"
+                            title="Auto-submits after 5s of quiet once you stop speaking"
                           >
                             Silence: {silenceSeconds}s
                           </span>

@@ -53,7 +53,12 @@ class StartInterviewView(APIView):
             return Response({"error": f"Question generation failed: {str(e)}"},
                              status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        for q in result.get('questions', []):
+        generated_questions = result.get('questions', [])
+        if generated_questions:
+            generated_questions[0]['question'] = "Introduce yourself."
+            generated_questions[0]['category'] = "Introduction"
+
+        for q in generated_questions:
             InterviewQuestion.objects.create(
                 session=session,
                 order=q.get('id', 0),
@@ -340,5 +345,13 @@ class InterviewDetailView(APIView):
                     if not session.completed_at:
                         session.completed_at = session.started_at or timezone.now()
                     session.save(update_fields=['overall_score', 'status', 'completed_at'])
+
+        # Guarantee Question 1 is always 'Introduce yourself.' for in-progress sessions
+        if session.status == 'in_progress':
+            first_q = session.questions.order_by('order').first()
+            if first_q and first_q.order == 1 and first_q.question_text != 'Introduce yourself.':
+                first_q.question_text = 'Introduce yourself.'
+                first_q.category = 'Introduction'
+                first_q.save(update_fields=['question_text', 'category'])
 
         return Response(InterviewSessionSerializer(session, context={'request': request}).data)

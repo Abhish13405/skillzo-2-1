@@ -315,7 +315,7 @@ Return JSON with EXACTLY this structure:
             q_list = raw_res.get('questions', [])
 
             final_questions = [
-                {"id": 1, "question": f"Introduce yourself and highlight your experience as a {role}.", "category": "Introduction"}
+                {"id": 1, "question": "Introduce yourself.", "category": "Introduction"}
             ]
 
             for idx, item in enumerate(q_list[:questions_needed]):
@@ -351,7 +351,7 @@ Return JSON with EXACTLY this structure:
 
         intro_q = {
             "id": 1,
-            "question": f"Introduce yourself and highlight your experience as a {role}.",
+            "question": "Introduce yourself.",
             "category": "Introduction"
         }
 
