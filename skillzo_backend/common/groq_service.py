@@ -21,6 +21,82 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+# ─── CURATED 60-QUESTION STANDARDIZED INTERVIEW BANK ─────────────────────────
+PYTHON_QUESTION_BANK = {
+    "Beginner": [
+        # Part 1: Basic Level (Questions 1 to 20)
+        "Introduce yourself.",
+        "What is Python, and why is it popular?",
+        "What are the main features of Python?",
+        "What is a variable in Python?",
+        "What are the different data types in Python?",
+        "What is the difference between a list and a tuple?",
+        "What is the difference between int, float, and str?",
+        "What is the difference between = and ==?",
+        "What is the difference between if, elif, and else?",
+        "What is the difference between a for loop and a while loop?",
+        "What are break, continue, and pass?",
+        "What is the difference between input() and print()?",
+        "What is type casting in Python?",
+        "What are arithmetic, comparison, and logical operators?",
+        "What is a function in Python?",
+        "What is the difference between return and print()?",
+        "What is string slicing in Python?",
+        "What is a dictionary, and how do you access its values?",
+        "What is a set, and why is it useful?",
+        "What are the uses of the len() and type() functions?",
+    ],
+    "Intermediate": [
+        # Part 2: Medium Level (Questions 21 to 40)
+        "Introduce yourself.",
+        "What is the difference between mutable and immutable objects?",
+        "What is the difference between is and ==?",
+        "What is the difference between append() and extend()?",
+        "What is the difference between sort() and sorted()?",
+        "What are *args and **kwargs?",
+        "What is list comprehension?",
+        "What is the difference between local, global, and nonlocal variables?",
+        "What is recursion?",
+        "What is a lambda function?",
+        "What is the difference between map(), filter(), and reduce()?",
+        "What are default arguments in Python?",
+        "What is the difference between shallow copy and deep copy?",
+        "What is a class, and what is an object?",
+        "What are self and __init__()?",
+        "What is inheritance, and what are its types?",
+        "What is polymorphism in Python?",
+        "What is method overriding?",
+        "What is exception handling in Python?",
+        "What are iterators and generators?",
+        "What is the difference between a module and a package?",
+    ],
+    "Advanced": [
+        # Part 3: Hard Level (Questions 41 to 60)
+        "Introduce yourself.",
+        "How does Python manage memory?",
+        "What is the Global Interpreter Lock (GIL)?",
+        "What is the difference between multithreading and multiprocessing?",
+        "What are decorators in Python?",
+        "What are closures in Python?",
+        "What is a context manager?",
+        "What are magic methods in Python?",
+        "What is Method Resolution Order (MRO)?",
+        "What is the difference between instance methods, class methods, and static methods?",
+        "What are async and await?",
+        "What are descriptors in Python?",
+        "What is the difference between __new__() and __init__()?",
+        "What are metaclasses in Python?",
+        "What is monkey patching?",
+        "What causes circular imports in Python?",
+        "How do you optimize a slow Python program?",
+        "What is the difference between time complexity and space complexity?",
+        "How would you implement a thread-safe counter?",
+        "How would you process a very large file efficiently?",
+        "How would you debug a Python application that consumes too much memory?",
+    ],
+}
+
+
 class GroqService:
     """
     Ek hi client instance poore project mein reuse hota hai (singleton pattern).
@@ -136,171 +212,211 @@ Resume text:
                             question_type: str = "technical",
                             exclude_questions: list = None) -> dict:
         """
-        Generate diverse, 1-line non-repeating interview questions.
-        Structured curriculum progression:
-        - First 2 questions (Q1, Q2): Core fundamentals & basic language concepts.
-        - Subsequent questions (Q3, Q4, Q5...): Object-Oriented Programming (OOPs), architecture & practical design.
+        Generate curated interview questions following the mandatory structure:
+        - Question 1 is ALWAYS: Introduce yourself.
+        - Beginner (Easy/Simple): Part 1 bank (Questions 1 to 20).
+        - Intermediate (Medium): Part 2 bank (Questions 21 to 40).
+        - Advanced (Hard): Part 3 bank (Questions 41 to 60).
+        For any role/language, this 3-tier curriculum is strictly enforced.
         """
+        role_lower = (role or "").lower()
+        diff_key = "Beginner" if difficulty in ["Beginner", "Easy", "Simple"] else (
+            "Advanced" if difficulty in ["Advanced", "Hard"] else "Intermediate"
+        )
+
+        # ─── 1. PYTHON ROLES: Use Curated 60-Question Standard Bank ─────────
+        if "python" in role_lower:
+            bank = PYTHON_QUESTION_BANK.get(diff_key, PYTHON_QUESTION_BANK["Intermediate"])
+            category_label = "Core Basics" if diff_key == "Beginner" else ("Core OOPs" if diff_key == "Intermediate" else "Advanced Internals")
+
+            # Question 1 is ALWAYS Introduce yourself
+            questions = [
+                {"id": 1, "question": "Introduce yourself.", "category": "Introduction"}
+            ]
+
+            pool = bank[1:]  # The 19 specific topic questions for this tier
+            recent = [q.strip().lower() for q in (exclude_questions or []) if q and q.strip()]
+
+            # Prioritize questions not recently asked by this user
+            fresh_pool = [q for q in pool if q.strip().lower() not in recent]
+            if len(fresh_pool) < (count - 1):
+                candidates = fresh_pool + [q for q in pool if q not in fresh_pool]
+            else:
+                candidates = fresh_pool
+
+            # Select remaining questions up to requested count
+            remaining_needed = max(1, count - 1)
+            selected = candidates[:remaining_needed]
+
+            for idx, q_text in enumerate(selected):
+                questions.append({
+                    "id": idx + 2,
+                    "question": q_text,
+                    "category": category_label,
+                })
+
+            return {"questions": questions}
+
+        # ─── 2. OTHER ROLES: Mirror the Exact 3-Tier Blueprint with Groq ─────
         exclude_block = ""
         if exclude_questions:
             recent_sample = [q.strip() for q in exclude_questions[-15:] if q and q.strip()]
             if recent_sample:
                 formatted_excludes = "\n".join(f"- {q}" for q in recent_sample)
-                exclude_block = f"\nIMPORTANT: Do NOT repeat or rephrase any of these recently asked questions:\n{formatted_excludes}\n"
+                exclude_block = f"\nIMPORTANT: Do NOT repeat any of these recently asked questions:\n{formatted_excludes}\n"
 
-        role_lower = (role or "").lower()
-
-        # Specific curriculum guidelines based on role
-        if "python" in role_lower:
-            curriculum_guide = """
-STRUCTURE AND TOPIC BLUEPRINT:
-- Question 1 and Question 2: MUST test Core Basic Python fundamentals (such as mutable vs immutable types, list/tuple/dict differences, generators, memory management, or basic syntax).
-- Question 3, Question 4, Question 5 (and onwards): MUST test Object-Oriented Programming (OOP) in Python (such as Classes, Inheritance, Polymorphism, Encapsulation, dunder methods like __init__ and __str__, @classmethod vs @staticmethod, or Abstract Base Classes).
-"""
-        elif "java" in role_lower:
-            curriculum_guide = """
-STRUCTURE AND TOPIC BLUEPRINT:
-- Question 1 and Question 2: MUST test Core Java fundamentals (such as JVM/JRE/JDK differences, primitive types vs wrapper classes, string immutability, or garbage collection).
-- Question 3, Question 4, Question 5 (and onwards): MUST test Object-Oriented Programming (OOP) in Java (such as Inheritance vs Composition, Method Overloading vs Overriding, Abstract classes vs Interfaces, Encapsulation, or Polymorphism).
-"""
-        elif any(k in role_lower for k in ["frontend", "react", "javascript", "js"]):
-            curriculum_guide = """
-STRUCTURE AND TOPIC BLUEPRINT:
-- Question 1 and Question 2: MUST test Core JavaScript fundamentals (such as Event Loop, closures, let/const/var scoping, or Promises/async-await).
-- Question 3, Question 4, Question 5 (and onwards): MUST test Component Architecture and React/OOP design patterns (such as Component lifecycle, hooks like useEffect/useMemo, state management, or Virtual DOM).
-"""
-        elif any(k in role_lower for k in ["data", "machine learning", "ai", "ml"]):
-            curriculum_guide = """
-STRUCTURE AND TOPIC BLUEPRINT:
-- Question 1 and Question 2: MUST test Core Python data structures & manipulation (such as Pandas DataFrame vs Series, NumPy array vectorization, or handling missing data).
-- Question 3, Question 4, Question 5 (and onwards): MUST test Machine Learning algorithms, OOP model design & pipelines (such as Supervised vs Unsupervised models, overfitting prevention, evaluation metrics, or model deployment).
-"""
-        elif any(k in role_lower for k in ["sql", "database"]):
-            curriculum_guide = """
-STRUCTURE AND TOPIC BLUEPRINT:
-- Question 1 and Question 2: MUST test SQL fundamentals (such as JOIN types, GROUP BY vs HAVING, or Aggregate functions).
-- Question 3, Question 4, Question 5 (and onwards): MUST test Database Architecture & Indexing (such as Clustered vs Non-clustered Indexes, ACID properties, Normalization, or Window functions).
-"""
+        if diff_key == "Beginner":
+            tier_instructions = (
+                "TIER: BEGINNER / EASY LEVEL (Questions 2 to 20 equivalent):\n"
+                "- Questions MUST test Core Basics and syntax of the role/language "
+                "(variables, data types, primitive vs complex types, equality checks, loops, condition branches, basic functions, input/output)."
+            )
+        elif diff_key == "Intermediate":
+            tier_instructions = (
+                "TIER: INTERMEDIATE / MEDIUM LEVEL (Questions 21 to 40 equivalent):\n"
+                "- Questions MUST test Intermediate concepts & Object-Oriented Programming (OOP) "
+                "(mutable vs immutable references, copy semantics, classes, objects, inheritance, polymorphism, method overriding, closures/lambdas, exception handling, module packaging)."
+            )
         else:
-            curriculum_guide = """
-STRUCTURE AND TOPIC BLUEPRINT:
-- Question 1 and Question 2: MUST test Core foundational fundamentals of the role.
-- Question 3, Question 4, Question 5 (and onwards): MUST test Object-Oriented Programming (OOP), architecture, design patterns, and practical problem-solving.
-"""
+            tier_instructions = (
+                "TIER: ADVANCED / HARD LEVEL (Questions 41 to 60 equivalent):\n"
+                "- Questions MUST test Advanced Internals, Concurrency & Performance "
+                "(memory management / garbage collection, multithreading vs multiprocessing / async, decorators / metaprogramming, optimization, thread safety, streaming big datasets, memory debugging)."
+            )
 
         system_prompt = (
             "You are a principal technical interviewer at a top technology company. "
             "You pride yourself on asking razor-sharp, realistic, ONE-LINE questions that test true practical understanding.\n"
             "CRITICAL MANDATORY RULES:\n"
-            "1. EVERY QUESTION MUST BE EXACTLY ONE SINGLE LINE (a single, clear, direct sentence of 10 to 18 words maximum).\n"
-            "2. NEVER write multiple sentences, background scenario paragraphs, or follow-up sub-questions.\n"
-            "3. Follow the requested topic progression strictly (First 2 questions = Core Basics; Subsequent questions = OOPs & Architecture).\n"
-            "4. Respond with strictly valid JSON only. Never use unescaped double quotes inside string values; use single quotes instead."
+            "1. EVERY QUESTION MUST BE EXACTLY ONE SINGLE LINE (a single, direct sentence of 10 to 18 words maximum).\n"
+            "2. NEVER write multiple sentences, code blocks, or scenario paragraphs.\n"
+            "3. Follow the requested difficulty tier instructions strictly.\n"
+            "4. Respond with strictly valid JSON only."
         )
 
+        questions_needed = max(1, count - 1)
         user_prompt = f"""
-Generate {count} {difficulty} level {question_type} interview questions for the role of "{role}".
-{curriculum_guide}
+Generate {questions_needed} {diff_key} level technical interview questions for the role of "{role}".
+{tier_instructions}
 {exclude_block}
+
 CRITICAL REQUIREMENT:
-Every single question MUST be exactly 1 line (one short, direct, punchy sentence ending with a question mark).
+Every single question MUST be exactly 1 line ending with a question mark.
 
 Return JSON with EXACTLY this structure:
 {{
   "questions": [
-    {{"id": 1, "question": "Short single-line question?", "category": "Core Basics"}},
-    {{"id": 2, "question": "Short single-line question?", "category": "Core Basics"}},
-    {{"id": 3, "question": "Short single-line question?", "category": "OOPs"}},
-    {{"id": 4, "question": "Short single-line question?", "category": "OOPs"}},
-    {{"id": 5, "question": "Short single-line question?", "category": "OOPs"}}
+    {{"question": "Short single-line question?", "category": "Technical"}}
   ]
 }}
 """
         try:
             raw_res = self._chat(system_prompt, user_prompt, temperature=0.7)
             q_list = raw_res.get('questions', [])
-            cleaned_questions = []
 
-            for idx, item in enumerate(q_list):
+            final_questions = [
+                {"id": 1, "question": f"Introduce yourself and highlight your experience as a {role}.", "category": "Introduction"}
+            ]
+
+            for idx, item in enumerate(q_list[:questions_needed]):
                 q_text = str(item.get('question', '')).strip()
-                # Post-processing: Strictly guarantee 1 single line
                 if '\n' in q_text:
                     q_text = q_text.split('\n')[0].strip()
-                # Truncate if multiple sentences returned
                 parts = re.split(r'(?<=[.?!])\s+', q_text)
                 if len(parts) > 1 and len(parts[0]) >= 20:
                     q_text = parts[0].strip()
                 if not q_text.endswith('?'):
                     q_text = q_text.rstrip('.! ') + '?'
 
-                cat = item.get('category') or ('Core Basics' if idx < 2 else 'OOPs & Architecture')
-                cleaned_questions.append({
-                    "id": idx + 1,
+                cat = item.get('category') or ("Core Basics" if diff_key == "Beginner" else ("Core OOPs" if diff_key == "Intermediate" else "Advanced Internals"))
+                final_questions.append({
+                    "id": idx + 2,
                     "question": q_text,
                     "category": cat
                 })
 
-            if cleaned_questions:
-                return {"questions": cleaned_questions}
+            if len(final_questions) >= 2:
+                return {"questions": final_questions}
         except Exception as e:
-            logger.warning(f"Groq question generation failed, using structured 1-line fallback: {e}")
+            logger.warning(f"Groq question generation failed, using structured fallback: {e}")
 
-        # High-quality 1-line fallback questions following the exact 2-basic + 3-OOPs blueprint
-        return self._get_fallback_questions(role, count)
+        return self._get_fallback_questions(role, diff_key, count)
 
-    def _get_fallback_questions(self, role: str, count: int = 5) -> dict:
-        """Structured 1-line fallback questions with 2-basic + 3-OOPs blueprint."""
+    def _get_fallback_questions(self, role: str, difficulty: str = "Intermediate", count: int = 5) -> dict:
+        """Structured 1-line fallback questions with Question 1 as introduction."""
         role_lower = (role or "").lower()
+        diff_key = "Beginner" if difficulty in ["Beginner", "Easy", "Simple"] else (
+            "Advanced" if difficulty in ["Advanced", "Hard"] else "Intermediate"
+        )
 
-        if "python" in role_lower:
-            pool = [
-                {"question": "What is the key difference between mutable and immutable data types in Python?", "category": "Core Basics"},
-                {"question": "How does Python handle memory management and automatic garbage collection internally?", "category": "Core Basics"},
-                {"question": "What is the difference between @classmethod and @staticmethod in Python classes?", "category": "OOPs"},
-                {"question": "How does multiple inheritance work in Python and how does MRO resolve method calls?", "category": "OOPs"},
-                {"question": "How do dunder methods like __init__ and __str__ implement encapsulation and representation in Python?", "category": "OOPs"},
-                {"question": "How can you implement abstract classes and enforce method overriding using Python's abc module?", "category": "OOPs"},
-                {"question": "What is the difference between composition and inheritance in Python object design?", "category": "OOPs"},
-                {"question": "How does polymorphism allow different Python classes to share the same interface?", "category": "OOPs"},
-                {"question": "How do property decorators enable data encapsulation and getter/setter logic in Python?", "category": "OOPs"},
-                {"question": "What is the difference between shallow copy and deep copy when working with custom objects in Python?", "category": "OOPs"},
-            ]
-        elif "java" in role_lower:
-            pool = [
-                {"question": "What is the difference between JDK, JRE, and JVM in Java architecture?", "category": "Core Basics"},
-                {"question": "Why are String objects immutable in Java and how does the String Constant Pool work?", "category": "Core Basics"},
-                {"question": "What is the difference between Method Overloading and Method Overriding in Java OOP?", "category": "OOPs"},
-                {"question": "When would you prefer an Abstract Class over an Interface in Java object design?", "category": "OOPs"},
-                {"question": "How does Java enforce encapsulation using access modifiers and getter/setter methods?", "category": "OOPs"},
-                {"question": "How does Runtime Polymorphism work using dynamic method dispatch in Java?", "category": "OOPs"},
-                {"question": "What is the difference between composition and inheritance in Java software architecture?", "category": "OOPs"},
-                {"question": "How does the final keyword impact class inheritance, methods, and member variables?", "category": "OOPs"},
-            ]
+        intro_q = {
+            "id": 1,
+            "question": f"Introduce yourself and highlight your experience as a {role}.",
+            "category": "Introduction"
+        }
+
+        if "java" in role_lower:
+            if diff_key == "Beginner":
+                pool = [
+                    {"question": "What is the difference between JDK, JRE, and JVM in Java architecture?", "category": "Core Basics"},
+                    {"question": "What are primitive data types versus wrapper classes in Java?", "category": "Core Basics"},
+                    {"question": "What is the difference between == and equals() in Java?", "category": "Core Basics"},
+                    {"question": "How does a for-each loop differ from a traditional for loop in Java?", "category": "Core Basics"},
+                    {"question": "What are the access modifiers in Java and their scopes?", "category": "Core Basics"},
+                ]
+            elif diff_key == "Intermediate":
+                pool = [
+                    {"question": "What is the difference between Method Overloading and Method Overriding in Java?", "category": "Core OOPs"},
+                    {"question": "When would you prefer an Abstract Class over an Interface in Java?", "category": "Core OOPs"},
+                    {"question": "Why are String objects immutable in Java and how does the String Constant Pool work?", "category": "Core OOPs"},
+                    {"question": "What is the difference between checked and unchecked exceptions in Java?", "category": "Core OOPs"},
+                    {"question": "What is the difference between shallow copy and deep copy in Java?", "category": "Core OOPs"},
+                ]
+            else:
+                pool = [
+                    {"question": "How does the Java Garbage Collector manage heap memory and detect unreferenced objects?", "category": "Advanced Internals"},
+                    {"question": "What is the difference between synchronized blocks, ReentrantLock, and volatile variables in Java?", "category": "Advanced Internals"},
+                    {"question": "How does the Java Memory Model guarantee thread visibility and instruction reordering prevention?", "category": "Advanced Internals"},
+                    {"question": "How would you diagnose and resolve a Java heap OutOfMemoryError in production?", "category": "Advanced Internals"},
+                ]
         elif any(k in role_lower for k in ["frontend", "react", "javascript"]):
-            pool = [
-                {"question": "What is the difference between let, const, and var regarding scoping and hoisting in JavaScript?", "category": "Core Basics"},
-                {"question": "How does JavaScript's Event Loop handle microtasks like Promises versus macrotasks like setTimeout?", "category": "Core Basics"},
-                {"question": "How does React's Virtual DOM diffing algorithm optimize UI re-renders?", "category": "Component Architecture"},
-                {"question": "What is the difference between useEffect and useLayoutEffect in React component lifecycle?", "category": "Component Architecture"},
-                {"question": "How do custom React hooks promote reusable stateful logic and modular design?", "category": "Component Architecture"},
-                {"question": "What is the difference between controlled and uncontrolled components in React forms?", "category": "Component Architecture"},
-            ]
+            if diff_key == "Beginner":
+                pool = [
+                    {"question": "What is the difference between let, const, and var in JavaScript?", "category": "Core Basics"},
+                    {"question": "What are the different primitive data types in JavaScript?", "category": "Core Basics"},
+                    {"question": "What is the difference between == and === in JavaScript?", "category": "Core Basics"},
+                    {"question": "What is an arrow function and how does it handle the this keyword?", "category": "Core Basics"},
+                ]
+            elif diff_key == "Intermediate":
+                pool = [
+                    {"question": "What are closures in JavaScript and how do they retain lexical scope?", "category": "Core OOPs"},
+                    {"question": "How does JavaScript's Event Loop handle microtasks versus macrotasks?", "category": "Core OOPs"},
+                    {"question": "How does React's Virtual DOM diffing algorithm optimize UI re-renders?", "category": "Component Architecture"},
+                    {"question": "What is the difference between controlled and uncontrolled components in React?", "category": "Component Architecture"},
+                ]
+            else:
+                pool = [
+                    {"question": "How would you optimize a slow React application experiencing unnecessary re-renders?", "category": "Advanced Internals"},
+                    {"question": "What are Web Workers and how do they enable multi-threading in JavaScript?", "category": "Advanced Internals"},
+                    {"question": "How do JavaScript memory leaks occur and how do you trace them with browser DevTools?", "category": "Advanced Internals"},
+                ]
         else:
             pool = [
                 {"question": f"What are the foundational core principles of working as a professional {role}?", "category": "Core Basics"},
-                {"question": "How do you systematically debug and isolate an unexpected production performance bottleneck?", "category": "Core Basics"},
-                {"question": "How do you apply Object-Oriented Principles like encapsulation and polymorphism in your code?", "category": "OOPs"},
-                {"question": "What software design pattern do you frequently utilize to keep code modular and decoupled?", "category": "OOPs & Architecture"},
+                {"question": "How do you apply Object-Oriented Principles like encapsulation and polymorphism in your code?", "category": "Core OOPs"},
                 {"question": "How do you design systems with high testability, fault tolerance, and clear error handling?", "category": "Architecture"},
+                {"question": "How do you systematically debug and isolate an unexpected production bottleneck?", "category": "Advanced Internals"},
             ]
 
-        selected = pool[:count]
-        return {
-            "questions": [
-                {"id": idx + 1, "question": item["question"], "category": item["category"]}
-                for idx, item in enumerate(selected)
-            ]
-        }
+        questions = [intro_q]
+        for idx, item in enumerate(pool[:max(1, count - 1)]):
+            questions.append({
+                "id": idx + 2,
+                "question": item["question"],
+                "category": item["category"]
+            })
+
+        return {"questions": questions}
 
     # ---------------------------------------------------------------
     # Module 4: AI Interview - Answer Evaluation
@@ -316,12 +432,22 @@ Return JSON with EXACTLY this structure:
             "You are an expert technical interview evaluator. Always respond with "
             "valid JSON only, no extra text. Never output unescaped double quotes inside string values; use single quotes."
         )
+        intro_guidance = ""
+        q_lower = (question or "").lower()
+        if "introduce yourself" in q_lower or "tell me about yourself" in q_lower:
+            intro_guidance = (
+                "\nSPECIAL EVALUATION CRITERIA FOR INTRODUCTION QUESTION:\n"
+                "Evaluate the candidate on how clearly and professionally they introduce themselves, "
+                "their communication skills, confidence, structure of their introduction, "
+                "and relevance of the experience/skills they highlighted.\n"
+            )
+
         user_prompt = f"""
 Role: {role}
 Difficulty: {difficulty}
 Question: {question}
 Candidate's Answer: {answer}
-
+{intro_guidance}
 Evaluate the answer and return JSON with EXACTLY this structure:
 {{
   "technical_knowledge": <integer 0-100>,
