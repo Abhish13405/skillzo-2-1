@@ -1291,9 +1291,9 @@ const InterviewSession = () => {
   }
 
   return (
-    <div className="h-screen max-h-screen w-full bg-[#F4F6FB] dark:bg-[#080D1A] flex flex-col p-2 sm:p-4 lg:p-5 select-none font-sans overflow-hidden transition-colors duration-200">
-      {/* ─── Outer Card Frame (Fits Exact Viewport Height with Zero Scroll) ─── */}
-      <div className="w-full h-full max-w-[1400px] mx-auto bg-white dark:bg-[#0A0F1D] rounded-2xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 shadow-[0_10px_40px_-10px_rgba(30,58,138,0.08)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between overflow-hidden transition-colors duration-200">
+    <div className="min-h-screen lg:h-screen lg:max-h-screen w-full bg-[#F4F6FB] dark:bg-[#080D1A] flex flex-col p-2 sm:p-4 lg:p-5 select-none font-sans overflow-y-auto lg:overflow-hidden transition-colors duration-200">
+      {/* ─── Outer Card Frame (Fits Exact Viewport Height on Desktop) ─── */}
+      <div className="w-full min-h-full lg:h-full max-w-[1400px] mx-auto bg-white dark:bg-[#0A0F1D] rounded-2xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 shadow-[0_10px_40px_-10px_rgba(30,58,138,0.08)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between overflow-y-auto lg:overflow-hidden transition-colors duration-200">
         
         {/* ─── Top Header Bar (Slim & Clean) ─── */}
         <header className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
@@ -1424,12 +1424,12 @@ const InterviewSession = () => {
           <div className="flex-1 min-h-0 pt-2.5 sm:pt-3 grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-5 lg:gap-6 items-stretch">
             
             {/* ═════════════════════════════════════════════════════════════════
-                LEFT HALF (50%): FULL-FRAME LIVE VIDEO + COMPACT CONTROLS
+                LEFT HALF (50%): SQUARE LIVE VIDEO + COMPACT CONTROLS
             ═════════════════════════════════════════════════════════════════ */}
-            <div className="flex flex-col h-full justify-between gap-2.5 min-h-0">
+            <div className="flex flex-col h-full justify-between items-center gap-3 min-h-0 w-full">
               
-              {/* Full-Frame Video Screen */}
-              <div className="flex-1 min-h-0 relative w-full rounded-2xl overflow-hidden bg-slate-900 shadow-sm border border-slate-100 flex items-center justify-center group">
+              {/* Square Video Screen (1:1 Ratio for Full Face & Headshot View) */}
+              <div className="relative w-full aspect-square max-w-[420px] sm:max-w-[460px] lg:max-w-[480px] rounded-3xl overflow-hidden bg-slate-900 shadow-md border-2 border-slate-200/80 dark:border-slate-800 flex items-center justify-center group mx-auto">
                 
                 {/* 1. CANDIDATE FULL VIDEO */}
                 {mainView === 'candidate' ? (
@@ -1439,7 +1439,7 @@ const InterviewSession = () => {
                       autoPlay
                       playsInline
                       muted
-                      className="w-full h-full object-cover transform -scale-x-100"
+                      className="w-full h-full object-cover object-center transform -scale-x-100"
                     />
                   ) : (
                     /* Fallback when Camera is Off */
@@ -1453,7 +1453,7 @@ const InterviewSession = () => {
                       <p className="font-bold text-slate-300 text-xs mb-1">Camera is Off</p>
                       <button
                         onClick={startCamera}
-                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-colors shadow-sm"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-colors shadow-sm cursor-pointer"
                       >
                         Turn On Camera 📹
                       </button>
@@ -1464,7 +1464,7 @@ const InterviewSession = () => {
                   <img
                     src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80"
                     alt="AI Interviewer"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-center"
                   />
                 )}
 
@@ -1473,7 +1473,7 @@ const InterviewSession = () => {
                   <div
                     onClick={() => setMainView(v => (v === 'candidate' ? 'ai' : 'candidate'))}
                     title="Click to Swap Video View"
-                    className="absolute top-2.5 right-2.5 w-20 h-14 sm:w-24 sm:h-16 rounded-xl overflow-hidden border-2 border-white shadow-lg z-20 bg-slate-800 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                    className="absolute top-3 right-3 w-16 h-16 sm:w-20 sm:h-20 aspect-square rounded-2xl overflow-hidden border-2 border-white/90 shadow-xl z-20 bg-slate-800 cursor-pointer hover:scale-105 active:scale-95 transition-all"
                   >
                     {mainView === 'candidate' ? (
                       <div className="relative w-full h-full">
