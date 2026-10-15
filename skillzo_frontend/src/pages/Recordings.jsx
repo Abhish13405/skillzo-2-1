@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
@@ -16,6 +16,7 @@ import { uploadInterviewRecording } from '../api/interview'
 const Recordings = () => {
   const { user } = useAuth()
   const location = useLocation()
+  const videoPlayerRef = useRef(null)
 
   const userEmail = (user?.email || '').toLowerCase().trim()
   const isLeader = Boolean(
@@ -404,7 +405,7 @@ const Recordings = () => {
                           : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900'
                       }`}
                     >
-                      {rec.mode === 'video' ? '📹 Video' : '🎙️ Audio'}
+                      {rec.mode === 'video' ? '📹 Video + Audio' : '🎙️ Audio'}
                     </span>
                   </div>
 
@@ -423,7 +424,6 @@ const Recordings = () => {
                     {rec.mode === 'video' && blobUrl ? (
                       <video
                         src={blobUrl}
-
                         className="w-full h-full object-cover"
                         preload="metadata"
                       />
@@ -548,12 +548,25 @@ const Recordings = () => {
             </p>
 
             {/* Media Player */}
-            <div className="w-full bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center shadow-inner">
+            <div className="w-full bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center shadow-inner relative">
               {activePlayback.mode === 'video' ? (
                 <video
+                  ref={videoPlayerRef}
                   src={activePlayback.blobUrl}
                   controls
-                  autoPlay
+                  playsInline
+                  onPlay={(e) => {
+                    try {
+                      e.target.muted = false
+                      e.target.volume = 1.0
+                    } catch {}
+                  }}
+                  onLoadedMetadata={(e) => {
+                    try {
+                      e.target.muted = false
+                      e.target.volume = 1.0
+                    } catch {}
+                  }}
                   className="w-full h-full object-contain"
                 />
               ) : (
@@ -565,10 +578,42 @@ const Recordings = () => {
                     src={activePlayback.blobUrl}
                     controls
                     autoPlay
+                    onPlay={(e) => {
+                      try {
+                        e.target.muted = false
+                        e.target.volume = 1.0
+                      } catch {}
+                    }}
                     className="w-full max-w-md"
                   />
                 </div>
               )}
+            </div>
+
+            {/* Audio & Volume Quick Controls for Mobile / Desktop */}
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-[#131E38] p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (videoPlayerRef.current) {
+                      videoPlayerRef.current.muted = false
+                      videoPlayerRef.current.volume = 1.0
+                      videoPlayerRef.current.play().catch(() => {})
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  title="Unmute video to 100% volume"
+                >
+                  <span>🔊 Unmute / Sound 100%</span>
+                </button>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Mobile browser me aawaj na aaye toh ye button dabayein
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                Duration: ⏱️ {activePlayback.durationSeconds || 0}s
+              </div>
             </div>
 
             {/* Modal Footer Controls */}
