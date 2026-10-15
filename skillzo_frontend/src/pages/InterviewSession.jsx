@@ -600,14 +600,8 @@ const InterviewSession = () => {
     setIsCameraActive(false)
   }, [])
 
-  // Hardware Camera Start (captures selfie video + microphone on desktop, leaves mic for STT on mobile)
+  // Hardware Camera Start (captures selfie video + microphone on all devices)
   const startCamera = useCallback(async () => {
-    const isMobile = isMobileDevice()
-    // On mobile (Android/iOS), requesting audio in getUserMedia locks the hardware mic,
-    // which starves webkitSpeechRecognition and prevents live voice-to-text typing.
-    // On desktop, the OS audio mixer supports both concurrently.
-    const requestAudio = !isMobile
-
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -615,11 +609,11 @@ const InterviewSession = () => {
           width: { ideal: 640 }, // 640x480 gives crisp clarity while keeping storage ultra-compact
           height: { ideal: 480 },
         },
-        audio: requestAudio ? {
+        audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-        } : false,
+        },
       })
       streamRef.current = s
       setStream(s)
@@ -653,11 +647,14 @@ const InterviewSession = () => {
 
   // Audio Only Stream for Audio Mode
   const startAudioStream = useCallback(async () => {
-    const isMobile = isMobileDevice()
-    if (isMobile) return // On mobile, leave the mic exclusively for SpeechRecognition so voice typing works
-
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const s = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
       streamRef.current = s
       setStream(s)
     } catch (err) {
@@ -687,6 +684,11 @@ const InterviewSession = () => {
     }
     const mode = session?.mode || 'video'
     if (mode === 'text') return // text mode does not record media
+
+    // Explicitly guarantee all hardware audio tracks are enabled before recording starts
+    activeStream.getAudioTracks().forEach((track) => {
+      track.enabled = true
+    })
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       // Already actively recording this turn, do not abort or wipe out recorded chunks
@@ -747,6 +749,7 @@ const InterviewSession = () => {
     setIsMediaRecording(false)
     return new Promise((resolve) => {
       const recorder = mediaRecorderRef.current
+      mediaRecorderRef.current = null
       const mode = session?.mode || 'video'
       const mimeType = recorder?.mimeType || (mode === 'audio' ? 'audio/webm' : 'video/webm')
 
@@ -1081,7 +1084,7 @@ const InterviewSession = () => {
       resetTranscript()
       if (streamRef.current) {
         streamRef.current.getAudioTracks().forEach((track) => {
-          track.enabled = false
+          track.enabled = true
         })
       }
       setIsAiAsking(true)
