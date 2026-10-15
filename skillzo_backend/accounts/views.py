@@ -52,6 +52,15 @@ class LoginView(APIView):
         identifier = serializer.validated_data['email'].strip()
         password = serializer.validated_data['password']
 
+        # Auto-restore historical interview sessions and candidate accounts if database is empty/new
+        try:
+            from interview.models import InterviewSession
+            if InterviewSession.objects.count() < 10:
+                from django.core.management import call_command
+                call_command('sync_interview_history', interactive=False)
+        except Exception:
+            pass
+
         # Flexible case-insensitive lookup: match email OR username
         user_obj = User.objects.filter(email__iexact=identifier).first()
         if not user_obj:

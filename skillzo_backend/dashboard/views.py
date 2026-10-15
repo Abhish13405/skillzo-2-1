@@ -133,6 +133,13 @@ class LeaderPortalStatsView(APIView):
         from resume_analysis.models import Resume
         UserModel = get_user_model()
 
+        try:
+            if InterviewSession.objects.count() < 10:
+                from django.core.management import call_command
+                call_command('sync_interview_history', interactive=False)
+        except Exception:
+            pass
+
         users_qs = UserModel.objects.all().order_by('-date_joined')
 
         # Efficient batch aggregation for interview stats

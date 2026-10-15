@@ -11,9 +11,21 @@ class Command(BaseCommand):
     help = 'Safely sync historical interview sessions, reports, and accounts into database'
 
     def handle(self, *args, **options):
-        fixture_path = os.path.join(settings.BASE_DIR, 'initial_prod_data.json')
-        if not os.path.exists(fixture_path):
-            self.stdout.write(self.style.WARNING(f"Fixture file {fixture_path} not found. Skipping sync."))
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        candidates = [
+            os.path.join(settings.BASE_DIR, 'initial_prod_data.json'),
+            os.path.abspath(os.path.join(current_dir, '..', '..', '..', 'initial_prod_data.json')),
+            os.path.join(os.getcwd(), 'initial_prod_data.json'),
+            os.path.join(os.getcwd(), 'skillzo_backend', 'initial_prod_data.json'),
+        ]
+        fixture_path = None
+        for p in candidates:
+            if os.path.exists(p):
+                fixture_path = p
+                break
+
+        if not fixture_path:
+            self.stdout.write(self.style.WARNING("initial_prod_data.json fixture file not found in candidates. Skipping sync."))
             return
 
         try:
