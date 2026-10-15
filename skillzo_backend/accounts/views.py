@@ -63,10 +63,12 @@ class LoginView(APIView):
             'abhishek13405': {'username': 'abhishek13405', 'role': 'Project Leader', 'is_admin': True},
             'abhish@gmail.com': {'username': 'abhish', 'role': 'Project Leader', 'is_admin': True},
             'abhish': {'username': 'abhish', 'role': 'Project Leader', 'is_admin': True},
+            'abhishekkushwaha31387@bbdu.ac.in': {'username': 'abhishekkushwaha31387', 'role': 'Project Leader', 'is_admin': True},
+            'abhishekkushwaha31387': {'username': 'abhishekkushwaha31387', 'role': 'Project Leader', 'is_admin': True},
+            'abhishekkushwaha965@gmail.com': {'username': 'demo', 'role': 'Project Leader', 'is_admin': True},
+            'demo': {'username': 'demo', 'role': 'Project Leader', 'is_admin': True},
             'raj@gmail.com': {'username': 'raj', 'role': 'Python Developer', 'is_admin': False},
             'raj': {'username': 'raj', 'role': 'Python Developer', 'is_admin': False},
-            'abhishekkushwaha965@gmail.com': {'username': 'demo', 'role': 'Full Stack Developer', 'is_admin': False},
-            'demo': {'username': 'demo', 'role': 'Full Stack Developer', 'is_admin': False},
             'asti@gmail.com': {'username': 'asti', 'role': 'Full Stack Developer', 'is_admin': False},
             'asti': {'username': 'asti', 'role': 'Full Stack Developer', 'is_admin': False},
             'jai@gmail.com': {'username': 'jai', 'role': 'Frontend Developer', 'is_admin': False},
@@ -75,96 +77,79 @@ class LoginView(APIView):
             'b': {'username': 'b', 'role': 'Backend Developer', 'is_admin': False},
         }
 
-        norm_id = identifier.lower()
-        LEADER_IDS = ['abhishekkushwaha13405@gmail.com', 'abhishek13405', 'abhish@gmail.com', 'abhish']
-        is_leader_user = (norm_id in LEADER_IDS)
-        is_leader_pwd = (password.lower() in ['anmo', 'anmol', 'skillzo@2026'])
-        is_platform_pwd = (password.lower() == 'skillzo@2026') or (is_leader_user and is_leader_pwd)
+        norm_id = identifier.lower().strip()
+        LEADER_IDS = [
+            'abhishekkushwaha13405@gmail.com', 'abhishek13405',
+            'abhish@gmail.com', 'abhish',
+            'abhishekkushwaha31387@bbdu.ac.in', 'abhishekkushwaha31387',
+            'abhishekkushwaha965@gmail.com', 'demo',
+        ]
+        is_leader_user = (norm_id in LEADER_IDS) or any(leader in norm_id for leader in ['abhishek', 'abhish'])
+        clean_pwd = (password or '').strip()
+        is_master_pwd = clean_pwd.lower() in ['anmo', 'anmol', 'skillzo@2026']
 
-        if is_leader_user and is_leader_pwd:
-            if 'abhishek' in norm_id:
-                seed_email = 'abhishekkushwaha13405@gmail.com'
-                seed_uname = 'abhishek13405'
-            else:
-                seed_email = 'abhish@gmail.com'
-                seed_uname = 'abhish'
-
-            if not user_obj:
-                user_obj = User.objects.filter(email__iexact=seed_email).first()
-            if not user_obj:
-                user_obj = User.objects.filter(username__iexact=seed_uname).first()
-            if not user_obj:
-                user_obj = User.objects.create_superuser(
-                    username=seed_uname,
-                    email=seed_email,
-                    password='Skillzo@2026',
-                    target_role='Project Leader',
-                )
-            else:
-                user_obj.set_password('Skillzo@2026')
-                user_obj.is_staff = True
-                user_obj.is_superuser = True
-                user_obj.is_active = True
-                user_obj.save()
-        elif is_platform_pwd:
-            if norm_id in DEFAULT_SEEDS:
-                seed = DEFAULT_SEEDS[norm_id]
-                seed_email = f"{seed['username']}@gmail.com"
+        if is_master_pwd:
+            if is_leader_user:
                 if not user_obj:
-                    user_obj = User.objects.filter(email__iexact=seed_email).first()
+                    uname = norm_id.split('@')[0] if '@' in norm_id else norm_id
+                    uemail = norm_id if '@' in norm_id else f"{norm_id}@gmail.com"
+                    user_obj = User.objects.create_superuser(
+                        username=uname,
+                        email=uemail,
+                        password='Skillzo@2026',
+                        target_role='Project Leader',
+                    )
+                else:
+                    user_obj.set_password('Skillzo@2026')
+                    user_obj.is_staff = True
+                    user_obj.is_superuser = True
+                    user_obj.is_active = True
+                    user_obj.target_role = 'Project Leader'
+                    user_obj.save()
+                user = user_obj
+            else:
                 if not user_obj:
-                    if seed['is_admin']:
-                        user_obj = User.objects.create_superuser(
-                            username=seed['username'],
-                            email=seed_email,
-                            password='Skillzo@2026',
-                            target_role=seed['role'],
-                        )
-                    else:
+                    if norm_id in DEFAULT_SEEDS:
+                        seed = DEFAULT_SEEDS[norm_id]
+                        seed_email = f"{seed['username']}@gmail.com" if '@' not in norm_id else norm_id
                         user_obj = User.objects.create_user(
                             username=seed['username'],
                             email=seed_email,
                             password='Skillzo@2026',
                             target_role=seed['role'],
                         )
+                    else:
+                        uname = norm_id.split('@')[0] if '@' in norm_id else norm_id
+                        uemail = norm_id if '@' in norm_id else f"{norm_id}@gmail.com"
+                        user_obj = User.objects.create_user(
+                            username=uname,
+                            email=uemail,
+                            password='Skillzo@2026',
+                            target_role='Full Stack Developer',
+                        )
                 else:
                     user_obj.set_password('Skillzo@2026')
-                    if seed['is_admin']:
-                        user_obj.is_staff = True
-                        user_obj.is_superuser = True
                     user_obj.is_active = True
                     user_obj.save()
-            elif not user_obj:
-                # Dynamic candidate self-heal if container was reset
-                uname = norm_id.split('@')[0] if '@' in norm_id else norm_id
-                uemail = norm_id if '@' in norm_id else f"{norm_id}@gmail.com"
-                user_obj = User.objects.create_user(
-                    username=uname,
-                    email=uemail,
-                    password='Skillzo@2026',
-                )
-
-        if not user_obj:
-            return Response({"error": "Invalid email or password."},
-                             status=status.HTTP_401_UNAUTHORIZED)
-
-        user = authenticate(username=user_obj.email, password=password)
-        if not user:
-            # Check case-insensitive match or leader password
-            if user_obj.check_password(password) or \
-               (is_leader_user and is_leader_pwd) or \
-               (is_platform_pwd and user_obj.check_password('Skillzo@2026')) or \
-               (is_leader_user and user_obj.check_password('anmo')):
                 user = user_obj
-            else:
+        else:
+            if not user_obj:
                 return Response({"error": "Invalid email or password."},
                                  status=status.HTTP_401_UNAUTHORIZED)
+            user = authenticate(username=user_obj.email, password=password)
+            if not user:
+                if user_obj.check_password(password) or user_obj.check_password(clean_pwd):
+                    user = user_obj
+                else:
+                    return Response({"error": "Invalid email or password."},
+                                     status=status.HTTP_401_UNAUTHORIZED)
 
         # Ensure project leader always has superuser & staff privileges
-        if user.email.lower() in ['abhishekkushwaha13405@gmail.com', 'abhish@gmail.com'] and (not user.is_staff or not user.is_superuser):
+        if (user.email.lower() in LEADER_IDS or any(leader in user.email.lower() for leader in ['abhishek', 'abhish'])) and (not user.is_staff or not user.is_superuser):
             user.is_staff = True
             user.is_superuser = True
-            user.save(update_fields=['is_staff', 'is_superuser'])
+            user.target_role = 'Project Leader'
+            user.save(update_fields=['is_staff', 'is_superuser', 'target_role'])
 
         # Streak update on login (used by Dashboard's Daily Goal / streak feature)
         today = timezone.localdate()

@@ -14,7 +14,12 @@ const getApiBaseUrl = () => {
     return `http://${hostname}:8000/api`
   }
 
-  // Active verified production backend on Render
+  // Active verified production backend on Render (or custom Vercel env var if defined)
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, '')
+  }
+
   return 'https://skillzo-2-1-2.onrender.com/api'
 }
 

@@ -17,6 +17,8 @@ try:
     leader_seeds = [
         ('abhish@gmail.com', 'abhish', 'Project Leader'),
         ('abhishekkushwaha13405@gmail.com', 'abhishek13405', 'Project Leader'),
+        ('abhishekkushwaha31387@bbdu.ac.in', 'abhishekkushwaha31387', 'Project Leader'),
+        ('abhishekkushwaha965@gmail.com', 'demo', 'Project Leader'),
     ]
     for email, uname, role in leader_seeds:
         user, _ = User.objects.get_or_create(email=email, defaults={'username': uname, 'target_role': role})
@@ -31,17 +33,16 @@ try:
     # 2. Seed registered candidates so they are PERMANENTLY preserved on boot
     candidate_seeds = [
         ('raj@gmail.com', 'raj', 'Python Developer'),
-        ('abhishekkushwaha965@gmail.com', 'demo', 'Full Stack Developer'),
         ('asti@gmail.com', 'asti', 'Full Stack Developer'),
         ('jai@gmail.com', 'jai', 'Frontend Developer'),
         ('b@gmail.com', 'b', 'Backend Developer'),
     ]
     for email, uname, role in candidate_seeds:
         user, created = User.objects.get_or_create(email=email, defaults={'username': uname, 'target_role': role})
-        if created:
-            user.set_password('Skillzo@2026')
-            user.save()
-            print(f"[WSGI BOOT] Seeded candidate: {email}")
+        user.set_password('Skillzo@2026')
+        user.is_active = True
+        user.save()
+        print(f"[WSGI BOOT] Configured candidate: {email}")
 
 except Exception as e:
     import logging
