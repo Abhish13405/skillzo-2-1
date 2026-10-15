@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+export const PRODUCTION_API_URL = 'https://skillzo-2-1-2.onrender.com/api'
+
 const getApiBaseUrl = () => {
   if (typeof window === 'undefined') return 'http://127.0.0.1:8000/api'
   const hostname = window.location.hostname
@@ -14,13 +16,17 @@ const getApiBaseUrl = () => {
     return `http://${hostname}:8000/api`
   }
 
-  // Active verified production backend on Render (or custom Vercel env var if defined)
-  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
-  if (envUrl) {
-    return envUrl.replace(/\/+$/, '')
+  // Active verified production backend on Render (ignores dead skillzo-2-1-5 or localhost in production)
+  let envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
+  if (envUrl && !envUrl.includes('skillzo-2-1-5') && !envUrl.includes('127.0.0.1') && !envUrl.includes('localhost')) {
+    envUrl = envUrl.replace(/\/+$/, '')
+    if (!envUrl.endsWith('/api')) {
+      envUrl = `${envUrl}/api`
+    }
+    return envUrl
   }
 
-  return 'https://skillzo-2-1-2.onrender.com/api'
+  return PRODUCTION_API_URL
 }
 
 export const API_BASE_URL = getApiBaseUrl()
