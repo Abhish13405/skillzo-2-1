@@ -4,6 +4,8 @@ export const signup = (data) => api.post('/auth/signup/', data)
 
 export const login = (data) => api.post('/auth/login/', data)
 
+export const guestLogin = () => api.post('/auth/guest-login/')
+
 export const forgotPassword = (email) => api.post('/auth/forgot-password/', { email })
 
 export const verifyOtp = (data) => api.post('/auth/verify-otp/', data)

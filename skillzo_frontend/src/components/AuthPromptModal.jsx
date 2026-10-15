@@ -1,8 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const AuthPromptModal = ({ isOpen, onClose, featureName = 'this feature' }) => {
   const navigate = useNavigate()
+  const { loginAsGuest } = useAuth()
+  const [guestLoading, setGuestLoading] = useState(false)
 
   if (!isOpen) return null
 
@@ -14,6 +17,18 @@ const AuthPromptModal = ({ isOpen, onClose, featureName = 'this feature' }) => {
   const handleSignup = () => {
     onClose()
     navigate('/signup')
+  }
+
+  const handleGuest = async () => {
+    setGuestLoading(true)
+    try {
+      await loginAsGuest()
+      onClose()
+    } catch {
+      onClose()
+    } finally {
+      setGuestLoading(false)
+    }
   }
 
   return (
@@ -65,13 +80,15 @@ const AuthPromptModal = ({ isOpen, onClose, featureName = 'this feature' }) => {
           </button>
         </div>
 
-        {/* Cancel link */}
-        <div className="mt-4 text-center">
+        {/* Guest direct access */}
+        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
           <button 
-            onClick={onClose}
-            className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium underline"
+            onClick={handleGuest}
+            disabled={guestLoading}
+            className="w-full py-2.5 px-4 rounded-xl border border-emerald-500/40 hover:border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
           >
-            Continue as Guest on Dashboard
+            <span>⚡</span>
+            <span>{guestLoading ? 'Activating Guest Session...' : 'Or Continue as Guest (No Email / Signup Needed)'}</span>
           </button>
         </div>
       </div>

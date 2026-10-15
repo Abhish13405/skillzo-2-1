@@ -42,6 +42,38 @@ class SignupView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class GuestLoginView(APIView):
+    """POST /api/auth/guest-login/ -- Instant 1-click guest access without email or password"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        guest_email = "guest@skillzo.ai"
+        user = User.objects.filter(email__iexact=guest_email).first()
+        if not user:
+            user = User.objects.create_user(
+                username="GuestCandidate",
+                email=guest_email,
+                password="SkillzoGuest@2026",
+                target_role="Full Stack Developer",
+                is_staff=False,
+                is_superuser=False,
+            )
+        else:
+            if user.is_staff or user.is_superuser:
+                user.is_staff = False
+                user.is_superuser = False
+                user.save(update_fields=['is_staff', 'is_superuser'])
+
+        tokens = get_tokens_for_user(user)
+        user_data = ProfileSerializer(user).data
+        user_data['is_guest'] = True
+        return Response({
+            "message": "Guest mode activated successfully.",
+            "user": user_data,
+            "tokens": tokens,
+        }, status=status.HTTP_200_OK)
+
+
 class LoginView(APIView):
     """POST /api/auth/login/"""
     permission_classes = [permissions.AllowAny]

@@ -6,8 +6,22 @@ const Signup = () => {
   const [form, setForm] = useState({ username: '', email: '', password: '', confirm_password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signup } = useAuth()
+  const [guestLoading, setGuestLoading] = useState(false)
+  const { signup, loginAsGuest } = useAuth()
   const navigate = useNavigate()
+
+  const handleGuestLogin = async () => {
+    setError('')
+    setGuestLoading(true)
+    try {
+      await loginAsGuest()
+      navigate('/dashboard')
+    } catch {
+      setError('Could not start guest session. Please try again.')
+    } finally {
+      setGuestLoading(false)
+    }
+  }
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -125,10 +139,29 @@ const Signup = () => {
               placeholder="Re-enter password"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full mt-2 shadow-md shadow-blue-500/20 py-3">
+          <button type="submit" disabled={loading || guestLoading} className="btn-primary w-full mt-2 shadow-md shadow-blue-500/20 py-3">
             {loading ? 'Creating account...' : 'Create Account →'}
           </button>
         </form>
+
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white dark:bg-[#0D1527] px-3 text-slate-400 font-mono text-[10px] font-bold">Or Instant Access</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGuestLogin}
+          disabled={loading || guestLoading}
+          className="w-full py-3 px-4 rounded-xl border border-emerald-500/50 hover:border-emerald-500 bg-emerald-50/70 hover:bg-emerald-100/60 dark:bg-emerald-950/25 dark:hover:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-xs"
+        >
+          <span>⚡</span>
+          <span>{guestLoading ? 'Activating Guest Mode...' : 'Continue as Guest (No Email Needed)'}</span>
+        </button>
 
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-6 text-center">
           Already have an account?{' '}

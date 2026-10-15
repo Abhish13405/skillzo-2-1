@@ -16,14 +16,16 @@ const LeaderPortal = () => {
   const userEmail = (user?.email || '').toLowerCase().trim()
   const userName = (user?.username || '').toLowerCase().trim()
   const isLeader = Boolean(
-    user && (
+    user && !user.is_guest && (
       user.is_leader ||
       user.is_staff ||
       user.is_superuser ||
       userEmail === 'abhishekkushwaha13405@gmail.com' ||
       userEmail === 'abhish@gmail.com' ||
+      userEmail === 'abhishekkushwaha31387@bbdu.ac.in' ||
       userName === 'abhishek13405' ||
-      userName === 'abhish'
+      userName === 'abhish' ||
+      userName === 'abhishekkushwaha31387'
     )
   )
 

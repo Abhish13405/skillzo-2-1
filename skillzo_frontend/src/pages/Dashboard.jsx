@@ -59,8 +59,18 @@ const defaultGuestData = {
 const Dashboard = () => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const { user, requireAuth } = useAuth()
+  const { user, requireAuth, loginAsGuest } = useAuth()
+  const [guestActivating, setGuestActivating] = useState(false)
   const navigate = useNavigate()
+
+  const handleActivateGuest = async () => {
+    setGuestActivating(true)
+    try {
+      await loginAsGuest()
+    } finally {
+      setGuestActivating(false)
+    }
+  }
 
   useEffect(() => {
     if (!user) {
@@ -85,6 +95,30 @@ const Dashboard = () => {
 
   return (
     <AppShell>
+      {!user && (
+        <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 flex-wrap animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚡</span>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                Guest Mode: Practice AI Mock Interviews & ATS Resumes without Sign Up!
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                1-click instant access to all candidate practice features.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleActivateGuest}
+            disabled={guestActivating}
+            className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+          >
+            <span>⚡</span>
+            <span>{guestActivating ? 'Activating...' : 'Continue as Guest'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3 flex-wrap border-b border-slate-200/60 dark:border-slate-800/80 pb-3 sm:pb-4">
         <div>
