@@ -1400,10 +1400,13 @@ const InterviewSession = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold font-mono border border-blue-200 dark:border-blue-900/60">
+              Q{current + 1} of {questions.length || 1}
+            </span>
             {isMediaRecording && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 text-[10px] font-bold font-mono border border-rose-200 dark:border-rose-900/60">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 text-[11px] font-bold font-mono border border-rose-200 dark:border-rose-900/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping" />
-                REC
+                <span>REC {formatTime(recordingSeconds)} / 00:30 ({questionSeconds}s bachi)</span>
               </span>
             )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] text-slate-600 dark:text-slate-300 text-[11px] font-bold font-mono border border-slate-200/80 dark:border-slate-800">
@@ -1629,6 +1632,43 @@ const InterviewSession = () => {
                   </span>
                 </div>
 
+                {/* Bottom-Right Video Time Duration Badge (Kitni video chal rhi & Kitni bachi) */}
+                {!isAiAsking && (
+                  <div className="absolute bottom-2.5 right-2.5 z-20 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-700/80 shadow-md flex items-center gap-1.5 text-white font-mono text-[11px]">
+                    <span className="flex items-center gap-1 font-bold text-slate-100">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                      <span>{formatTime(recordingSeconds)}</span>
+                    </span>
+                    <span className="text-slate-500 font-bold">/</span>
+                    <span className="text-slate-400 font-semibold">00:30</span>
+                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                      questionSeconds <= 5 
+                        ? 'bg-rose-600 text-white animate-pulse' 
+                        : questionSeconds <= 10 
+                        ? 'bg-amber-500 text-white' 
+                        : 'bg-emerald-600 text-white'
+                    }`}>
+                      {questionSeconds}s bachi
+                    </span>
+                  </div>
+                )}
+
+                {/* Bottom Video Progress Bar (0 to 100%) */}
+                {!isAiAsking && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/50 z-30 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        questionSeconds <= 5 
+                          ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]' 
+                          : questionSeconds <= 10 
+                          ? 'bg-amber-400' 
+                          : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(100, Math.max(0, ((30 - questionSeconds) / 30) * 100))}%` }}
+                    />
+                  </div>
+                )}
+
                 {/* Pause Interview Modal Overlay */}
                 {isPaused && (
                   <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fade-in">
@@ -1797,11 +1837,23 @@ const InterviewSession = () => {
                           : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 5 ? 'bg-rose-500' : questionSeconds <= 10 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                        Time: {questionSeconds}s
+                        <span>⏱️ {formatTime(recordingSeconds)} / 00:30 ({questionSeconds}s bachi)</span>
                       </span>
                     )}
                   </div>
                 </div>
+
+                {/* Question Duration Progress Bar */}
+                {!isAiAsking && (
+                  <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        questionSeconds <= 5 ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]' : questionSeconds <= 10 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(100, Math.max(0, ((30 - questionSeconds) / 30) * 100))}%` }}
+                    />
+                  </div>
+                )}
                 <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-3">
                   {current === 0 ? "Introduce yourself." : (question?.question_text || 'Tell me about a time you solved a difficult problem.')}
                 </p>
