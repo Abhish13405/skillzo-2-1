@@ -927,8 +927,6 @@ const InterviewSession = () => {
     setIsMicActive(false)
 
     setIsAiAsking(true)
-    setIsCountingDown(false)
-    setSpeechCountdown(0)
     setQuestionSeconds(60)
     setRecordingSeconds(0)
     setSilenceSeconds(10)
@@ -940,13 +938,41 @@ const InterviewSession = () => {
       return
     }
 
-    // Brief 250ms tick for browser audio context, then AI speaks question immediately
+    // First question: exactly 3 seconds delay so candidate can settle in!
+    // Subsequent questions: 500ms brief pause
+    const isFirstQuestion = current === 0
+    const delayMs = isFirstQuestion ? 3000 : 500
+
+    if (isFirstQuestion) {
+      setIsCountingDown(true)
+      setSpeechCountdown(3)
+    } else {
+      setIsCountingDown(false)
+      setSpeechCountdown(0)
+    }
+
+    let countdownInterval = null
+    if (isFirstQuestion) {
+      countdownInterval = setInterval(() => {
+        setSpeechCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+
+    // AI speaks question strictly after delay: 3s for Q1, 500ms for subsequent
     const startTimer = setTimeout(() => {
+      setIsCountingDown(false)
+      setSpeechCountdown(0)
       speak(q.question_text, () => {
         // AI finished speaking the question -> IMMEDIATELY open mic & candidate answering turn begins!
         handleAiFinishedAsking()
       })
-    }, 250)
+    }, delayMs)
 
     // Safety fallback: ONLY trigger fallback if speech synthesis is NOT speaking and didn't fire
     const fallbackTimer = setTimeout(() => {
@@ -955,9 +981,10 @@ const InterviewSession = () => {
           handleAiFinishedAsking()
         }
       }
-    }, 35000)
+    }, delayMs + 35000)
 
     return () => {
+      if (countdownInterval) clearInterval(countdownInterval)
       clearTimeout(startTimer)
       clearTimeout(fallbackTimer)
       cancelSpeech()
@@ -974,8 +1001,8 @@ const InterviewSession = () => {
     if (session?.mode === 'text') return
 
     const silenceInterval = setInterval(() => {
-      // If candidate has not answered/spoken anything yet, do NOT auto-submit immediately; let them think
-      if (!answerText || !answerText.trim()) {
+      // If candidate has not answered/spoken anything substantial yet (min 8 chars), do NOT auto-submit; let them think peacefully
+      if (!answerText || !answerText.trim() || answerText.trim().length < 8) {
         lastSpeechTimeRef.current = Date.now()
         setSilenceSeconds(10)
         return
@@ -1699,7 +1726,7 @@ const InterviewSession = () => {
                       <div className="flex items-center gap-1.5">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 animate-pulse">
                           <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                          AI is speaking
+                          {isCountingDown && speechCountdown > 0 ? `Starting in ${speechCountdown}s...` : 'AI is speaking'}
                         </span>
                         <button
                           type="button"
@@ -1859,7 +1886,9 @@ const InterviewSession = () => {
                     <div className="mb-1.5 flex items-center justify-between px-2.5 py-1 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800/80 text-[11px] text-indigo-700 dark:text-indigo-300">
                       <span className="flex items-center gap-1.5 font-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                        AI is reading question aloud...
+                        {isCountingDown && speechCountdown > 0
+                          ? `⏱️ Interview starting in ${speechCountdown}s... (Get ready)`
+                          : 'AI is reading question aloud...'}
                       </span>
                       <button
                         type="button"
