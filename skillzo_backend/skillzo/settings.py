@@ -149,12 +149,22 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 CSRF_TRUSTED_ORIGINS = [
+    'https://skillzo-2-1-2.onrender.com',
+    'https://skillzo-2-1.vercel.app',
     'https://*.vercel.app',
     'https://*.onrender.com',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
+
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False
 
 # ---- DRF + JWT ----
 REST_FRAMEWORK = {
