@@ -15,15 +15,38 @@ export const AuthProvider = ({ children }) => {
   const loadUser = async () => {
     const access = localStorage.getItem('skillzo_access')
     if (!access) {
-      setLoading(false)
+      // Automatically bootstrap guest candidate session on initial load so anyone can practice immediately without signup
+      try {
+        await loginAsGuest()
+      } catch (err) {
+        console.warn('Auto guest login error:', err)
+        setLoading(false)
+      }
       return
     }
     try {
       const res = await authApi.getProfile()
-      setUser(res.data)
+      const isGuestStorage = localStorage.getItem('skillzo_is_guest') === 'true'
+      if (isGuestStorage) {
+        setUser({
+          ...res.data,
+          username: 'Guest Candidate',
+          email: 'guest@skillzo.ai',
+          is_guest: true,
+          is_staff: false,
+          is_superuser: false,
+          is_leader: false,
+        })
+      } else {
+        setUser(res.data)
+      }
     } catch {
       localStorage.clear()
-      setUser(null)
+      try {
+        await loginAsGuest()
+      } catch {
+        setUser(null)
+      }
     } finally {
       setLoading(false)
     }
@@ -38,6 +61,7 @@ export const AuthProvider = ({ children }) => {
     const res = await authApi.login({ email: trimmed, password })
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
+    localStorage.removeItem('skillzo_is_guest')
     setUser(res.data.user)
     return res.data
   }
@@ -46,6 +70,7 @@ export const AuthProvider = ({ children }) => {
     const res = await authApi.signup(data)
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
+    localStorage.removeItem('skillzo_is_guest')
     setUser(res.data.user)
     return res.data
   }
@@ -55,6 +80,7 @@ export const AuthProvider = ({ children }) => {
     const res = await authApi.login({ email: 'asti@gmail.com', password: 'Skillzo@2026' })
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
+    localStorage.setItem('skillzo_is_guest', 'true')
     const guestUser = {
       ...res.data.user,
       username: 'Guest Candidate',

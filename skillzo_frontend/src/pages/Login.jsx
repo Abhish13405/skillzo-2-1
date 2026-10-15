@@ -16,7 +16,7 @@ const Login = () => {
     setGuestLoading(true)
     try {
       await loginAsGuest()
-      window.location.href = '/dashboard'
+      navigate('/interview/setup')
     } catch {
       setError('Could not start guest session. Please try again.')
       setGuestLoading(false)

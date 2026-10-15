@@ -1281,16 +1281,42 @@ const InterviewSession = () => {
           📹
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">
-          Initializing Video Interview Studio
+          Initializing Interview Studio
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6 leading-relaxed">
           Connecting webcam, microphone, and AI interviewer. Please tap <strong>Allow</strong> if your browser asks for camera permissions.
         </p>
         <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl text-red-600 dark:text-red-400 text-xs font-semibold max-w-md mx-auto">
-            {error}
+        {error ? (
+          <div className="mt-4 max-w-md mx-auto">
+            <div className="p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl text-red-600 dark:text-red-400 text-xs font-semibold mb-3">
+              {error}
+            </div>
+            <div className="flex gap-2 justify-center">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="btn-secondary py-2 px-4 text-xs font-bold"
+              >
+                ↻ Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="btn-primary py-2 px-4 text-xs font-bold"
+              >
+                ← Return to Dashboard
+              </button>
+            </div>
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="mt-6 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline cursor-pointer"
+          >
+            Cancel & Return to Dashboard
+          </button>
         )}
       </div>
     )

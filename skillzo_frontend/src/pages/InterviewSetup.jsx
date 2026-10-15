@@ -38,11 +38,11 @@ const MODES = [
 
 const InterviewSetup = () => {
   const [step, setStep] = useState(1)
-  const [role, setRole] = useState('')
+  const [role, setRole] = useState('Python Developer')
   const [customRole, setCustomRole] = useState('')
-  const [difficulty, setDifficulty] = useState('')
-  const [mode, setMode] = useState('')
-  const [questionCount, setQuestionCount] = useState(10)
+  const [difficulty, setDifficulty] = useState('Intermediate')
+  const [mode, setMode] = useState('text')
+  const [questionCount, setQuestionCount] = useState(5)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -54,10 +54,10 @@ const InterviewSetup = () => {
     setError('')
     try {
       const res = await startInterview({
-        job_role: finalRole,
-        difficulty,
-        mode,
-        question_count: questionCount,
+        job_role: finalRole || 'Python Developer',
+        difficulty: difficulty || 'Intermediate',
+        mode: mode || 'text',
+        question_count: questionCount || 5,
       })
       navigate(`/interview/${res.data.id}/session`)
     } catch (err) {
@@ -81,23 +81,63 @@ const InterviewSetup = () => {
         <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Customize your target role, difficulty level, and practice format.</p>
       </div>
 
+      {/* 1-Click Instant Start Hero Banner */}
+      <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-md flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚡</span>
+            <span className="text-xs uppercase tracking-wider font-mono font-bold text-blue-200">1-Click Instant Practice</span>
+          </div>
+          <h2 className="text-lg font-display font-extrabold text-white mt-0.5">
+            Start {finalRole || 'Python Developer'} Interview ({difficulty || 'Intermediate'})
+          </h2>
+          <p className="text-xs text-blue-100 mt-0.5">
+            Format: {MODES.find(m => m.id === mode)?.label || 'Text Interview'} · {questionCount} Questions · Zero barriers
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleStart}
+          disabled={loading}
+          className="py-2.5 px-5 bg-white hover:bg-blue-50 text-blue-700 font-extrabold rounded-xl shadow-md text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer shrink-0"
+        >
+          {loading ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <span>Preparing Questions...</span>
+            </>
+          ) : (
+            <>
+              <span>⚡ Start Interview Now</span>
+              <span>→</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Stepper */}
-      <div className="flex items-center gap-3 mb-5 sm:mb-6 bg-white dark:bg-[#0D1527] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-craft">
+      <div className="flex items-center gap-2 sm:gap-3 mb-5 sm:mb-6 bg-white dark:bg-[#0D1527] p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-craft">
         {steps.map((s, i) => (
           <React.Fragment key={s.n}>
-            <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setStep(s.n)}
+              className="flex items-center gap-2 sm:gap-2.5 text-left cursor-pointer focus:outline-none"
+            >
               <div
                 className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-mono text-xs sm:text-sm font-bold transition-all ${
-                  step >= s.n 
-                    ? 'bg-brand-600 text-white shadow-xs dark:shadow-[0_0_12px_rgba(37,99,235,0.5)]' 
+                  step === s.n 
+                    ? 'bg-brand-600 text-white shadow-xs dark:shadow-[0_0_12px_rgba(37,99,235,0.5)] ring-2 ring-blue-400/40' 
+                    : step > s.n
+                    ? 'bg-emerald-600 text-white'
                     : 'bg-slate-100 dark:bg-[#131E38] text-slate-400 border border-slate-200 dark:border-slate-700/80'
                 }`}
               >
-                {s.n}
+                {step > s.n ? '✓' : s.n}
               </div>
-              <span className={`text-xs sm:text-sm font-bold ${step >= s.n ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>{s.label}</span>
-            </div>
-            {i < steps.length - 1 && <div className={`flex-1 h-0.5 rounded-full ${step > s.n ? 'bg-brand-600 dark:bg-blue-500' : 'bg-slate-200 dark:bg-slate-800'}`} />}
+              <span className={`text-xs sm:text-sm font-bold ${step === s.n ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>{s.label}</span>
+            </button>
+            {i < steps.length - 1 && <div className={`flex-1 h-0.5 rounded-full ${step > s.n ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`} />}
           </React.Fragment>
         ))}
       </div>
@@ -138,7 +178,7 @@ const InterviewSetup = () => {
               onClick={() => setStep(2)}
               className="btn-primary"
             >
-              Next Step →
+              Next: Question Difficulty (Step 2/3) →
             </button>
           </motion.div>
         )}
@@ -162,8 +202,8 @@ const InterviewSetup = () => {
               ))}
             </div>
             <div className="flex gap-2.5">
-              <button onClick={() => setStep(1)} className="btn-secondary">← Back</button>
-              <button disabled={!difficulty} onClick={() => setStep(3)} className="btn-primary">Next Step →</button>
+              <button onClick={() => setStep(1)} className="btn-secondary">← Back to Role</button>
+              <button disabled={!difficulty} onClick={() => setStep(3)} className="btn-primary">Next: Format & Mode (Step 3/3) →</button>
             </div>
           </motion.div>
         )}
