@@ -433,12 +433,18 @@ const useSpeechSynthesis = () => {
           }
         }, 1000)
 
-        // Generous watchdog (35s) ONLY in case browser engine completely hangs
+        // Adaptive Mobile/Desktop Watchdog: based on question word count (approx 2 words per second + 3s buffer)
+        // Prevents mobile browsers (Android Chrome / Safari) from hanging or freezing candidate mic access!
+        const wordCount = (text || '').trim().split(/\s+/).length
+        const maxSpeechMs = Math.max(3000, Math.min(10000, Math.round((wordCount / 2) * 1000) + 3000))
         watchdogTimerRef.current = setTimeout(() => {
-          if (!ended && !window.speechSynthesis.speaking) {
+          if (!ended) {
+            try {
+              window.speechSynthesis.cancel()
+            } catch {}
             finishOnce()
           }
-        }, 35000)
+        }, maxSpeechMs)
       } catch (err) {
         console.warn('Speech synthesis caught error:', err)
         finishOnce()
@@ -599,7 +605,7 @@ const InterviewSession = () => {
         videoRef.current.srcObject = s
       }
     } catch (err) {
-      console.warn('Camera with audio failed, falling back to video only:', err)
+      console.warn('Camera with audio failed, falling back to video and separate audio:', err)
       try {
         const s = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -609,6 +615,13 @@ const InterviewSession = () => {
           },
           audio: false,
         })
+        // Attempt to acquire separate audio stream and attach tracks (crucial for mobile)
+        try {
+          const aStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          aStream.getAudioTracks().forEach((track) => s.addTrack(track))
+        } catch (audioErr) {
+          console.warn('Could not acquire separate audio track:', audioErr)
+        }
         streamRef.current = s
         setStream(s)
         setIsCameraActive(true)
@@ -875,6 +888,13 @@ const InterviewSession = () => {
     startTime.current = Date.now()
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(5)
+
+    // Unmute hardware audio tracks for recording (guarantees audio is recorded on mobile & next questions)
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = true
+      })
+    }
 
     if (session?.mode !== 'text' && !isPaused) {
       setIsMicActive(true)
@@ -1156,8 +1176,14 @@ const InterviewSession = () => {
     if (isMicActive) {
       stopMic()
       setIsMicActive(false)
+      if (streamRef.current) {
+        streamRef.current.getAudioTracks().forEach((t) => { t.enabled = false })
+      }
     } else {
       setIsMicActive(true)
+      if (streamRef.current) {
+        streamRef.current.getAudioTracks().forEach((t) => { t.enabled = true })
+      }
       if (!speaking && !isPaused) {
         startMic()
       }
