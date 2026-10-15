@@ -36,13 +36,23 @@ try:
         ('asti@gmail.com', 'asti', 'Full Stack Developer'),
         ('jai@gmail.com', 'jai', 'Frontend Developer'),
         ('b@gmail.com', 'b', 'Backend Developer'),
+        ('skill@gmail.com', 'skill', 'Full Stack Developer'),
+        ('p@gmail.com', 'p', 'Frontend Developer'),
     ]
     for email, uname, role in candidate_seeds:
         user, created = User.objects.get_or_create(email=email, defaults={'username': uname, 'target_role': role})
-        user.set_password('Skillzo@2026')
+        if created or not user.password:
+            user.set_password('Skillzo@2026')
         user.is_active = True
         user.save()
         print(f"[WSGI BOOT] Configured candidate: {email}")
+
+    # 3. Synchronize all historical interview sessions, reports, and accounts
+    try:
+        call_command('sync_interview_history', interactive=False)
+        print("[WSGI BOOT] Historical interview sessions and candidate accounts synced successfully.")
+    except Exception as sync_err:
+        print(f"[WSGI BOOT] sync_interview_history warning: {sync_err}")
 
 except Exception as e:
     import logging

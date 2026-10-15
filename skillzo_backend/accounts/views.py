@@ -75,6 +75,10 @@ class LoginView(APIView):
             'jai': {'username': 'jai', 'role': 'Frontend Developer', 'is_admin': False},
             'b@gmail.com': {'username': 'b', 'role': 'Backend Developer', 'is_admin': False},
             'b': {'username': 'b', 'role': 'Backend Developer', 'is_admin': False},
+            'skill@gmail.com': {'username': 'skill', 'role': 'Full Stack Developer', 'is_admin': False},
+            'skill': {'username': 'skill', 'role': 'Full Stack Developer', 'is_admin': False},
+            'p@gmail.com': {'username': 'p', 'role': 'Frontend Developer', 'is_admin': False},
+            'p': {'username': 'p', 'role': 'Frontend Developer', 'is_admin': False},
         }
 
         norm_id = identifier.lower().strip()

@@ -11,8 +11,9 @@ class Command(BaseCommand):
         accounts = [
             {'username': 'abhish', 'email': 'abhish@gmail.com', 'is_admin': True, 'role': 'Project Leader', 'password': 'Skillzo@2026'},
             {'username': 'abhishek13405', 'email': 'abhishekkushwaha13405@gmail.com', 'is_admin': True, 'role': 'Project Leader', 'password': 'Skillzo@2026'},
+            {'username': 'abhishekkushwaha31387', 'email': 'abhishekkushwaha31387@bbdu.ac.in', 'is_admin': True, 'role': 'Project Leader', 'password': 'Skillzo@2026'},
+            {'username': 'demo', 'email': 'abhishekkushwaha965@gmail.com', 'is_admin': True, 'role': 'Project Leader', 'password': 'Skillzo@2026'},
             {'username': 'raj', 'email': 'raj@gmail.com', 'is_admin': False, 'role': 'Python Developer', 'password': 'Skillzo@2026'},
-            {'username': 'demo', 'email': 'abhishekkushwaha965@gmail.com', 'is_admin': False, 'role': 'Full Stack Developer', 'password': 'Skillzo@2026'},
             {'username': 'asti', 'email': 'asti@gmail.com', 'is_admin': False, 'role': 'Full Stack Developer', 'password': 'Skillzo@2026'},
             {'username': 'jai', 'email': 'jai@gmail.com', 'is_admin': False, 'role': 'Frontend Developer', 'password': 'Skillzo@2026'},
             {'username': 'b', 'email': 'b@gmail.com', 'is_admin': False, 'role': 'Backend Developer', 'password': 'Skillzo@2026'},
@@ -41,12 +42,15 @@ class Command(BaseCommand):
                     )
                 self.stdout.write(self.style.SUCCESS(f"User {email} created successfully."))
             else:
-                user.set_password(pwd)
-                user.is_active = True
+                # For admin/leader ensure password and superuser rights
                 if acc['is_admin']:
+                    user.set_password(pwd)
                     user.is_staff = True
                     user.is_superuser = True
+                elif not user.password:
+                    user.set_password(pwd)
+                user.is_active = True
                 if not user.target_role:
                     user.target_role = acc['role']
                 user.save()
-                self.stdout.write(self.style.SUCCESS(f"User {email} updated successfully."))
+                self.stdout.write(self.style.SUCCESS(f"User {email} preserved/updated successfully."))

@@ -8,7 +8,7 @@ services:
     env: python
     rootDir: skillzo_backend
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: python manage.py migrate && python manage.py setup_admin && gunicorn skillzo.wsgi:application
+    startCommand: python manage.py migrate && python manage.py sync_interview_history && python manage.py setup_admin && gunicorn skillzo.wsgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
