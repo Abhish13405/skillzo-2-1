@@ -63,7 +63,7 @@ const navItems = [
 ]
 
 const SidebarContent = ({ onClose }) => {
-  const { user, logout, openAuthModal } = useAuth()
+  const { user, logout, loginAsGuest, openAuthModal } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
@@ -96,11 +96,21 @@ const SidebarContent = ({ onClose }) => {
     navigate('/login')
   }
 
-  const handleNavClick = (e, to, label) => {
+  const handleNavClick = async (e, to, label) => {
     if (onClose) onClose()
     if (!user && to !== '/dashboard') {
+      if (to === '/leader') {
+        e.preventDefault()
+        openAuthModal(label)
+        return
+      }
       e.preventDefault()
-      openAuthModal(label)
+      try {
+        await loginAsGuest()
+      } catch {
+        // proceed
+      }
+      navigate(to)
     }
   }
 

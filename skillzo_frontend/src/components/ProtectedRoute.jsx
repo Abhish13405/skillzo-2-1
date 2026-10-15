@@ -4,16 +4,23 @@ import { useAuth } from '../context/AuthContext'
 import Loader from './Loader'
 
 const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader = false }) => {
-  const { user, loading, openAuthModal } = useAuth()
+  const { user, loading, loginAsGuest, openAuthModal } = useAuth()
+  const [bootstrappingGuest, setBootstrappingGuest] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
-      openAuthModal(featureName)
+      if (requireLeader) {
+        openAuthModal(featureName)
+      } else {
+        // Automatically bootstrap guest session on the fly so candidate features open with zero signup barriers
+        setBootstrappingGuest(true)
+        loginAsGuest().finally(() => setBootstrappingGuest(false))
+      }
     }
-  }, [loading, user, openAuthModal, featureName])
+  }, [loading, user, requireLeader])
 
-  if (loading) return <Loader full />
-  if (!user) return <Navigate to="/dashboard" replace />
+  if (loading || bootstrappingGuest) return <Loader full />
+  if (!user && requireLeader) return <Navigate to="/dashboard" replace />
 
   if (requireLeader) {
     const userEmail = (user?.email || '').toLowerCase().trim()

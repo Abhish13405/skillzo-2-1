@@ -89,9 +89,16 @@ const Dashboard = () => {
 
   const goalDone = data.daily_goal.completed_today >= data.daily_goal.target
 
-  const handleFeatureClick = (e, featureName, targetPath) => {
+  const handleFeatureClick = async (e, featureName, targetPath) => {
     e.preventDefault()
-    requireAuth(featureName, () => navigate(targetPath))
+    if (!user) {
+      try {
+        await loginAsGuest()
+      } catch {
+        // proceed anyway
+      }
+    }
+    navigate(targetPath)
   }
 
   return (
