@@ -24,9 +24,9 @@ const AuthPromptModal = ({ isOpen, onClose, featureName = 'this feature' }) => {
     try {
       await loginAsGuest()
       onClose()
+      window.location.reload()
     } catch {
       onClose()
-    } finally {
       setGuestLoading(false)
     }
   }

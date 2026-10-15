@@ -53,10 +53,11 @@ api.interceptors.response.use(
     const originalRequest = error.config
     const url = originalRequest?.url || ''
 
-    // DO NOT intercept login, signup, or refresh endpoints to avoid page refresh loops
+    // DO NOT intercept login, signup, guest-login, or refresh endpoints to avoid page refresh loops
     if (
       url.includes('/auth/login') ||
       url.includes('/auth/signup') ||
+      url.includes('/auth/guest-login') ||
       url.includes('/auth/token/refresh')
     ) {
       return Promise.reject(error)

@@ -51,20 +51,21 @@ export const AuthProvider = ({ children }) => {
   }
 
   const loginAsGuest = async () => {
-    try {
-      const res = await authApi.guestLogin()
-      localStorage.setItem('skillzo_access', res.data.tokens.access)
-      localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
-      setUser({ ...res.data.user, is_guest: true })
-      return res.data
-    } catch {
-      // Fallback: Use standard test candidate credentials
-      const res = await authApi.login({ email: 'asti@gmail.com', password: 'Skillzo@2026' })
-      localStorage.setItem('skillzo_access', res.data.tokens.access)
-      localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
-      setUser({ ...res.data.user, is_guest: true, username: 'Guest Candidate' })
-      return res.data
+    // Instant 1-click candidate login with zero delay (no signup/email required)
+    const res = await authApi.login({ email: 'asti@gmail.com', password: 'Skillzo@2026' })
+    localStorage.setItem('skillzo_access', res.data.tokens.access)
+    localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
+    const guestUser = {
+      ...res.data.user,
+      username: 'Guest Candidate',
+      email: 'guest@skillzo.ai',
+      is_guest: true,
+      is_staff: false,
+      is_superuser: false,
+      is_leader: false,
     }
+    setUser(guestUser)
+    return { ...res.data, user: guestUser }
   }
 
   const logout = () => {

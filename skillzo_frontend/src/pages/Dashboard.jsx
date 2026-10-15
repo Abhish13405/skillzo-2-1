@@ -67,7 +67,8 @@ const Dashboard = () => {
     setGuestActivating(true)
     try {
       await loginAsGuest()
-    } finally {
+      window.location.href = '/dashboard'
+    } catch {
       setGuestActivating(false)
     }
   }
