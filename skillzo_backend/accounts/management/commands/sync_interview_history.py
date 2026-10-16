@@ -10,6 +10,10 @@ User = get_user_model()
 class Command(BaseCommand):
     help = 'Safely sync historical interview sessions, reports, and accounts into database'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--interactive', dest='interactive', action='store_true', default=False, help='Interactive flag for compatibility')
+        parser.add_argument('--no-input', '--noinput', dest='interactive', action='store_false', help='Do not prompt for input')
+
     def handle(self, *args, **options):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         candidates = [
