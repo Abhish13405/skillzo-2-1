@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppShell from '../components/AppShell'
 import { startInterview } from '../api/interview'
@@ -37,15 +37,18 @@ const MODES = [
 ]
 
 const InterviewSetup = () => {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const initialRole = location.state?.role || 'Python Developer'
+  const initialMode = location.state?.mode || 'text'
   const [step, setStep] = useState(1)
-  const [role, setRole] = useState('Python Developer')
+  const [role, setRole] = useState(initialRole)
   const [customRole, setCustomRole] = useState('')
   const [difficulty, setDifficulty] = useState('Intermediate')
-  const [mode, setMode] = useState('text')
+  const [mode, setMode] = useState(initialMode)
   const [questionCount, setQuestionCount] = useState(5)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const navigate = useNavigate()
 
   const finalRole = role === 'Custom Role' ? customRole : role
 
