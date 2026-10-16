@@ -15,7 +15,7 @@ const Signup = () => {
     setGuestLoading(true)
     try {
       await loginAsGuest()
-      navigate('/interview/setup')
+      navigate('/dashboard')
     } catch {
       setError('Could not start guest session. Please try again.')
       setGuestLoading(false)
@@ -70,12 +70,33 @@ const Signup = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft dark:bg-[#080D1A] font-body">
       <div className="w-full max-w-md bg-white dark:bg-[#0D1527] p-8 sm:p-10 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-craft">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-400 text-white font-display font-extrabold text-2xl flex items-center justify-center mx-auto mb-3 shadow-md shadow-blue-500/20">
             S
           </div>
           <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-slate-900 dark:text-white tracking-tight">Create your account</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Join Skillzo AI to start tracking your interview readiness</p>
+        </div>
+
+        {/* Project Team Members */}
+        <div className="mb-6 p-3 rounded-2xl bg-slate-50 dark:bg-[#131E38] border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-mono uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">
+              Project Team
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="px-2.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-semibold text-xs border border-blue-200/60 dark:border-blue-800/80">
+                Abhishek
+              </span>
+              <span className="text-slate-300 dark:text-slate-700 text-xs">•</span>
+              <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold text-xs border border-indigo-200/60 dark:border-indigo-800/80">
+                Jaya
+              </span>
+            </div>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+            Core Team
+          </span>
         </div>
 
         {error && (
