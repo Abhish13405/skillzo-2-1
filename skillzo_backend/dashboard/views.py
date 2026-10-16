@@ -132,15 +132,7 @@ class LeaderPortalStatsView(APIView):
         from django.contrib.auth import get_user_model
         from resume_analysis.models import Resume
         UserModel = get_user_model()
-
-        try:
-            if InterviewSession.objects.count() < 10:
-                from django.core.management import call_command
-                call_command('sync_interview_history', interactive=False)
-        except Exception:
-            pass
-
-        users_qs = UserModel.objects.all().order_by('-date_joined')
+        users_qs = list(UserModel.objects.all().order_by('-date_joined'))
 
         # Efficient batch aggregation for interview stats
         user_int_stats = {
@@ -173,7 +165,7 @@ class LeaderPortalStatsView(APIView):
                 "feedback": r.feedback or [],
             })
 
-        all_sessions = InterviewSession.objects.prefetch_related('questions__answer', 'user').order_by('-started_at')
+        all_sessions = list(InterviewSession.objects.select_related('user').prefetch_related('questions__answer').order_by('-started_at'))
         sessions_by_user = {}
         server_recordings = []
         for s in all_sessions:
@@ -296,7 +288,7 @@ class LeaderPortalStatsView(APIView):
                 "status": s.status,
                 "date": s.started_at.strftime('%d %b %Y') if s.started_at else "—",
             }
-            for s in InterviewSession.objects.select_related('user').order_by('-id')[:25]
+            for s in all_sessions[:25]
         ]
 
         server_recordings.sort(key=lambda r: r.get("timestamp", 0), reverse=True)
@@ -304,8 +296,8 @@ class LeaderPortalStatsView(APIView):
         return Response({
             "is_leader": True,
             "total_users": len(all_users),
-            "total_interviews": InterviewSession.objects.count(),
-            "total_resumes": Resume.objects.count(),
+            "total_interviews": len(all_sessions),
+            "total_resumes": len(all_resumes),
             "users": all_users,
             "all_users": all_users,
             "recent_sessions": recent_sessions,

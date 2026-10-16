@@ -308,7 +308,7 @@ class InterviewHistoryView(APIView):
 
         sessions = base_qs.filter(
             Q(status='completed') | Q(questions__answer__isnull=False)
-        ).distinct().order_by('-started_at')
+        ).select_related('user').prefetch_related('questions__answer').distinct().order_by('-started_at')
         return Response(InterviewSessionSerializer(sessions, many=True, context={'request': request}).data)
 
 
@@ -325,10 +325,11 @@ class InterviewDetailView(APIView):
             (user.username and 'abhish' in user.username.lower())
         )
         try:
+            qs = InterviewSession.objects.select_related('user').prefetch_related('questions__answer')
             if is_leader:
-                session = InterviewSession.objects.get(pk=session_id)
+                session = qs.get(pk=session_id)
             else:
-                session = InterviewSession.objects.filter(pk=session_id).first()
+                session = qs.filter(pk=session_id).first()
                 if not session:
                     return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
         except InterviewSession.DoesNotExist:
