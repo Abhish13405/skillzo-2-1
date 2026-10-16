@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 const Login = () => {
   const [email, setEmail] = useState('')
@@ -9,6 +10,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const [guestLoading, setGuestLoading] = useState(false)
   const { login, loginAsGuest } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleGuestLogin = async () => {
@@ -16,7 +18,7 @@ const Login = () => {
     setGuestLoading(true)
     try {
       await loginAsGuest()
-      navigate('/interview/setup')
+      navigate('/dashboard')
     } catch {
       setError('Could not start guest session. Please try again.')
       setGuestLoading(false)
@@ -55,7 +57,18 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex bg-surface-soft dark:bg-[#080D1A] font-body">
+    <div className="min-h-screen flex bg-surface-soft dark:bg-[#080D1A] font-body relative">
+      {/* Floating Theme Toggle (Top Right) */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          onClick={toggleTheme}
+          className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-[#0D1527] text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-400 transition-colors"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? '🌙' : '☀️'}
+        </button>
+      </div>
+
       {/* Left: brand panel */}
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-50 via-indigo-50/70 to-blue-100/60 dark:from-[#0A0F1D] dark:via-[#0D1527] dark:to-[#080D1A] border-r border-blue-200/60 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 flex-col justify-between p-12 relative overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-200/40 dark:bg-blue-600/10 blur-3xl pointer-events-none" />
@@ -82,9 +95,9 @@ const Login = () => {
         </div>
 
         <div className="relative z-10 text-xs text-slate-500 dark:text-slate-400 font-mono border-t border-blue-200/80 dark:border-slate-800 pt-4 leading-relaxed">
-          <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">©  Skillzo Studio</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">© Skillzo Studio</p>
           <p className="text-[11px] text-slate-600 dark:text-slate-400">
-            <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha  . Jaya Maurya .Rajkumar verma. Kundan Bhardwaj
+            <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha • Jaya Maurya
           </p>
         </div>
       </div>

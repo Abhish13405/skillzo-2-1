@@ -39,8 +39,8 @@ function App() {
 
       <Route path="/interview/report/:sessionId" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
 
-      {/* Root redirect: First screen is Signup */}
-      <Route path="/" element={<Navigate to="/signup" replace />} />
+      {/* Root redirect: First screen is Login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
       
       {/* 404 Fallback */}
       <Route path="*" element={<NotFound />} />
