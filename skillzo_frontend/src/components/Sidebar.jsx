@@ -218,74 +218,45 @@ const SidebarContent = ({ onClose }) => {
             </button>
           </>
         ) : user?.is_guest ? (
-          <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 shadow-xs">
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                ⚡
+          <div className="p-2 rounded-xl bg-slate-100/80 dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800">
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                G
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Guest Mode (Active)</p>
-                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">Ready to practice</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Guest Candidate</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">Practice Session</p>
               </div>
             </div>
-            <button
-              onClick={() => { if (onClose) onClose(); navigate('/interview/setup') }}
-              className="w-full py-2 px-2.5 mb-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold text-center transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>🚀 Start AI Interview</span>
-              <span>→</span>
-            </button>
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 onClick={() => { if (onClose) onClose(); navigate('/login') }}
-                className="py-1 px-1.5 rounded-md bg-white dark:bg-[#131E38] border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-[10px] font-bold text-center cursor-pointer transition-colors"
+                className="py-1 px-1.5 rounded-lg bg-white dark:bg-[#131E38] border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-[10px] font-semibold text-center cursor-pointer transition-colors"
               >
                 Sign In
               </button>
               <button
                 onClick={() => { if (onClose) onClose(); navigate('/signup') }}
-                className="py-1 px-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold text-center shadow-xs cursor-pointer transition-colors"
+                className="py-1 px-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold text-center shadow-xs cursor-pointer transition-colors"
               >
                 Sign Up
               </button>
             </div>
           </div>
         ) : (
-          <div className="p-2.5 rounded-xl bg-white dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-display font-bold text-sm shrink-0">
-                ⚡
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Guest Mode</p>
-                <p className="text-[10px] text-slate-400 truncate">No email or signup needed</p>
-              </div>
-            </div>
-
-            {/* Direct button right from sidebar as requested by user */}
+          <div className="grid grid-cols-2 gap-1.5">
             <button
-              onClick={handleEnterGuest}
-              disabled={guestActivating}
-              className="w-full py-2 px-2.5 mb-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold text-center transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+              onClick={() => { if (onClose) onClose(); navigate('/login') }}
+              className="py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-semibold text-center transition-colors border border-transparent dark:border-slate-800 cursor-pointer"
             >
-              <span>⚡</span>
-              <span>{guestActivating ? 'Entering Guest Mode...' : 'Enter Guest Mode →'}</span>
+              Sign In
             </button>
-
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                onClick={() => { if (onClose) onClose(); navigate('/login') }}
-                className="py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold text-center transition-colors border border-transparent dark:border-slate-800 cursor-pointer"
-              >
-                Log In
-              </button>
-              <button
-                onClick={() => { if (onClose) onClose(); navigate('/signup') }}
-                className="py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold text-center transition-colors shadow-xs cursor-pointer"
-              >
-                Sign Up
-              </button>
-            </div>
+            <button
+              onClick={() => { if (onClose) onClose(); navigate('/signup') }}
+              className="py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold text-center transition-colors shadow-xs cursor-pointer"
+            >
+              Sign Up
+            </button>
           </div>
         )}
       </div>

@@ -15,6 +15,7 @@ import InterviewReport from './pages/InterviewReport'
 import History from './pages/History'
 import Recordings from './pages/Recordings'
 import LeaderPortal from './pages/LeaderPortal'
+import TechnicalStudio from './pages/TechnicalStudio'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/technical" element={<TechnicalStudio />} />
       <Route path="/profile" element={<ProtectedRoute featureName="Profile"><Profile /></ProtectedRoute>} />
       <Route path="/resume" element={<ProtectedRoute featureName="ATS Resume Analysis"><ResumeAnalysis /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />
