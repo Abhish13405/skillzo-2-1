@@ -2,6 +2,7 @@
 # exit on error
 set -o errexit
 
+pip install --upgrade pip
 pip install -r requirements.txt
 
 if [ -d "skillzo_backend" ]; then
@@ -12,4 +13,5 @@ fi
 python manage.py collectstatic --noinput
 python manage.py migrate
 python manage.py setup_admin || true
+
 

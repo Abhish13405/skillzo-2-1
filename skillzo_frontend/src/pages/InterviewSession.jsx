@@ -78,6 +78,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   const isExplicitlyStoppedRef = useRef(true)
   const isRunningRef = useRef(false)
   const isStartingRef = useRef(false)
+  const startingTimeRef = useRef(0)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
   const [speechError, setSpeechError] = useState('')
@@ -91,10 +92,15 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   useEffect(() => {
     onTranscriptRef.current = onTranscript
     onSpeechActivityRef.current = onSpeechActivity
+    const prevLang = languageRef.current
     languageRef.current = language
     if (recognitionRef.current) {
       try {
         recognitionRef.current.lang = language
+        // If language changed while active, cleanly restart so new language model takes effect immediately
+        if (prevLang !== language && isRunningRef.current) {
+          recognitionRef.current.abort()
+        }
       } catch {}
     }
   }, [onTranscript, onSpeechActivity, language])
@@ -106,11 +112,20 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     isExplicitlyStoppedRef.current = false
     setSpeechError('')
 
-    // If already actively running or in the middle of starting, do not duplicate start
-    if (isRunningRef.current || isStartingRef.current) {
+    // If already actively running, ensure listening state is true
+    if (isRunningRef.current) {
       setListening(true)
       return
     }
+
+    // Safeguard: if in mid-start for less than 1.5s, don't duplicate; if longer, reset stuck flag
+    if (isStartingRef.current && Date.now() - startingTimeRef.current < 1500) {
+      setListening(true)
+      return
+    }
+
+    startingTimeRef.current = Date.now()
+    isStartingRef.current = true
 
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
@@ -135,12 +150,13 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       recognition = new SpeechAPI()
     } catch (e) {
       console.warn('SpeechAPI instantiation error:', e)
+      isStartingRef.current = false
+      isRunningRef.current = false
       return
     }
 
     const isMobile = isMobileDevice()
-    // CRITICAL: On mobile Android Chrome, continuous = true blocks onresult from emitting!
-    // continuous must be false on mobile so each phrase immediately emits onresult.
+    // Mobile Chrome requires continuous=false so each phrase immediately emits onresult
     recognition.continuous = !isMobile
     recognition.interimResults = true
     recognition.maxAlternatives = 1
@@ -189,26 +205,28 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     }
 
     recognition.onerror = (event) => {
+      isStartingRef.current = false
+      console.warn('SpeechRecognition error:', event.error)
+
       if (event.error === 'no-speech' || event.error === 'aborted') {
-        // Normal silence pause or explicit stop, ignore safely
+        // Normal silence pause or explicit abort, continue smoothly
         return
       }
       if (event.error === 'not-allowed') {
-        setSpeechError('Microphone blocked. Please tap 🔒 in browser address bar and Allow Microphone.')
+        setSpeechError('Microphone permission blocked. Please tap 🔒 in browser address bar and Allow Microphone.')
         isExplicitlyStoppedRef.current = true
         isRunningRef.current = false
-        isStartingRef.current = false
         setListening(false)
         return
       }
-      if (event.error === 'audio-capture') {
-        console.warn('Microphone busy or device contention, auto-recovering:', event.error)
+      if (event.error === 'audio-capture' || event.error === 'network') {
+        console.warn('SpeechRecognition temporary network/device glitch, auto-recovering:', event.error)
         if (!isExplicitlyStoppedRef.current) {
           setTimeout(() => {
             if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
               start()
             }
-          }, 400)
+          }, 350)
         }
       }
     }
@@ -229,7 +247,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
           if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
             start()
           }
-        }, isMobile ? 120 : 350)
+        }, isMobile ? 120 : 250)
       } else {
         setListening(false)
       }
@@ -238,12 +256,11 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     recognitionRef.current = recognition
 
     try {
-      isStartingRef.current = true
       recognition.start()
     } catch (e) {
       isStartingRef.current = false
       isRunningRef.current = false
-      console.warn('Recognition start caught:', e)
+      console.warn('Recognition start caught error:', e)
     }
   }, [])
 
@@ -976,6 +993,14 @@ const InterviewSession = () => {
     if (aiFinishedForQuestionRef.current) return
     aiFinishedForQuestionRef.current = true
 
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel()
+      } catch (e) {
+        // ignore
+      }
+    }
+
     setIsAiAsking(false)
     setIsCountingDown(false)
     setSpeechCountdown(0)
@@ -994,7 +1019,7 @@ const InterviewSession = () => {
       setIsMicActive(true)
       setTimeout(() => {
         startMic()
-      }, 100)
+      }, 200)
       startRecording()
     }
   }, [session, isPaused, startMic, startRecording])
@@ -1090,14 +1115,14 @@ const InterviewSession = () => {
       })
     }, delayMs)
 
-    // Safety fallback: ONLY trigger fallback if speech synthesis is NOT speaking and didn't fire
+    // Safety fallback: Never freeze the mic; calculate expected question duration (max 8s)
+    const wordCount = (effectiveQuestionText || '').trim().split(/\s+/).filter(Boolean).length
+    const expectedSpeechMs = Math.min(8000, Math.max(3000, wordCount * 380 + 1000))
     const fallbackTimer = setTimeout(() => {
       if (!aiFinishedForQuestionRef.current) {
-        if (!window.speechSynthesis || !window.speechSynthesis.speaking) {
-          handleAiFinishedAsking()
-        }
+        handleAiFinishedAsking()
       }
-    }, delayMs + 35000)
+    }, delayMs + expectedSpeechMs)
 
     return () => {
       if (countdownInterval) clearInterval(countdownInterval)
@@ -2082,6 +2107,16 @@ const InterviewSession = () => {
                   )}
                   <textarea
                     value={answerText}
+                    onFocus={() => {
+                      if (isAiAsking) {
+                        handleSkipAiVoiceAndAnswerNow()
+                      }
+                    }}
+                    onClick={() => {
+                      if (isAiAsking) {
+                        handleSkipAiVoiceAndAnswerNow()
+                      }
+                    }}
                     onChange={(e) => {
                       if (isAiAsking) {
                         handleSkipAiVoiceAndAnswerNow()
