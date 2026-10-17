@@ -1,0 +1,437 @@
+import React, { useEffect, useRef, useState } from 'react'
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { submitLiveEvaluation } from '../api/interview'
+
+const LiveInterview = () => {
+  const { roomId } = useParams()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+
+  const jitsiContainerRef = useRef(null)
+  const apiRef = useRef(null)
+
+  const candidateId = searchParams.get('candidate')
+  const candidateName = searchParams.get('candidateName') || 'Candidate'
+  const candidateRole = searchParams.get('role') || 'Software Engineer'
+  const candidateEmail = searchParams.get('email') || ''
+  const isCandidateRole = searchParams.get('as') === 'candidate'
+
+  // Determine if the current viewer is the HR Interviewer
+  const userEmail = (user?.email || '').toLowerCase().trim()
+  const userName = (user?.username || '').toLowerCase().trim()
+  const isLeader = Boolean(
+    user && !user.is_guest && (
+      user.is_leader ||
+      user.is_staff ||
+      user.is_superuser ||
+      userEmail === 'abhishekkushwaha13405@gmail.com' ||
+      userEmail === 'abhish@gmail.com' ||
+      userEmail === 'abhishekkushwaha31387@bbdu.ac.in' ||
+      userName === 'abhishek13405' ||
+      userName === 'abhish' ||
+      userName === 'abhishekkushwaha31387'
+    )
+  )
+
+  const isHR = isLeader && !isCandidateRole
+
+  // Evaluation form state (strictly for HR)
+  const [techScore, setTechScore] = useState(80)
+  const [commScore, setCommScore] = useState(85)
+  const [fitScore, setFitScore] = useState(80)
+  const [verdict, setVerdict] = useState('Hire')
+  const [notes, setNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [evaluatedSessionId, setEvaluatedSessionId] = useState(null)
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [evalOpen, setEvalOpen] = useState(true)
+  const [callJoined, setCallJoined] = useState(false)
+
+  const overallScore = Math.round((techScore + commScore + fitScore) / 3)
+
+  // Copy candidate invite link
+  const handleCopyInvite = () => {
+    const inviteUrl = `${window.location.origin}/live-interview/${roomId}?as=candidate&candidateName=${encodeURIComponent(candidateName)}&role=${encodeURIComponent(candidateRole)}`
+    navigator.clipboard.writeText(inviteUrl)
+    setCopiedLink(true)
+    setTimeout(() => setCopiedLink(false), 3000)
+  }
+
+  // Load and mount Jitsi Meet WebRTC Video
+  useEffect(() => {
+    let isMounted = true
+
+    const loadScript = () => {
+      return new Promise((resolve, reject) => {
+        if (window.JitsiMeetExternalAPI) {
+          resolve(window.JitsiMeetExternalAPI)
+          return
+        }
+        const existing = document.getElementById('jitsi-external-api-script')
+        if (existing) {
+          existing.onload = () => resolve(window.JitsiMeetExternalAPI)
+          return
+        }
+        const script = document.createElement('script')
+        script.id = 'jitsi-external-api-script'
+        script.src = 'https://meet.jit.si/external_api.js'
+        script.async = true
+        script.onload = () => resolve(window.JitsiMeetExternalAPI)
+        script.onerror = (err) => reject(err)
+        document.body.appendChild(script)
+      })
+    }
+
+    loadScript()
+      .then((JitsiAPI) => {
+        if (!isMounted || !jitsiContainerRef.current) return
+
+        const displayName = isHR
+          ? `${user?.username || 'HR Interviewer'} (Interviewer)`
+          : `${user?.username || candidateName} (Candidate)`
+
+        const cleanRoom = `skillzo_${(roomId || 'main').replace(/[^a-zA-Z0-9_-]/g, '')}`
+
+        const api = new JitsiAPI('meet.jit.si', {
+          roomName: cleanRoom,
+          parentNode: jitsiContainerRef.current,
+          userInfo: {
+            displayName,
+            email: user?.email || '',
+          },
+          configOverwrite: {
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            disableDeepLinking: true,
+            prejoinPageEnabled: false,
+            enableWelcomePage: false,
+            enableClosePage: false,
+          },
+          interfaceConfigOverwrite: {
+            TOOLBAR_BUTTONS: [
+              'microphone',
+              'camera',
+              'closedcaptions',
+              'desktop',
+              'fullscreen',
+              'fodeviceselection',
+              'hangup',
+              'chat',
+              'raisehand',
+              'tileview',
+              'videoquality',
+              'select-background',
+            ],
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            SHOW_BRAND_WATERMARK: false,
+            DEFAULT_REMOTE_DISPLAY_NAME: isHR ? candidateName : 'Interviewer',
+          },
+        })
+
+        apiRef.current = api
+        setCallJoined(true)
+
+        api.addEventListener('videoConferenceLeft', () => {
+          if (isHR) {
+            navigate('/leader')
+          } else {
+            navigate('/dashboard')
+          }
+        })
+      })
+      .catch((err) => {
+        console.error('Failed to load video conferencing module:', err)
+      })
+
+    return () => {
+      isMounted = false
+      if (apiRef.current) {
+        try {
+          apiRef.current.dispose()
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+  }, [roomId, isHR, candidateName, user, navigate])
+
+  // Submit HR Evaluation
+  const handleSubmitEvaluation = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const res = await submitLiveEvaluation({
+        candidate_id: candidateId || undefined,
+        job_role: candidateRole,
+        technical_score: techScore,
+        communication_score: commScore,
+        cultural_fit_score: fitScore,
+        verdict,
+        notes,
+      })
+      if (res.data?.success) {
+        setEvaluatedSessionId(res.data.session_id)
+      }
+    } catch (err) {
+      alert('Failed to save evaluation. Please try again.')
+      console.error(err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="h-screen w-screen flex flex-col bg-[#070B14] text-slate-100 font-body overflow-hidden">
+      {/* Top Professional Control Bar */}
+      <header className="h-14 border-b border-slate-800 bg-[#0B1021] px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-display font-extrabold text-sm text-white shadow-sm shadow-blue-500/20">
+            S
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-display font-bold text-sm tracking-tight text-white">Skillzo Live</span>
+              <span className="flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-mono font-bold bg-red-950/80 text-red-400 border border-red-800/80">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                LIVE CALL
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
+              Room: {roomId}
+            </span>
+          </div>
+        </div>
+
+        {/* Center: Candidate / Role Header */}
+        <div className="hidden md:flex items-center gap-2 bg-[#131B33] px-3.5 py-1.5 rounded-xl border border-slate-800 text-xs">
+          <span className="text-slate-400 font-mono">Candidate:</span>
+          <span className="font-bold text-white">{candidateName}</span>
+          <span className="text-slate-600">•</span>
+          <span className="text-blue-400 font-medium">{candidateRole}</span>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2.5">
+          {isHR && (
+            <>
+              <button
+                type="button"
+                onClick={handleCopyInvite}
+                className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>{copiedLink ? '✓ Copied' : '🔗 Copy Invite Link'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEvalOpen((prev) => !prev)}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  evalOpen
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                }`}
+              >
+                <span>HR Scorecard</span>
+                <span>{evalOpen ? '→' : '←'}</span>
+              </button>
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Are you sure you want to exit the interview room?')) {
+                if (apiRef.current) apiRef.current.dispose()
+                navigate(isHR ? '/leader' : '/dashboard')
+              }
+            }}
+            className="py-1.5 px-3 rounded-lg text-xs font-bold bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 transition-colors cursor-pointer"
+          >
+            Leave Room
+          </button>
+        </div>
+      </header>
+
+      {/* Main Split Body */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left: Video Conference Stream Container */}
+        <div className="flex-1 h-full w-full bg-[#050811] relative flex items-center justify-center">
+          <div ref={jitsiContainerRef} className="w-full h-full" />
+          {!callJoined && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070B14] z-10">
+              <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+              <p className="text-xs font-mono text-slate-400">Connecting to secure live interview room...</p>
+            </div>
+          )}
+        </div>
+
+        {/* Right: HR Private Evaluation Dock (Exclusively for HR) */}
+        {isHR && evalOpen && (
+          <aside className="w-80 sm:w-96 border-l border-slate-800 bg-[#0B1021] flex flex-col h-full shrink-0 z-10 shadow-2xl">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#0E152B]">
+              <div>
+                <h3 className="font-display font-extrabold text-sm text-white">Live Evaluation Form</h3>
+                <p className="text-[11px] text-slate-400 font-mono">Private interviewer rubric (Candidate cannot see)</p>
+              </div>
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-950 text-blue-400 border border-blue-800">
+                {overallScore}/100
+              </span>
+            </div>
+
+            {evaluatedSessionId ? (
+              <div className="p-6 text-center my-auto">
+                <div className="w-12 h-12 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center justify-center mx-auto mb-3 text-xl font-bold">
+                  ✓
+                </div>
+                <h4 className="font-bold text-white text-base">Evaluation Recorded!</h4>
+                <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed">
+                  Candidate scorecard has been saved to the database and is now live in the Leader Portal.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Link
+                    to={`/interview/${evaluatedSessionId}/report`}
+                    target="_blank"
+                    className="btn-primary text-xs py-2 px-3 block text-center"
+                  >
+                    View Official Scorecard Report ↗
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setEvaluatedSessionId(null)}
+                    className="text-xs text-slate-400 hover:text-white py-1 transition-colors"
+                  >
+                    Edit Evaluation
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitEvaluation} className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+                {/* Candidate Info Card */}
+                <div className="bg-[#111827] p-3 rounded-xl border border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-sm">{candidateName}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                      {candidateRole}
+                    </span>
+                  </div>
+                  {candidateEmail && (
+                    <p className="text-[11px] text-slate-400 font-mono mt-1">{candidateEmail}</p>
+                  )}
+                </div>
+
+                {/* Score Sliders */}
+                <div className="space-y-3.5">
+                  <div>
+                    <div className="flex justify-between items-center mb-1 text-slate-300">
+                      <span>Technical & Concept Depth</span>
+                      <span className="font-mono font-bold text-blue-400">{techScore}/100</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={techScore}
+                      onChange={(e) => setTechScore(Number(e.target.value))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1 text-slate-300">
+                      <span>Communication & Fluency</span>
+                      <span className="font-mono font-bold text-emerald-400">{commScore}/100</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={commScore}
+                      onChange={(e) => setCommScore(Number(e.target.value))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1 text-slate-300">
+                      <span>Cultural Fit & Problem Solving</span>
+                      <span className="font-mono font-bold text-purple-400">{fitScore}/100</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={fitScore}
+                      onChange={(e) => setFitScore(Number(e.target.value))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Decision Chips */}
+                <div>
+                  <label className="block text-slate-400 mb-1.5 font-medium">Hiring Recommendation</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Strong Hire', 'Hire', 'On Hold', 'Reject'].map((d) => (
+                      <button
+                        type="button"
+                        key={d}
+                        onClick={() => setVerdict(d)}
+                        className={`py-1.5 px-2 rounded-lg font-bold text-center border transition-all cursor-pointer ${
+                          verdict === d
+                            ? d.includes('Hire')
+                              ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                              : d === 'On Hold'
+                              ? 'bg-amber-600 text-white border-amber-500'
+                              : 'bg-red-600 text-white border-red-500'
+                            : 'bg-[#111827] text-slate-400 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-slate-400 mb-1.5 font-medium">Interviewer Feedback Notes</label>
+                  <textarea
+                    rows={4}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Candidate demonstrated strong core fundamentals. Articulation was clear, minor guidance needed on complex optimization..."
+                    className="w-full bg-[#111827] border border-slate-800 rounded-xl p-2.5 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 resize-none text-xs leading-relaxed"
+                  />
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving Scorecard...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Submit & Save Evaluation</span>
+                      <span>✓</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+          </aside>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default LiveInterview

@@ -39,3 +39,5 @@ export const completeInterview = (sessionId) => api.post(`/interview/${sessionId
 export const getInterviewHistory = () => api.get('/interview/history/')
 
 export const getInterviewDetail = (sessionId) => api.get(`/interview/${sessionId}/`)
+
+export const submitLiveEvaluation = (data) => api.post('/interview/live-evaluation/', data)

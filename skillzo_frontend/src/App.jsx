@@ -16,6 +16,7 @@ import History from './pages/History'
 import Recordings from './pages/Recordings'
 import LeaderPortal from './pages/LeaderPortal'
 import TechnicalStudio from './pages/TechnicalStudio'
+import LiveInterview from './pages/LiveInterview'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -39,6 +40,10 @@ function App() {
       <Route path="/interview/:sessionId/report" element={<ProtectedRoute featureName="Interview Report"><ErrorBoundary><InterviewReport /></ErrorBoundary></ProtectedRoute>} />
 
       <Route path="/interview/report/:sessionId" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
+
+      {/* Live 1:1 HR Interview Room */}
+      <Route path="/live-interview/:roomId" element={<LiveInterview />} />
+      <Route path="/live/:roomId" element={<LiveInterview />} />
 
       {/* Root redirect: First screen is Login */}
       <Route path="/" element={<Navigate to="/login" replace />} />

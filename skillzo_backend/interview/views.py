@@ -356,3 +356,64 @@ class InterviewDetailView(APIView):
                 first_q.save(update_fields=['question_text', 'category'])
 
         return Response(InterviewSessionSerializer(session, context={'request': request}).data)
+
+
+class SubmitLiveEvaluationView(APIView):
+    """
+    POST /api/interview/live-evaluation/
+    Interviewer HR submits real-time live evaluation for a candidate.
+    Creates a completed session so candidate and leader dashboard reflect it immediately.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        candidate_id = request.data.get('candidate_id')
+        job_role = request.data.get('job_role', 'Live 1:1 HR Interview')
+        try:
+            tech_score = int(request.data.get('technical_score', 80))
+        except (ValueError, TypeError):
+            tech_score = 80
+        try:
+            comm_score = int(request.data.get('communication_score', 80))
+        except (ValueError, TypeError):
+            comm_score = 80
+        try:
+            fit_score = int(request.data.get('cultural_fit_score', 80))
+        except (ValueError, TypeError):
+            fit_score = 80
+
+        overall = round((tech_score + comm_score + fit_score) / 3)
+        verdict = request.data.get('verdict', 'Hire')
+        notes = (request.data.get('notes') or '').strip()
+
+        from django.contrib.auth import get_user_model
+        UserModel = get_user_model()
+        candidate = None
+        if candidate_id:
+            try:
+                candidate = UserModel.objects.get(pk=candidate_id)
+            except UserModel.DoesNotExist:
+                candidate = None
+        if not candidate:
+            candidate = request.user
+
+        session = InterviewSession.objects.create(
+            user=candidate,
+            job_role=job_role,
+            difficulty='Intermediate',
+            mode='video',
+            status='completed',
+            completed_at=timezone.now(),
+            overall_score=overall,
+            technical_score=tech_score,
+            communication_score=comm_score,
+            verdict=f"Live HR Evaluation [{verdict}]: {notes}" if notes else f"Live HR Evaluation [{verdict}]",
+            ai_suggestions=[
+                f"HR Evaluator: {request.user.username}",
+                f"Technical Depth: {tech_score}/100",
+                f"Communication: {comm_score}/100",
+                f"Cultural Fit: {fit_score}/100",
+                f"Hiring Verdict: {verdict}",
+            ]
+        )
+        return Response({"success": True, "session_id": session.id, "overall_score": overall})

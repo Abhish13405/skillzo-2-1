@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
 import { getLeaderStats } from '../api/dashboard'
@@ -12,6 +12,13 @@ import {
 
 const LeaderPortal = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
+
+  const handleStartLiveInterview = (candidate) => {
+    const rawRole = candidate.target_role || 'Software Engineer'
+    const cleanRoomId = `skz_live_${candidate.id}_${Date.now().toString(36)}`
+    navigate(`/live-interview/${cleanRoomId}?candidate=${candidate.id}&candidateName=${encodeURIComponent(candidate.username)}&role=${encodeURIComponent(rawRole)}&email=${encodeURIComponent(candidate.email)}`)
+  }
 
   const userEmail = (user?.email || '').toLowerCase().trim()
   const userName = (user?.username || '').toLowerCase().trim()
@@ -631,20 +638,34 @@ const LeaderPortal = () => {
                       {u.date_joined}
                     </td>
 
-                    {/* Inspect Button */}
+                    {/* Action Buttons: Live 1:1 & Inspect */}
                     <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedCandidate(u)
-                          setCandidateTab('interviews')
-                        }}
-                        className="btn-secondary py-1 px-2.5 text-[11px] font-bold rounded-lg inline-flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition-colors"
-                      >
-                        <span>Inspect</span>
-                        <span>👁️</span>
-                      </button>
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleStartLiveInterview(u)
+                          }}
+                          className="py-1 px-2.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                          title="Start real-time 1-on-1 video interview with candidate"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          <span>Live 1:1</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedCandidate(u)
+                            setCandidateTab('interviews')
+                          }}
+                          className="btn-secondary py-1 px-2 text-[11px] font-bold rounded-lg inline-flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition-colors cursor-pointer"
+                        >
+                          <span>Inspect</span>
+                          <span>👁️</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -693,13 +714,23 @@ const LeaderPortal = () => {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedCandidate(null)}
-                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-sm cursor-pointer transition"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleStartLiveInterview(selectedCandidate)}
+                  className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                >
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  <span>Launch Live 1:1</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCandidate(null)}
+                  className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-sm cursor-pointer transition"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Quick Metrics of Candidate */}
