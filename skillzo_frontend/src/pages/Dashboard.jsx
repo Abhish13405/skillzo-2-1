@@ -100,8 +100,8 @@ const Dashboard = () => {
   ]
 
   return (
-    <AppShell hideSidebar={false}>
-      <div className="max-w-5xl mx-auto py-6 sm:py-10">
+    <AppShell hideSidebar={true}>
+      <div className="max-w-5xl mx-auto py-8 sm:py-14 min-h-[75vh] flex flex-col justify-center">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-10">
           <span className="text-[11px] font-mono uppercase font-bold text-blue-600 dark:text-blue-400 tracking-widest px-3.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-900/60 shadow-2xs">
