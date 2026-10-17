@@ -96,6 +96,76 @@ PYTHON_QUESTION_BANK = {
     ],
 }
 
+# ─── CURATED 60-QUESTION HR & BEHAVIORAL INTERVIEW BANK ──────────────────────
+HR_QUESTION_BANK = {
+    "Beginner": [
+        "Introduce yourself and walk me through your background.",
+        "Why do you want to join our company, and what excites you about this role?",
+        "What are your top three professional and personal strengths?",
+        "What is your biggest weakness, and what steps are you taking to improve it?",
+        "Where do you see yourself professionally in the next 3 to 5 years?",
+        "Why should we hire you over other candidates applying for this position?",
+        "Tell me about a college or personal project you are most proud of.",
+        "How do you organize your tasks when you have multiple competing deadlines?",
+        "Tell me about a time you made a mistake and how you rectified it.",
+        "How do you handle constructive criticism or feedback from a senior or peer?",
+        "Do you prefer working individually or collaborating in a cross-functional team?",
+        "What motivates you to perform at your best every single day?",
+        "Tell me about a time you had to learn a new tool or technology under short notice.",
+        "How do you stay calm and focused when working under tight pressure?",
+        "What are your salary expectations and your expected notice period or availability?",
+        "Are you willing to relocate or work in hybrid or flexible shifts if required?",
+        "What kind of company culture brings out your best productivity and creativity?",
+        "Tell me about a situation where you helped a struggling classmate or colleague.",
+        "What hobbies or activities do you pursue outside of technical work?",
+        "Do you have any questions for me as the HR recruiter about our company culture?",
+    ],
+    "Intermediate": [
+        "Introduce yourself and highlight your most impactful career achievements.",
+        "Tell me about a time you had a professional disagreement with a manager or coworker. How did you resolve it?",
+        "Describe a situation where a critical project deadline was at risk. What steps did you take?",
+        "Tell me about a time you had to push back on unrealistic requirements from a stakeholder.",
+        "How do you maintain code quality and avoid burnout during high-velocity sprint cycles?",
+        "Tell me about a time you received difficult or critical feedback. How did you adapt your approach?",
+        "Describe an instance where you took complete initiative to solve an unassigned problem.",
+        "Tell me about a time a project failed or fell short of expectations. What was your retrospective takeaway?",
+        "How do you navigate ambiguous requirements when building a product feature with minimal specs?",
+        "Tell me about an experience mentoring a junior engineer or onboarding a new teammate.",
+        "How do you manage cross-team dependencies when external teams delay your deliverables?",
+        "Describe a scenario where you made a conscious trade-off between technical perfection and business deadlines.",
+        "What is your philosophy on work-life balance and sustaining long-term engineering momentum?",
+        "Tell me about a time you advocated for better team collaboration, inclusion, or process empathy.",
+        "What factors led you to seek this new opportunity and move on from your current role?",
+        "How do you communicate complex technical decisions to non-technical stakeholders effectively?",
+        "Describe a challenging client or stakeholder interaction and how you de-escalated the situation.",
+        "What was the most difficult architectural or product decision you defended to team leadership?",
+        "How do you assess whether a company's organizational culture and values align with your own?",
+        "What specific career growth or skill expansion do you expect to achieve in this role?",
+    ],
+    "Advanced": [
+        "Walk me through your engineering leadership philosophy and how you build resilient teams.",
+        "Tell me about a time you resolved a deep interpersonal or cultural conflict within an engineering team.",
+        "How do you manage executive pressure and stakeholder transparency during catastrophic production outages?",
+        "Describe a situation where you spearheaded an organizational pivot that met significant internal resistance.",
+        "How do you nurture high-potential engineers, conduct impactful 1-on-1s, and retain top talent?",
+        "Tell me about a difficult decision to reassign or separate an underperforming team member.",
+        "How do you strategically balance technical debt reduction with aggressive business revenue goals?",
+        "Describe an instance where you championed long-term architectural stability over short-term feature demands.",
+        "How do you foster psychological safety and an open blameless post-mortem culture under high pressure?",
+        "Tell me about a time you influenced executive leadership or cross-functional directors without formal authority.",
+        "What is your framework for managing technical debt and code governance across distributed teams?",
+        "Describe how you scaled an engineering organization through hypergrowth while maintaining culture.",
+        "How do you balance engineering autonomy and innovation with enterprise compliance and security standards?",
+        "Tell me about a high-budget crisis or missed deliverable and the governance steps you took to prevent recurrence.",
+        "How do you design career progression ladders and ensure fair, unbiased performance appraisals?",
+        "Describe a time you transformed a fragmented or siloed team dynamic into an aligned collaborative unit.",
+        "How do you evaluate make-versus-buy trade-offs when choosing core enterprise platforms?",
+        "What long-term impact or cultural legacy do you strive to leave behind in your leadership roles?",
+        "How do you maintain team morale and steady execution during company restructuring or market volatility?",
+        "What strategic questions do you have for executive leadership regarding our company trajectory?",
+    ],
+}
+
 
 class GroqService:
     """
@@ -257,7 +327,44 @@ Resume text:
 
             return {"questions": questions}
 
-        # ─── 2. OTHER ROLES: Mirror the Exact 3-Tier Blueprint with Groq ─────
+        # ─── 2. HR & BEHAVIORAL ROLES: Use Curated 60-Question Standard HR Bank ─
+        is_hr = any(k in role_lower for k in ["hr", "behavioral", "behavioural", "culture", "fit", "leadership"])
+        if is_hr:
+            bank = HR_QUESTION_BANK.get(diff_key, HR_QUESTION_BANK["Intermediate"])
+            category_label = (
+                "Core HR & Culture" if diff_key == "Beginner" else
+                ("Behavioral & STAR Method" if diff_key == "Intermediate" else "Leadership & Conflict")
+            )
+
+            # Question 1 is ALWAYS Introduce yourself
+            questions = [
+                {"id": 1, "question": "Introduce yourself and walk me through your background.", "category": "Introduction"}
+            ]
+
+            pool = bank[1:]  # The 19 specific topic questions for this tier
+            recent = [q.strip().lower() for q in (exclude_questions or []) if q and q.strip()]
+
+            # Prioritize questions not recently asked by this user
+            fresh_pool = [q for q in pool if q.strip().lower() not in recent]
+            if len(fresh_pool) < (count - 1):
+                candidates = fresh_pool + [q for q in pool if q not in fresh_pool]
+            else:
+                candidates = fresh_pool
+
+            # Select remaining questions up to requested count
+            remaining_needed = max(1, count - 1)
+            selected = candidates[:remaining_needed]
+
+            for idx, q_text in enumerate(selected):
+                questions.append({
+                    "id": idx + 2,
+                    "question": q_text,
+                    "category": category_label,
+                })
+
+            return {"questions": questions}
+
+        # ─── 3. OTHER ROLES: Mirror the Exact 3-Tier Blueprint with Groq ─────
         exclude_block = ""
         if exclude_questions:
             recent_sample = [q.strip() for q in exclude_questions[-15:] if q and q.strip()]
@@ -400,6 +507,29 @@ Return JSON with EXACTLY this structure:
                     {"question": "What are Web Workers and how do they enable multi-threading in JavaScript?", "category": "Advanced Internals"},
                     {"question": "How do JavaScript memory leaks occur and how do you trace them with browser DevTools?", "category": "Advanced Internals"},
                 ]
+        elif any(k in role_lower for k in ["hr", "behavioral", "behavioural", "culture", "fit"]):
+            intro_q["question"] = "Introduce yourself and walk me through your background."
+            if diff_key == "Beginner":
+                pool = [
+                    {"question": "Why do you want to join our company, and what excites you about this role?", "category": "Core HR & Culture"},
+                    {"question": "What are your top three professional strengths and one weakness you are actively improving?", "category": "Core HR & Culture"},
+                    {"question": "Where do you see yourself professionally in the next 3 to 5 years?", "category": "Core HR & Culture"},
+                    {"question": "How do you organize your tasks when you have multiple competing deadlines?", "category": "Core HR & Culture"},
+                ]
+            elif diff_key == "Intermediate":
+                pool = [
+                    {"question": "Tell me about a time you had a professional disagreement with a coworker. How was it resolved?", "category": "Behavioral & STAR Method"},
+                    {"question": "Describe a situation where a critical project deadline was at risk. What steps did you take?", "category": "Behavioral & STAR Method"},
+                    {"question": "Tell me about a time you received difficult or critical feedback. How did you adapt?", "category": "Behavioral & STAR Method"},
+                    {"question": "Describe an instance where you made a conscious trade-off between technical perfection and business deadlines.", "category": "Behavioral & STAR Method"},
+                ]
+            else:
+                pool = [
+                    {"question": "Walk me through your engineering leadership philosophy and how you build resilient teams.", "category": "Leadership & Conflict"},
+                    {"question": "Tell me about a time you resolved a deep interpersonal conflict within an engineering team.", "category": "Leadership & Conflict"},
+                    {"question": "How do you manage executive pressure and stakeholder transparency during critical production incidents?", "category": "Leadership & Conflict"},
+                    {"question": "How do you strategically balance technical debt reduction with aggressive business revenue goals?", "category": "Leadership & Conflict"},
+                ]
         else:
             pool = [
                 {"question": f"What are the foundational core principles of working as a professional {role}?", "category": "Core Basics"},
@@ -428,10 +558,21 @@ Return JSON with EXACTLY this structure:
     def evaluate_answer(self, question: str, answer: str, role: str,
                          difficulty: str = "Intermediate") -> dict:
         """Evaluate a single interview answer across multiple criteria."""
-        system_prompt = (
-            "You are an expert technical interview evaluator. Always respond with "
-            "valid JSON only, no extra text. Never output unescaped double quotes inside string values; use single quotes."
-        )
+        is_hr = any(k in (role or '').lower() for k in ['hr', 'behavioral', 'behavioural', 'culture', 'fit'])
+        if is_hr:
+            system_prompt = (
+                "You are an expert HR Director and Behavioral Interview evaluator. "
+                "Always evaluate candidate responses using the STAR method (Situation, Task, Action, Result), "
+                "communication clarity, self-awareness, cultural alignment, and emotional intelligence. "
+                "Always respond with valid JSON only, no extra text. "
+                "Never output unescaped double quotes inside string values; use single quotes."
+            )
+        else:
+            system_prompt = (
+                "You are an expert technical interview evaluator. Always respond with "
+                "valid JSON only, no extra text. Never output unescaped double quotes inside string values; use single quotes."
+            )
+
         intro_guidance = ""
         q_lower = (question or "").lower()
         if "introduce yourself" in q_lower or "tell me about yourself" in q_lower:
@@ -440,6 +581,16 @@ Return JSON with EXACTLY this structure:
                 "Evaluate the candidate on how clearly and professionally they introduce themselves, "
                 "their communication skills, confidence, structure of their introduction, "
                 "and relevance of the experience/skills they highlighted.\n"
+            )
+        elif is_hr:
+            intro_guidance = (
+                "\nSPECIAL EVALUATION CRITERIA FOR HR & BEHAVIORAL ROUND:\n"
+                "- Evaluate communication clarity, active listening, and tone.\n"
+                "- Evaluate whether they used the STAR method (Situation, Task, Action, Result).\n"
+                "- Evaluate teamwork, honesty, ownership, conflict management, and situational maturity.\n"
+                "- In strengths, highlight what made their personal or behavioral answer stand out.\n"
+                "- In improvements, give practical advice on how to structure behavioral responses.\n"
+                "- In ideal_answer_summary, provide a concise 2-3 line model response demonstrating the STAR framework.\n"
             )
 
         user_prompt = f"""
