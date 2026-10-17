@@ -75,16 +75,16 @@ const getSpeechRecognitionAPI = () => {
 
 const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN') => {
   const recognitionRef = useRef(null)
-  const isExplicitlyStoppedRef = useRef(true)
+  const isExplicitlyStoppedRef = useRef(false)
   const isRunningRef = useRef(false)
-  const isStartingRef = useRef(false)
-  const startingTimeRef = useRef(0)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
   const [speechError, setSpeechError] = useState('')
-  const accumulatedRef = useRef('')
-  const latestFullTranscriptRef = useRef('')
+
+  const baseTextRef = useRef('')
+  const currentFinalRef = useRef('')
   const restartTimerRef = useRef(null)
+
   const onTranscriptRef = useRef(onTranscript)
   const onSpeechActivityRef = useRef(onSpeechActivity)
   const languageRef = useRef(language)
@@ -97,7 +97,6 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     if (recognitionRef.current) {
       try {
         recognitionRef.current.lang = language
-        // If language changed while active, cleanly restart so new language model takes effect immediately
         if (prevLang !== language && isRunningRef.current) {
           recognitionRef.current.abort()
         }
@@ -112,35 +111,22 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     isExplicitlyStoppedRef.current = false
     setSpeechError('')
 
-    // If already actively running, ensure listening state is true
     if (isRunningRef.current) {
       setListening(true)
       return
     }
-
-    // Safeguard: if in mid-start for less than 1.5s, don't duplicate; if longer, reset stuck flag
-    if (isStartingRef.current && Date.now() - startingTimeRef.current < 1500) {
-      setListening(true)
-      return
-    }
-
-    startingTimeRef.current = Date.now()
-    isStartingRef.current = true
 
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
     }
 
-    // Clean up any stale previous instance without ghost triggers
     if (recognitionRef.current) {
-      const old = recognitionRef.current
-      old.onend = null
-      old.onerror = null
-      old.onresult = null
-      old.onstart = null
       try {
-        old.abort()
+        recognitionRef.current.onend = null
+        recognitionRef.current.onerror = null
+        recognitionRef.current.onresult = null
+        recognitionRef.current.abort()
       } catch {}
       recognitionRef.current = null
     }
@@ -150,21 +136,19 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       recognition = new SpeechAPI()
     } catch (e) {
       console.warn('SpeechAPI instantiation error:', e)
-      isStartingRef.current = false
       isRunningRef.current = false
       return
     }
 
-    const isMobile = isMobileDevice()
-    // Mobile Chrome requires continuous=false so each phrase immediately emits onresult
-    recognition.continuous = !isMobile
+    recognition.continuous = true
     recognition.interimResults = true
     recognition.maxAlternatives = 1
     recognition.lang = languageRef.current || 'en-IN'
 
+    currentFinalRef.current = ''
+
     recognition.onstart = () => {
       isRunningRef.current = true
-      isStartingRef.current = false
       setListening(true)
       setSpeechError('')
     }
@@ -179,48 +163,43 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
     recognition.onresult = (event) => {
       onSpeechActivityRef.current?.()
-      let interim = ''
-      let newFinal = ''
+      let sessionFinal = ''
+      let sessionInterim = ''
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const item = event.results[i]
         const text = item[0]?.transcript || ''
         if (item.isFinal) {
-          newFinal += text + ' '
+          sessionFinal += text + ' '
         } else {
-          interim += text
+          sessionInterim += text
         }
       }
 
-      if (newFinal) {
-        accumulatedRef.current = `${accumulatedRef.current} ${newFinal}`.replace(/\s+/g, ' ').trim()
-      }
+      currentFinalRef.current = sessionFinal
 
-      const fullText = (interim ? `${accumulatedRef.current} ${interim}` : accumulatedRef.current).replace(/\s+/g, ' ').trim()
+      const base = baseTextRef.current.trim()
+      const spoken = (sessionFinal + sessionInterim).trim()
+      const combined = (base ? `${base} ${spoken}` : spoken).replace(/\s+/g, ' ').trim()
 
-      if (fullText) {
-        latestFullTranscriptRef.current = fullText
-        onTranscriptRef.current?.(fullText)
+      if (combined) {
+        onTranscriptRef.current?.(combined)
       }
     }
 
     recognition.onerror = (event) => {
-      isStartingRef.current = false
       console.warn('SpeechRecognition error:', event.error)
-
       if (event.error === 'no-speech' || event.error === 'aborted') {
-        // Normal silence pause or explicit abort, continue smoothly
         return
       }
       if (event.error === 'not-allowed') {
-        setSpeechError('Microphone permission blocked. Please tap 🔒 in browser address bar and Allow Microphone.')
+        setSpeechError('Microphone permission blocked. Please allow mic in browser.')
         isExplicitlyStoppedRef.current = true
         isRunningRef.current = false
         setListening(false)
         return
       }
       if (event.error === 'audio-capture' || event.error === 'network') {
-        console.warn('SpeechRecognition temporary network/device glitch, auto-recovering:', event.error)
         if (!isExplicitlyStoppedRef.current) {
           setTimeout(() => {
             if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
@@ -233,21 +212,20 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
     recognition.onend = () => {
       isRunningRef.current = false
-      isStartingRef.current = false
-
-      // Always preserve latest text in accumulatedRef so no words are ever wiped out
-      if (latestFullTranscriptRef.current) {
-        accumulatedRef.current = latestFullTranscriptRef.current.trim()
+      if (currentFinalRef.current.trim()) {
+        const base = baseTextRef.current.trim()
+        const add = currentFinalRef.current.trim()
+        baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
+        currentFinalRef.current = ''
       }
 
-      // Seamless auto-restart only if user hasn't explicitly muted or stopped
       if (!isExplicitlyStoppedRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
           if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
             start()
           }
-        }, isMobile ? 120 : 250)
+        }, 150)
       } else {
         setListening(false)
       }
@@ -258,7 +236,6 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     try {
       recognition.start()
     } catch (e) {
-      isStartingRef.current = false
       isRunningRef.current = false
       console.warn('Recognition start caught error:', e)
     }
@@ -267,22 +244,22 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   const stop = useCallback(() => {
     isExplicitlyStoppedRef.current = true
     isRunningRef.current = false
-    isStartingRef.current = false
-    if (latestFullTranscriptRef.current) {
-      accumulatedRef.current = latestFullTranscriptRef.current.trim()
-    }
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
     }
+    if (currentFinalRef.current.trim()) {
+      const base = baseTextRef.current.trim()
+      const add = currentFinalRef.current.trim()
+      baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
+      currentFinalRef.current = ''
+    }
     if (recognitionRef.current) {
-      const old = recognitionRef.current
-      old.onend = null
-      old.onerror = null
-      old.onresult = null
-      old.onstart = null
       try {
-        old.abort()
+        recognitionRef.current.onend = null
+        recognitionRef.current.onerror = null
+        recognitionRef.current.onresult = null
+        recognitionRef.current.abort()
       } catch {}
       recognitionRef.current = null
     }
@@ -290,13 +267,13 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   }, [])
 
   const resetTranscript = useCallback(() => {
-    accumulatedRef.current = ''
-    latestFullTranscriptRef.current = ''
+    baseTextRef.current = ''
+    currentFinalRef.current = ''
   }, [])
 
   const syncTranscript = useCallback((text) => {
-    accumulatedRef.current = text ? text.trim() : ''
-    latestFullTranscriptRef.current = text ? text.trim() : ''
+    baseTextRef.current = text ? text.trim() : ''
+    currentFinalRef.current = ''
   }, [])
 
   return { listening, supported, speechError, start, stop, resetTranscript, syncTranscript }
@@ -515,6 +492,9 @@ const TIPS_LIST = [
   'Conclude with the lesson learned or how that experience helped you grow.',
 ]
 
+// ─── Question Duration Limit (90 seconds per question for thoughtful, complete answers) ───
+const TOTAL_QUESTION_SECONDS = 90
+
 // ─── Main 50/50 Split Zero-Scroll Interview Screen ───────────────────────────
 const InterviewSession = () => {
   const { sessionId } = useParams()
@@ -546,13 +526,17 @@ const InterviewSession = () => {
   // View Switcher: 'candidate' (default full user video) or 'ai' (full AI avatar)
   const [mainView, setMainView] = useState('ai')
 
-  // 5-Second Delay before AI speaks
-  const [speechCountdown, setSpeechCountdown] = useState(5)
+  // Delay before AI speaks
+  const [speechCountdown, setSpeechCountdown] = useState(2)
   const [isCountingDown, setIsCountingDown] = useState(true)
-  const [isAiAsking, setIsAiAsking] = useState(true) // True while AI reads question; timer and recording ONLY start after
+  const [isAiAsking, setIsAiAsking] = useState(true) // True while AI reads question
+  const isAiAskingRef = useRef(true)
+  useEffect(() => {
+    isAiAskingRef.current = isAiAsking
+  }, [isAiAsking])
 
-  // Timers: 30 seconds per question
-  const [questionSeconds, setQuestionSeconds] = useState(30)
+  // Timers: 90 seconds per question
+  const [questionSeconds, setQuestionSeconds] = useState(TOTAL_QUESTION_SECONDS)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const startTime = useRef(Date.now())
 
@@ -573,22 +557,35 @@ const InterviewSession = () => {
     }
   }, [stream])
 
-  // ─── Silence Auto-Submit & Speech Handlers ─────────────────────────
-  const [silenceSeconds, setSilenceSeconds] = useState(5)
+  // ─── Real-time Speech-to-Text Dictation & Synthesis Handlers ───────────
   const [speechLang, setSpeechLang] = useState('en-IN')
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
 
+  const { speak, cancel: cancelSpeech, speaking } = useSpeechSynthesis()
+
+  // When candidate starts speaking, immediately interrupt AI reading so candidate is heard clearly
   const handleSpeechActivity = useCallback(() => {
     lastSpeechTimeRef.current = Date.now()
-    setSilenceSeconds(5)
-  }, [])
+    if (isAiAskingRef.current) {
+      setIsAiAsking(false)
+      setIsCountingDown(false)
+      setSpeechCountdown(0)
+      cancelSpeech()
+    }
+  }, [cancelSpeech])
 
+  // Live transcribed speech directly streams into the candidate's answer box in real-time
   const handleTranscript = useCallback((t) => {
-    setAnswerText(t)
     lastSpeechTimeRef.current = Date.now()
-    setSilenceSeconds(5)
-  }, [])
+    if (isAiAskingRef.current) {
+      setIsAiAsking(false)
+      setIsCountingDown(false)
+      setSpeechCountdown(0)
+      cancelSpeech()
+    }
+    setAnswerText(t)
+  }, [cancelSpeech])
 
   const {
     listening,
@@ -599,7 +596,6 @@ const InterviewSession = () => {
     resetTranscript,
     syncTranscript,
   } = useSpeechRecognition(handleTranscript, handleSpeechActivity, speechLang)
-  const { speak, cancel: cancelSpeech, speaking } = useSpeechSynthesis()
 
   // Hardware Camera Stop
   const stopCamera = useCallback(() => {
@@ -979,16 +975,14 @@ const InterviewSession = () => {
     }
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
-  // Stop mic when AI is asking question, during countdown, when paused, completed, or in text mode
+  // Only stop mic when interview is paused, completed, or candidate explicitly turned mic off
   useEffect(() => {
-    const mode = session?.mode || 'video'
-    if (mode === 'text' || isPaused || isCompleted || isAiAsking || isCountingDown) {
+    if (isPaused || isCompleted || !isMicActive) {
       stopMic()
     }
-  }, [isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, stopMic])
+  }, [isPaused, isCompleted, isMicActive, stopMic])
 
-  // Called strictly AFTER AI finishes asking the question (or if candidate skips AI voice):
-  // THIS is the EXACT moment when the mic automatically opens and the 5s silence timer starts!
+  // Called strictly AFTER AI finishes asking the question (or if candidate speaks/answers immediately)
   const handleAiFinishedAsking = useCallback(() => {
     if (aiFinishedForQuestionRef.current) return
     aiFinishedForQuestionRef.current = true
@@ -1006,23 +1000,19 @@ const InterviewSession = () => {
     setSpeechCountdown(0)
     startTime.current = Date.now()
     lastSpeechTimeRef.current = Date.now()
-    setSilenceSeconds(5)
 
-    // Unmute hardware audio tracks for recording (guarantees audio is recorded on mobile & next questions)
+    // Unmute hardware audio tracks for recording
     if (streamRef.current) {
       streamRef.current.getAudioTracks().forEach((track) => {
         track.enabled = true
       })
     }
 
-    if (session?.mode !== 'text' && !isPaused) {
-      setIsMicActive(true)
-      setTimeout(() => {
-        startMic()
-      }, 200)
+    if (!isPaused && isMicActive) {
+      startMic()
       startRecording()
     }
-  }, [session, isPaused, startMic, startRecording])
+  }, [isPaused, isMicActive, startMic, startRecording])
 
   // Skip AI voice read-aloud and immediately jump into the candidate's answering turn
   const handleSkipAiVoiceAndAnswerNow = useCallback(() => {
@@ -1045,7 +1035,7 @@ const InterviewSession = () => {
     }
   }, [session, current, speak, handleAiFinishedAsking])
 
-  // Timers: Count down question duration AFTER AI finishes asking (30 seconds limit)
+  // Timers: Count down question duration AFTER AI finishes asking (90 seconds limit)
   useEffect(() => {
     if (isPaused || isCompleted || isAiAsking) return
 
@@ -1057,20 +1047,24 @@ const InterviewSession = () => {
     return () => clearInterval(interval)
   }, [isPaused, isCompleted, isAiAsking])
 
-  // When question loads/changes: AI reads the question, mic remains strictly OFF!
+  // When question loads/changes: Mic is immediately active so whatever candidate speaks is transcribed
   useEffect(() => {
     if (!session || isCompleted) return
     aiFinishedForQuestionRef.current = false
-    stopMic()
     cancelSpeech()
     resetTranscript()
-    setIsMicActive(false)
+    setAnswerText('')
+    setIsMicActive(true)
 
     setIsAiAsking(true)
-    setQuestionSeconds(30)
+    setQuestionSeconds(TOTAL_QUESTION_SECONDS)
     setRecordingSeconds(0)
-    setSilenceSeconds(5)
     lastSpeechTimeRef.current = Date.now()
+
+    // Immediately start listening so the candidate never loses spoken words
+    if (!isPaused) {
+      startMic()
+    }
 
     const q = session.questions?.[current]
     const effectiveQuestionText = current === 0 ? "Introduce yourself." : (q?.question_text || '')
@@ -1079,14 +1073,13 @@ const InterviewSession = () => {
       return
     }
 
-    // First question: exactly 3 seconds delay so candidate can settle in!
-    // Subsequent questions: 500ms brief pause
+    // Brief settling pause: 1.5s for Q1, 400ms for subsequent questions
     const isFirstQuestion = current === 0
-    const delayMs = isFirstQuestion ? 3000 : 500
+    const delayMs = isFirstQuestion ? 1500 : 400
 
     if (isFirstQuestion) {
       setIsCountingDown(true)
-      setSpeechCountdown(3)
+      setSpeechCountdown(2)
     } else {
       setIsCountingDown(false)
       setSpeechCountdown(0)
@@ -1105,17 +1098,16 @@ const InterviewSession = () => {
       }, 1000)
     }
 
-    // AI speaks question strictly after delay: 3s for Q1, 500ms for subsequent
+    // AI speaks question
     const startTimer = setTimeout(() => {
       setIsCountingDown(false)
       setSpeechCountdown(0)
       speak(effectiveQuestionText, () => {
-        // AI finished speaking the question -> IMMEDIATELY open mic & candidate answering turn begins!
         handleAiFinishedAsking()
       })
     }, delayMs)
 
-    // Safety fallback: Never freeze the mic; calculate expected question duration (max 8s)
+    // Safety fallback: Never freeze
     const wordCount = (effectiveQuestionText || '').trim().split(/\s+/).filter(Boolean).length
     const expectedSpeechMs = Math.min(8000, Math.max(3000, wordCount * 380 + 1000))
     const fallbackTimer = setTimeout(() => {
@@ -1131,37 +1123,6 @@ const InterviewSession = () => {
       cancelSpeech()
     }
   }, [current, session, isCompleted]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── 5-Second Silence Auto-Submit Effect ────────────────────────────────────
-  // Once the candidate answers via speech or text:
-  // - While speaking, silence timer continuously stays reset at 5s.
-  // - Once candidate stops speaking (pauses for 5s of continuous silence),
-  //   it automatically submits answer and advances directly to the next question with AI.
-  useEffect(() => {
-    if (isAiAsking || isPaused || isCompleted || submitting || !session || !question) return
-    if (session?.mode === 'text') return
-
-    const silenceInterval = setInterval(() => {
-      // If candidate has not answered/spoken anything substantial yet (min 4 chars), do NOT auto-submit; let them think peacefully
-      if (!answerText || !answerText.trim() || answerText.trim().length < 4) {
-        lastSpeechTimeRef.current = Date.now()
-        setSilenceSeconds(5)
-        return
-      }
-
-      const elapsed = Math.floor((Date.now() - lastSpeechTimeRef.current) / 1000)
-      const remaining = Math.max(0, 5 - elapsed)
-      setSilenceSeconds(remaining)
-
-      if (remaining <= 0) {
-        clearInterval(silenceInterval)
-        // 5s silence after candidate finished speaking -> Auto submit answer & advance
-        handleSubmitRef.current(true)
-      }
-    }, 300)
-
-    return () => clearInterval(silenceInterval)
-  }, [isAiAsking, isPaused, isCompleted, submitting, session, question, current, answerText])
 
   // Format MM:SS
   const formatTime = (totalSec) => {
@@ -1185,9 +1146,8 @@ const InterviewSession = () => {
         })
       }
       setIsAiAsking(true)
-      setQuestionSeconds(30)
+      setQuestionSeconds(TOTAL_QUESTION_SECONDS)
       setRecordingSeconds(0)
-      setSilenceSeconds(5)
       lastSpeechTimeRef.current = Date.now()
       setCurrent((c) => c + 1)
       setAnswerText('')
@@ -1195,10 +1155,10 @@ const InterviewSession = () => {
     }
   }
 
-  // Submit Answer (supports manual submission or automatic transition on 40s timeout)
+  // Submit Answer (supports manual submission or automatic transition on 90s timeout)
   const handleSubmitAnswer = async (isAutoSubmit = false) => {
     if (submitting) return
-    // When manually clicking, confirm if answer is empty. If auto-submitting on 40s timeout, do NOT block with dialog
+    // When manually clicking, confirm if answer is empty. If auto-submitting on timeout, do NOT block with dialog
     if (!isAutoSubmit && !answerText.trim() && !window.confirm('Submit without answer text?')) return
     if (listening) stopMic()
     setSubmitting(true)
@@ -1211,7 +1171,7 @@ const InterviewSession = () => {
 
       const answerPayload = {
         question_id: question.id,
-        answer_text: answerText.trim() || (isAutoSubmit ? 'No verbal response (silence).' : 'Passed without verbal response.'),
+        answer_text: answerText.trim() || (isAutoSubmit ? 'No verbal response (timeout).' : 'Passed without verbal response.'),
         speaking_time_seconds: speakingTime,
       }
 
@@ -1232,43 +1192,22 @@ const InterviewSession = () => {
     handleSubmitRef.current = handleSubmitAnswer
   })
 
-  // Auto-advance to next question when 40 seconds expire
+  // Auto-advance to next question when total question time (90s) expires
   useEffect(() => {
     if (questionSeconds === 0 && !isAiAsking && !isCountingDown && !submitting && !isCompleted && session && question) {
       handleSubmitRef.current(true)
     }
   }, [questionSeconds, isAiAsking, isCountingDown, submitting, isCompleted, session, question])
 
-  // Enter key handler inside Textarea (Enter = submit, Shift + Enter = new line)
+  // Enter key handler inside Textarea (Ctrl+Enter / Cmd+Enter = submit, Enter = natural new line)
   const handleTextareaKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (e.shiftKey) {
-        return // allow new line
-      }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
       if (!submitting) {
         handleSubmitRef.current()
       }
     }
   }
-
-  // Global Enter key listener (allows pressing Enter anywhere to submit answer)
-  useEffect(() => {
-    const handleGlobalKeyDown = (e) => {
-      if (e.key !== 'Enter' || e.shiftKey) return
-      // If currently focused inside a textarea or input, that element's own onKeyDown handles it
-      if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) {
-        return
-      }
-      if (!isCompleted && !submitting && session) {
-        e.preventDefault()
-        handleSubmitRef.current()
-      }
-    }
-
-    window.addEventListener('keydown', handleGlobalKeyDown)
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [isCompleted, submitting, session])
 
   // Skip question
   const handleSkip = async () => {
@@ -1503,7 +1442,7 @@ const InterviewSession = () => {
             {isMediaRecording && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 text-[11px] font-bold font-mono border border-rose-200 dark:border-rose-900/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping" />
-                <span>REC {formatTime(recordingSeconds)} / 00:30 ({questionSeconds}s bachi)</span>
+                <span>REC {formatTime(recordingSeconds)} / {formatTime(TOTAL_QUESTION_SECONDS)} ({questionSeconds}s bachi)</span>
               </span>
             )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] text-slate-600 dark:text-slate-300 text-[11px] font-bold font-mono border border-slate-200/80 dark:border-slate-800">
@@ -1737,7 +1676,7 @@ const InterviewSession = () => {
                       <span>{formatTime(recordingSeconds)}</span>
                     </span>
                     <span className="text-slate-500 font-bold">/</span>
-                    <span className="text-slate-400 font-semibold">00:30</span>
+                    <span className="text-slate-400 font-semibold">{formatTime(TOTAL_QUESTION_SECONDS)}</span>
                     <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
                       questionSeconds <= 5 
                         ? 'bg-rose-600 text-white animate-pulse' 
@@ -1761,7 +1700,7 @@ const InterviewSession = () => {
                           ? 'bg-amber-400' 
                           : 'bg-emerald-500'
                       }`}
-                      style={{ width: `${Math.min(100, Math.max(0, ((30 - questionSeconds) / 30) * 100))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, ((TOTAL_QUESTION_SECONDS - questionSeconds) / TOTAL_QUESTION_SECONDS) * 100))}%` }}
                     />
                   </div>
                 )}
@@ -1815,26 +1754,26 @@ const InterviewSession = () => {
                     </div>
                   )}
 
-                  {/* 2. Mic Toggle (In Audio or Video mode) */}
-                  {session?.mode !== 'text' && (
-                    <div className="flex flex-col items-center gap-0.5">
-                      <button
-                        onClick={toggleMic}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                          isMicActive && !isAiAsking
-                            ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs'
-                            : 'bg-white dark:bg-[#131E38] text-slate-400 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700'
-                        }`}
-                        title={isAiAsking ? 'Microphone paused while AI is asking question' : isMicActive ? 'Mute Mic' : 'Unmute Mic'}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                          <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
-                        </svg>
-                      </button>
-                      <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Mic</span>
-                    </div>
-                  )}
+                  {/* 2. Mic Toggle (Available in all formats) */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button
+                      onClick={toggleMic}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                        isMicActive && listening
+                          ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/40 shadow-xs'
+                          : isMicActive
+                          ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/40 shadow-xs'
+                          : 'bg-white dark:bg-[#131E38] text-rose-500 dark:text-rose-400 border border-rose-200 dark:border-rose-700/80 hover:bg-rose-50 dark:hover:bg-slate-700'
+                      }`}
+                      title={isMicActive ? 'Mute Mic' : 'Unmute Mic'}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                      </svg>
+                    </button>
+                    <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Mic</span>
+                  </div>
 
                   {/* 3. Pause Interview Toggle */}
                   <div className="flex flex-col items-center gap-0.5">
@@ -1934,7 +1873,7 @@ const InterviewSession = () => {
                           : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 5 ? 'bg-rose-500' : questionSeconds <= 10 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                        <span>⏱️ {formatTime(recordingSeconds)} / 00:30 ({questionSeconds}s bachi)</span>
+                        <span>⏱️ {formatTime(recordingSeconds)} / {formatTime(TOTAL_QUESTION_SECONDS)} ({questionSeconds}s bachi)</span>
                       </span>
                     )}
                   </div>
@@ -1947,7 +1886,7 @@ const InterviewSession = () => {
                       className={`h-full transition-all duration-300 ${
                         questionSeconds <= 5 ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]' : questionSeconds <= 10 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
-                      style={{ width: `${Math.min(100, Math.max(0, ((30 - questionSeconds) / 30) * 100))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, ((TOTAL_QUESTION_SECONDS - questionSeconds) / TOTAL_QUESTION_SECONDS) * 100))}%` }}
                     />
                   </div>
                 )}
@@ -1963,7 +1902,7 @@ const InterviewSession = () => {
                     <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                       Your Answer
                     </span>
-                    {session?.mode !== 'text' && listening && !isAiAsking && (
+                    {listening && !isAiAsking && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 animate-pulse">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
                         Live Captions On
@@ -1972,34 +1911,33 @@ const InterviewSession = () => {
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold">
                     {/* Dictation Language Selector: English (IN) vs Hindi */}
-                    {session?.mode !== 'text' && (
-                      <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/60 text-[10px]">
-                        <button
-                          type="button"
-                          onClick={() => setSpeechLang('en-IN')}
-                          className={`px-1.5 py-0.5 rounded-md transition-all font-bold ${
-                            speechLang === 'en-IN'
-                              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
-                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-                          }`}
-                          title="Dictate in English (Indian Accent)"
-                        >
-                          🇮🇳 EN
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSpeechLang('hi-IN')}
-                          className={`px-1.5 py-0.5 rounded-md transition-all font-bold ${
-                            speechLang === 'hi-IN'
-                              ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-2xs font-extrabold'
-                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-                          }`}
-                          title="Dictate in Hindi (हिंदी में बोलें)"
-                        >
-                          🇮🇳 हिंदी
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/60 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setSpeechLang('en-IN')}
+                        className={`px-2 py-0.5 rounded-md transition-all font-bold cursor-pointer ${
+                          speechLang === 'en-IN'
+                            ? 'bg-blue-600 text-white shadow-2xs font-extrabold'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
+                        }`}
+                        title="Dictate in English (Indian Accent)"
+                      >
+                        🇮🇳 EN
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSpeechLang('hi-IN')}
+                        className={`px-2 py-0.5 rounded-md transition-all font-bold cursor-pointer ${
+                          speechLang === 'hi-IN'
+                            ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
+                        }`}
+                        title="Dictate in Hindi / Hinglish (हिंदी में बोलें)"
+                      >
+                        🇮🇳 हिंदी / Hinglish
+                      </button>
+                    </div>
+
                     {isAiAsking ? (
                       <button
                         type="button"
@@ -2008,18 +1946,14 @@ const InterviewSession = () => {
                         title="Click to start answering immediately"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                        <span>⚡ Start Answering Now</span>
+                        <span>⚡ Answer Now</span>
                       </button>
-                    ) : session?.mode === 'text' ? (
-                      <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
-                        Typing Mode ⌨️
-                      </span>
                     ) : (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {listening && !isPaused ? (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 shadow-2xs">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                            <span>Mic Live ({formatTime(recordingSeconds)})</span>
+                            <span>Mic Live · Bolte rahein</span>
                           </span>
                         ) : (
                           <button
@@ -2032,22 +1966,6 @@ const InterviewSession = () => {
                           >
                             <span>🎤 Unmute Mic</span>
                           </button>
-                        )}
-                        {answerText?.trim().length >= 4 ? (
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border transition-all ${
-                              silenceSeconds <= 2
-                                ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 animate-pulse'
-                                : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80'
-                            }`}
-                            title="Auto-submits after 5s of quiet once you stop speaking"
-                          >
-                            Silence: {silenceSeconds}s
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-[#131E38] border border-slate-200 dark:border-slate-800">
-                            Thinking...
-                          </span>
                         )}
                       </div>
                     )}
@@ -2072,7 +1990,7 @@ const InterviewSession = () => {
                 )}
 
                 {/* Browser Unsupported Speech Warning */}
-                {session?.mode !== 'text' && !speechSupported && (
+                {!speechSupported && (
                   <div className="mb-2 p-2 bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 text-xs rounded-xl border border-amber-200 dark:border-amber-800 flex items-center gap-2">
                     <span>⚠️</span>
                     <span>Live voice-to-text is not supported in this browser. Please type your answer or use Google Chrome / Microsoft Edge.</span>
@@ -2093,7 +2011,7 @@ const InterviewSession = () => {
                       <span className="flex items-center gap-1.5 font-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
                         {isCountingDown && speechCountdown > 0
-                          ? `⏱️ Interview starting in ${speechCountdown}s... (Get ready)`
+                          ? `⏱️ Starting in ${speechCountdown}s...`
                           : 'AI is reading question aloud...'}
                       </span>
                       <button
@@ -2101,7 +2019,7 @@ const InterviewSession = () => {
                         onClick={handleSkipAiVoiceAndAnswerNow}
                         className="font-bold underline hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer"
                       >
-                        ⚡ Skip Voice & Answer Now
+                        ⚡ Answer Now
                       </button>
                     </div>
                   )}
@@ -2126,46 +2044,39 @@ const InterviewSession = () => {
                       handleSpeechActivity()
                     }}
                     onKeyDown={handleTextareaKeyDown}
-                    placeholder={
-                      session?.mode === 'text'
-                        ? 'Type your detailed answer here...'
-                        : isAiAsking
-                        ? 'AI is speaking the question... (Click "⚡ Skip Voice & Answer Now" or start typing here to answer immediately)'
-                        : 'Speak into your microphone — your words will type here in real time (or type with keyboard)...'
-                    }
+                    placeholder="🎤 Bolna shuru karein — aap jo bolenge yahan real-time type hoga... (Ya keyboard se type karein)"
                     rows={session?.mode === 'text' ? 5 : 4}
                     className="w-full p-2.5 bg-white dark:bg-[#131E38] rounded-xl text-xs sm:text-[13px] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border border-slate-200 dark:border-slate-700/80 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all min-h-[90px]"
                   />
-                  {session?.mode !== 'text' && (
-                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                      <div className="flex items-center gap-2">
-                        <span>
-                          {isAiAsking
-                            ? '🔇 AI is reading question... Mic opens right after.'
-                            : listening
-                            ? answerText?.trim()
-                              ? `🟢 Voice Live · Transcribing · Silence timer: ${silenceSeconds}s`
-                              : '🟢 Mic Live · Listening... Speak your answer now'
-                            : '⚪ Mic paused. Tap unmute or type answer'}
-                        </span>
-                        {!isAiAsking && !listening && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsMicActive(true)
-                              startMic()
-                            }}
-                            className="px-2 py-0.5 rounded bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/60 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 font-sans font-bold cursor-pointer text-[10px]"
-                          >
-                            🎤 Turn Mic On
-                          </button>
-                        )}
-                      </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {listening
+                          ? '🟢 Mic Live · Jo bolenge yahan real-time type hoga'
+                          : '⚪ Mic paused · Tap unmute ya keyboard se type karein'}
+                      </span>
+                      {!listening && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMicActive(true)
+                            startMic()
+                          }}
+                          className="px-2 py-0.5 rounded bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/60 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 font-sans font-bold cursor-pointer text-[10px]"
+                        >
+                          🎤 Turn Mic On
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-600 dark:text-slate-300">
-                        {answerText ? `${answerText.length} chars` : 'Ready to speak'}
+                        {answerText ? `${answerText.length} chars` : 'Ready'}
+                      </span>
+                      <span className="hidden sm:inline text-slate-400 text-[10px]">
+                        · Enter: New line · Ctrl+Enter: Submit
                       </span>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
