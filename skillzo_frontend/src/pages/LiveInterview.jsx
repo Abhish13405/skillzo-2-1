@@ -48,6 +48,10 @@ const LiveInterview = () => {
   const [copiedLink, setCopiedLink] = useState(false)
   const [evalOpen, setEvalOpen] = useState(true)
   const [callJoined, setCallJoined] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+
+  const cleanRoom = `skillzo_${(roomId || 'main').replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const directRoomUrl = `https://meet.jit.si/${cleanRoom}`
 
   const overallScore = Math.round((techScore + commScore + fitScore) / 3)
 
@@ -62,6 +66,13 @@ const LiveInterview = () => {
   // Load and mount Jitsi Meet WebRTC Video
   useEffect(() => {
     let isMounted = true
+
+    // 7-second timeout watchdog in case network blocks or delays external script
+    const timer = setTimeout(() => {
+      if (isMounted && !apiRef.current) {
+        setLoadError(true)
+      }
+    }, 7000)
 
     const loadScript = () => {
       return new Promise((resolve, reject) => {
@@ -91,8 +102,6 @@ const LiveInterview = () => {
         const displayName = isHR
           ? `${user?.username || 'HR Interviewer'} (Interviewer)`
           : `${user?.username || candidateName} (Candidate)`
-
-        const cleanRoom = `skillzo_${(roomId || 'main').replace(/[^a-zA-Z0-9_-]/g, '')}`
 
         const api = new JitsiAPI('meet.jit.si', {
           roomName: cleanRoom,
@@ -133,6 +142,7 @@ const LiveInterview = () => {
 
         apiRef.current = api
         setCallJoined(true)
+        setLoadError(false)
 
         api.addEventListener('videoConferenceLeft', () => {
           if (isHR) {
@@ -144,10 +154,12 @@ const LiveInterview = () => {
       })
       .catch((err) => {
         console.error('Failed to load video conferencing module:', err)
+        if (isMounted) setLoadError(true)
       })
 
     return () => {
       isMounted = false
+      clearTimeout(timer)
       if (apiRef.current) {
         try {
           apiRef.current.dispose()
@@ -156,7 +168,7 @@ const LiveInterview = () => {
         }
       }
     }
-  }, [roomId, isHR, candidateName, user, navigate])
+  }, [roomId, isHR, candidateName, user, navigate, cleanRoom])
 
   // Submit HR Evaluation
   const handleSubmitEvaluation = async (e) => {
@@ -245,7 +257,7 @@ const LiveInterview = () => {
             onClick={() => {
               if (window.confirm('Are you sure you want to exit the interview room?')) {
                 if (apiRef.current) apiRef.current.dispose()
-                navigate(isHR ? '/leader' : '/dashboard')
+                navigate(isHR ? '/leader' : '/live-room')
               }
             }}
             className="py-1.5 px-3 rounded-lg text-xs font-bold bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 transition-colors cursor-pointer"
@@ -261,9 +273,36 @@ const LiveInterview = () => {
         <div className="flex-1 h-full w-full bg-[#050811] relative flex items-center justify-center">
           <div ref={jitsiContainerRef} className="w-full h-full" />
           {!callJoined && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070B14] z-10">
-              <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-              <p className="text-xs font-mono text-slate-400">Connecting to secure live interview room...</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070B14] p-6 text-center z-10">
+              {loadError ? (
+                <div className="max-w-md bg-[#0D1527] p-6 rounded-2xl border border-slate-800 shadow-xl">
+                  <div className="w-12 h-12 rounded-full bg-blue-950 text-blue-400 border border-blue-800 flex items-center justify-center mx-auto mb-3 text-xl">
+                    📹
+                  </div>
+                  <h4 className="font-bold text-white text-base mb-1">Live Video Room Ready</h4>
+                  <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                    Connecting to encrypted video stream. You can also launch the meeting in a full secure window:
+                  </p>
+                  <a
+                    href={directRoomUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-primary py-2.5 px-5 text-xs font-bold inline-flex items-center gap-2 shadow-md w-full justify-center cursor-pointer"
+                  >
+                    <span>Launch Live Video Room ↗</span>
+                  </a>
+                  <p className="text-[11px] text-slate-500 font-mono mt-3">
+                    {isHR
+                      ? 'Your HR Scorecard on the right remains active to evaluate in real time.'
+                      : 'Your recruiter will connect momentarily once they join the room.'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-xs font-mono text-slate-400">Connecting to secure live interview room...</p>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -208,9 +208,14 @@ const LeaderPortal = () => {
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 mb-6">
             This portal is exclusively reserved for Project Leader (Abhishek). Your account does not have administrative clearance.
           </p>
-          <Link to="/dashboard" className="btn-primary text-xs py-2 px-4 shadow-sm inline-block">
-            ← Return to Dashboard
-          </Link>
+          <div className="space-y-2">
+            <Link to="/live-room" className="btn-primary text-xs py-2.5 px-4 shadow-sm block w-full">
+              Go to Live HR Interview Room →
+            </Link>
+            <Link to="/dashboard" className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white py-1.5 block">
+              ← Return to Dashboard
+            </Link>
+          </div>
         </div>
       </AppShell>
     )

@@ -51,6 +51,12 @@ const Icons = {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
     </svg>
   ),
+  LiveRoom: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+  ),
 }
 
 const navItems = [
@@ -105,7 +111,10 @@ const SidebarContent = ({ onClose }) => {
         ...navItems,
         { to: '/leader', label: 'Leader Portal', Icon: Icons.LeaderPortal },
       ]
-    : navItems
+    : [
+        ...navItems,
+        { to: '/live-room', label: 'Live HR Room', Icon: Icons.LiveRoom },
+      ]
 
   const handleLogout = () => {
     logout()

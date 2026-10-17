@@ -1,22 +1,29 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../context/AuthContext'
 
 const Dashboard = () => {
-  const { user, loginAsGuest } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
-  const handleTrackClick = async (targetPath, state = null) => {
-    if (!user) {
-      try {
-        await loginAsGuest()
-      } catch {
-        // proceed
-      }
-    }
-    navigate(targetPath, { state })
-  }
+  const userEmail = (user?.email || '').toLowerCase().trim()
+  const userName = (user?.username || '').toLowerCase().trim()
+  const isLeader = Boolean(
+    user && !user.is_guest && (
+      user.is_leader ||
+      user.is_staff ||
+      user.is_superuser ||
+      userEmail === 'abhishekkushwaha13405@gmail.com' ||
+      userEmail === 'abhish@gmail.com' ||
+      userEmail === 'abhishekkushwaha31387@bbdu.ac.in' ||
+      userName === 'abhishek13405' ||
+      userName === 'abhish' ||
+      userName === 'abhishekkushwaha31387' ||
+      userEmail.includes('abhishek') ||
+      userName.includes('abhishek')
+    )
+  )
 
   const tracks = [
     {
@@ -57,25 +64,45 @@ const Dashboard = () => {
         </svg>
       )
     },
-    {
-      id: 'leader',
-      title: 'Company Leader Portal',
-      badge: 'Hiring Hub',
-      badgeColor: 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-200/70 dark:border-amber-800',
-      description: 'Inspect registered candidates, review interview scores & watch recordings.',
-      actionText: 'Open Leader Portal',
-      targetPath: '/leader',
-      state: null,
-      accentColor: 'hover:border-amber-500/80 dark:hover:border-amber-400/80',
-      textColor: 'group-hover:text-amber-600 dark:group-hover:text-amber-400',
-      iconBg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200/60 dark:border-amber-800/80 text-amber-600 dark:text-amber-400',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-        </svg>
-      )
-    },
+    isLeader
+      ? {
+          id: 'leader',
+          title: 'Company Leader Portal',
+          badge: 'Hiring Hub',
+          badgeColor: 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-200/70 dark:border-amber-800',
+          description: 'Inspect registered candidates, review interview scores & watch recordings.',
+          actionText: 'Open Leader Portal',
+          targetPath: '/leader',
+          state: null,
+          accentColor: 'hover:border-amber-500/80 dark:hover:border-amber-400/80',
+          textColor: 'group-hover:text-amber-600 dark:group-hover:text-amber-400',
+          iconBg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200/60 dark:border-amber-800/80 text-amber-600 dark:text-amber-400',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+          )
+        }
+      : {
+          id: 'live-room',
+          title: 'Live HR Interview Room',
+          badge: 'Real-Time 1:1',
+          badgeColor: 'bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border-purple-200/70 dark:border-purple-800',
+          description: 'Connect face-to-face with your company HR recruiter over secure live video.',
+          actionText: 'Join Live HR Room',
+          targetPath: '/live-room',
+          state: null,
+          accentColor: 'hover:border-purple-500/80 dark:hover:border-purple-400/80',
+          textColor: 'group-hover:text-purple-600 dark:group-hover:text-purple-400',
+          iconBg: 'bg-purple-50 dark:bg-purple-950/60 border-purple-200/60 dark:border-purple-800/80 text-purple-600 dark:text-purple-400',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7" />
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+            </svg>
+          )
+        },
     {
       id: 'resume',
       title: 'Resume ATS Scanner',
@@ -115,10 +142,11 @@ const Dashboard = () => {
         {/* The 4 Big Track Boxes (Optimized height to fit completely on one screen) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
           {tracks.map((track) => (
-            <div
+            <Link
               key={track.id}
-              onClick={() => handleTrackClick(track.targetPath, track.state)}
-              className={`group relative bg-white dark:bg-[#0D1527] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800/90 ${track.accentColor} transition-all duration-200 flex flex-col justify-between cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-0.5`}
+              to={track.targetPath}
+              state={track.state}
+              className={`group relative bg-white dark:bg-[#0D1527] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800/90 ${track.accentColor} transition-all duration-200 flex flex-col justify-between cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-0.5 block no-underline`}
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -140,7 +168,7 @@ const Dashboard = () => {
                 <span>{track.actionText}</span>
                 <span className="group-hover:translate-x-1 transition-transform">→</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

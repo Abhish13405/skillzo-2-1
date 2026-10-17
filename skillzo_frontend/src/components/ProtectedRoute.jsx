@@ -52,12 +52,20 @@ const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader 
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
               This portal is strictly reserved for authorized Project Leaders and Administrators. Your account does not have clearance to view or manage leader controls.
             </p>
-            <a
-              href="/dashboard"
-              className="btn-primary inline-block w-full py-2.5 text-center shadow-md shadow-blue-500/20 text-xs font-bold"
-            >
-              ← Return to Dashboard
-            </a>
+            <div className="space-y-2">
+              <a
+                href="/live-room"
+                className="btn-primary inline-block w-full py-2.5 text-center shadow-md shadow-blue-500/20 text-xs font-bold"
+              >
+                Go to Live HR Interview Room →
+              </a>
+              <a
+                href="/dashboard"
+                className="inline-block w-full py-2 text-center text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                ← Return to Dashboard
+              </a>
+            </div>
           </div>
         </div>
       )

@@ -17,6 +17,7 @@ import Recordings from './pages/Recordings'
 import LeaderPortal from './pages/LeaderPortal'
 import TechnicalStudio from './pages/TechnicalStudio'
 import LiveInterview from './pages/LiveInterview'
+import CandidateLiveRoom from './pages/CandidateLiveRoom'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
       <Route path="/interview/report/:sessionId" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
 
       {/* Live 1:1 HR Interview Room */}
+      <Route path="/live-room" element={<ProtectedRoute featureName="Live HR Room"><CandidateLiveRoom /></ProtectedRoute>} />
       <Route path="/live-interview/:roomId" element={<LiveInterview />} />
       <Route path="/live/:roomId" element={<LiveInterview />} />
 
