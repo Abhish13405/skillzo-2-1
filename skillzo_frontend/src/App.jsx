@@ -32,6 +32,7 @@ function App() {
       <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />
       <Route path="/recordings" element={<ProtectedRoute featureName="Recordings"><Recordings /></ProtectedRoute>} />
       <Route path="/leader" element={<ProtectedRoute featureName="Leader Portal" requireLeader><LeaderPortal /></ProtectedRoute>} />
+      <Route path="/leader-portal" element={<Navigate to="/leader" replace />} />
 
       <Route path="/interview/setup" element={<ProtectedRoute featureName="AI Interview"><ErrorBoundary><InterviewSetup /></ErrorBoundary></ProtectedRoute>} />
       <Route path="/interview/:sessionId/session" element={<ProtectedRoute featureName="AI Interview Session"><ErrorBoundary><InterviewSession /></ErrorBoundary></ProtectedRoute>} />
