@@ -187,16 +187,16 @@ const CandidateLiveRoom = () => {
   }, [])
 
   return (
-    <AppShell hideSidebar={false}>
-      <div className="max-w-5xl mx-auto py-5 px-3 sm:px-4">
-        {/* Top Breadcrumb & Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <AppShell hideSidebar={true}>
+      <div className="max-w-5xl mx-auto py-2 sm:py-3 px-3 sm:px-4">
+        {/* Top Back Navigation & Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
           <div>
             <Link
               to="/dashboard"
-              className="text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 inline-flex items-center gap-1.5 mb-1.5 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#0D1527] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400/60 shadow-xs transition-all mb-2.5 group"
             >
-              <span>←</span>
+              <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
               <span>Back to Dashboard</span>
             </Link>
             <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
