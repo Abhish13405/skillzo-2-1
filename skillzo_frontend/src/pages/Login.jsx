@@ -75,9 +75,7 @@ const Login = () => {
         <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-indigo-200/30 dark:bg-cyan-500/10 blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-display font-extrabold text-xl text-white shadow-md shadow-blue-500/20">
-            S
-          </div>
+          <img src="/logo-icon.png" alt="Skillzo Logo" className="w-11 h-11 object-contain drop-shadow-md" />
           <span className="font-display font-extrabold text-2xl tracking-tight text-slate-900 dark:text-white">Skillzo AI</span>
         </div>
 
@@ -106,10 +104,8 @@ const Login = () => {
       {/* Right: form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-surface-soft dark:bg-[#080D1A]">
         <div className="w-full max-w-md bg-white dark:bg-[#0D1527] p-8 sm:p-10 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-craft">
-          <div className="flex items-center gap-2 mb-6 lg:hidden">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-display font-extrabold text-sm">
-              S
-            </div>
+          <div className="flex items-center gap-2.5 mb-6 lg:hidden">
+            <img src="/logo-icon.png" alt="Skillzo Logo" className="w-8 h-8 object-contain" />
             <span className="font-display font-bold text-xl text-slate-900 dark:text-white">Skillzo</span>
           </div>
 

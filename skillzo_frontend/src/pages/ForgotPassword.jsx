@@ -119,9 +119,7 @@ const ForgotPassword = () => {
         
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-display font-extrabold text-2xl flex items-center justify-center mx-auto mb-3 shadow-md shadow-blue-500/20">
-            S
-          </div>
+          <img src="/logo-icon.png" alt="Skillzo Logo" className="w-14 h-14 object-contain mx-auto mb-3 drop-shadow-md" />
           <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-slate-900 dark:text-white tracking-tight">
             Account Recovery
           </h1>

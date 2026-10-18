@@ -1640,6 +1640,7 @@ const InterviewSession = () => {
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
             </button>
+            <img src="/logo-icon.png" alt="Skillzo Logo" className="w-7 h-7 object-contain shrink-0 drop-shadow-xs" />
             <div>
               <h1 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 dark:text-white leading-tight">
                 {session?.job_role || (isHrSession ? 'HR & Behavioral Interview' : 'AI Mock Interview')}

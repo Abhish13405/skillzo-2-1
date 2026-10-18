@@ -22,10 +22,8 @@ const AppShell = ({ children, hideSidebar = false }) => {
       <div className="flex-1 flex flex-col min-w-0">
         {hideSidebar ? (
           <div className="flex items-center justify-between px-6 py-4 max-w-5xl mx-auto w-full">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-display font-extrabold text-sm shadow-sm">
-                S
-              </div>
+            <div className="flex items-center gap-2.5">
+              <img src="/logo-icon.png" alt="Skillzo Logo" className="w-8 h-8 object-contain shrink-0 drop-shadow-sm" />
               <span className="font-display font-bold text-lg text-slate-900 dark:text-white tracking-tight">
                 Skillzo AI
               </span>
