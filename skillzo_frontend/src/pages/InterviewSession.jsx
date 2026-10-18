@@ -571,6 +571,7 @@ const InterviewSession = () => {
 
   // ─── Real-time Speech-to-Text Dictation & Synthesis Handlers ───────────
   const [speechLang, setSpeechLang] = useState('en-IN')
+  const [silenceSeconds, setSilenceSeconds] = useState(0)
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
 
@@ -579,6 +580,7 @@ const InterviewSession = () => {
   // When candidate starts speaking, immediately interrupt AI reading so candidate is heard clearly
   const handleSpeechActivity = useCallback(() => {
     lastSpeechTimeRef.current = Date.now()
+    setSilenceSeconds(0)
     if (isAiAskingRef.current) {
       setIsAiAsking(false)
       setIsCountingDown(false)
@@ -590,6 +592,7 @@ const InterviewSession = () => {
   // Live transcribed speech directly streams into the candidate's answer box in real-time
   const handleTranscript = useCallback((t) => {
     lastSpeechTimeRef.current = Date.now()
+    setSilenceSeconds(0)
     if (isAiAskingRef.current) {
       setIsAiAsking(false)
       setIsCountingDown(false)
@@ -987,14 +990,14 @@ const InterviewSession = () => {
     }
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
-  // Only stop mic when interview is paused, completed, or candidate explicitly turned mic off
+  // Only stop mic when interview is paused, completed, candidate turned mic off, or AI is asking
   useEffect(() => {
-    if (isPaused || isCompleted || !isMicActive) {
+    if (isPaused || isCompleted || !isMicActive || isAiAsking) {
       stopMic()
     }
-  }, [isPaused, isCompleted, isMicActive, stopMic])
+  }, [isPaused, isCompleted, isMicActive, isAiAsking, stopMic])
 
-  // Called strictly AFTER AI finishes asking the question (or if candidate speaks/answers immediately)
+  // Called strictly AFTER AI finishes asking the question (or if candidate clicks Answer Now)
   const handleAiFinishedAsking = useCallback(() => {
     if (aiFinishedForQuestionRef.current) return
     aiFinishedForQuestionRef.current = true
@@ -1012,6 +1015,7 @@ const InterviewSession = () => {
     setSpeechCountdown(0)
     startTime.current = Date.now()
     lastSpeechTimeRef.current = Date.now()
+    setSilenceSeconds(0)
 
     // Unmute hardware audio tracks for recording
     if (streamRef.current) {
@@ -1020,11 +1024,13 @@ const InterviewSession = () => {
       })
     }
 
-    if (!isPaused && isMicActive) {
+    // AI is finished! Turn user's mic ON automatically
+    if (!isPaused) {
+      setIsMicActive(true)
       startMic()
       startRecording()
     }
-  }, [isPaused, isMicActive, startMic, startRecording])
+  }, [isPaused, startMic, startRecording])
 
   // Skip AI voice read-aloud and immediately jump into the candidate's answering turn
   const handleSkipAiVoiceAndAnswerNow = useCallback(() => {
@@ -1059,24 +1065,28 @@ const InterviewSession = () => {
     return () => clearInterval(interval)
   }, [isPaused, isCompleted, isAiAsking])
 
-  // When question loads/changes: Mic is immediately active so whatever candidate speaks is transcribed
+  // When question loads/changes: Mic is strictly OFF while AI asks the question
   useEffect(() => {
     if (!session || isCompleted) return
     aiFinishedForQuestionRef.current = false
     cancelSpeech()
     resetTranscript()
     setAnswerText('')
-    setIsMicActive(true)
+    setSilenceSeconds(0)
+
+    // User's mic is OFF while AI speaks to prevent echo and distraction
+    setIsMicActive(false)
+    stopMic()
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = false
+      })
+    }
 
     setIsAiAsking(true)
     setQuestionSeconds(TOTAL_QUESTION_SECONDS)
     setRecordingSeconds(0)
     lastSpeechTimeRef.current = Date.now()
-
-    // Immediately start listening so the candidate never loses spoken words
-    if (!isPaused) {
-      startMic()
-    }
 
     const q = session.questions?.[current]
     const effectiveQuestionText = current === 0 ? "Introduce yourself." : (q?.question_text || '')
@@ -1210,6 +1220,35 @@ const InterviewSession = () => {
       handleSubmitRef.current(true)
     }
   }, [questionSeconds, isAiAsking, isCountingDown, submitting, isCompleted, session, question])
+
+  // ─── 7-Second Silence Auto-Advance ──────────────────────────────────────────
+  // Once the candidate provides an answer, detect 7 continuous seconds of silence and auto-submit
+  useEffect(() => {
+    if (isAiAsking || isCountingDown || isPaused || isCompleted || submitting) {
+      setSilenceSeconds(0)
+      return
+    }
+
+    // Activate only after candidate has spoken or typed at least 3 characters
+    const hasSpoken = Boolean(answerText.trim().length >= 3)
+    if (!hasSpoken) {
+      setSilenceSeconds(0)
+      return
+    }
+
+    const interval = setInterval(() => {
+      const elapsedSec = Math.floor((Date.now() - lastSpeechTimeRef.current) / 1000)
+      if (elapsedSec >= 7) {
+        setSilenceSeconds(7)
+        clearInterval(interval)
+        handleSubmitRef.current(true)
+      } else {
+        setSilenceSeconds(elapsedSec)
+      }
+    }, 400)
+
+    return () => clearInterval(interval)
+  }, [isAiAsking, isCountingDown, isPaused, isCompleted, submitting, answerText])
 
   // Enter key handler inside Textarea (Ctrl+Enter / Cmd+Enter = submit, Enter = natural new line)
   const handleTextareaKeyDown = (e) => {
@@ -2047,7 +2086,7 @@ const InterviewSession = () => {
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
                         {isCountingDown && speechCountdown > 0
                           ? `⏱️ Starting in ${speechCountdown}s...`
-                          : 'AI is reading question aloud...'}
+                          : 'AI is reading question... (Mic OFF to prevent echo)'}
                       </span>
                       <button
                         type="button"
@@ -2058,6 +2097,24 @@ const InterviewSession = () => {
                       </button>
                     </div>
                   )}
+
+                  {/* 7-Second Silence Auto-Advance Indicator */}
+                  {silenceSeconds >= 2 && !isAiAsking && answerText.trim().length >= 3 && (
+                    <div className="mb-1.5 px-3 py-1.5 rounded-xl bg-amber-50/95 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-700/80 text-[11px] text-amber-800 dark:text-amber-200 flex items-center justify-between shadow-xs animate-pulse">
+                      <span className="flex items-center gap-1.5 font-bold font-mono">
+                        <span>⏱️</span>
+                        <span>Silence detected: moving to next question in {7 - silenceSeconds}s...</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSubmitRef.current()}
+                        className="text-[10px] font-bold text-amber-900 dark:text-amber-100 underline hover:opacity-80 cursor-pointer"
+                      >
+                        Submit Now →
+                      </button>
+                    </div>
+                  )}
+
                   <textarea
                     value={answerText}
                     onFocus={() => {
@@ -2076,21 +2133,28 @@ const InterviewSession = () => {
                       }
                       setAnswerText(e.target.value)
                       syncTranscript(e.target.value)
-                      handleSpeechActivity()
+                      lastSpeechTimeRef.current = Date.now()
+                      setSilenceSeconds(0)
                     }}
                     onKeyDown={handleTextareaKeyDown}
-                    placeholder="🎤 Bolna shuru karein — aap jo bolenge yahan real-time type hoga... (Ya keyboard se type karein)"
+                    placeholder={
+                      isAiAsking
+                        ? "AI is reading question... Mic will automatically turn ON as soon as AI finishes!"
+                        : "🎤 Bolna shuru karein — aap jo bolenge yahan real-time type hoga... (Ya keyboard se type karein)"
+                    }
                     rows={session?.mode === 'text' ? 5 : 4}
                     className="w-full p-2.5 bg-white dark:bg-[#131E38] rounded-xl text-xs sm:text-[13px] text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border border-slate-200 dark:border-slate-700/80 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all min-h-[90px]"
                   />
                   <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                     <div className="flex items-center gap-2">
                       <span>
-                        {listening
-                          ? '🟢 Mic Live · Jo bolenge yahan real-time type hoga'
-                          : '⚪ Mic paused · Tap unmute ya keyboard se type karein'}
+                        {isAiAsking
+                          ? '🔇 Mic OFF · AI is reading question...'
+                          : listening
+                            ? '🟢 Mic Live · Jo bolenge yahan real-time type hoga'
+                            : '⚪ Mic paused · Tap unmute ya keyboard se type karein'}
                       </span>
-                      {!listening && (
+                      {!listening && !isAiAsking && (
                         <button
                           type="button"
                           onClick={() => {
