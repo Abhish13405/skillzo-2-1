@@ -154,11 +154,11 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     }
 
     recognition.onspeechstart = () => {
-      onSpeechActivityRef.current?.()
+      // Speech started
     }
 
     recognition.onsoundstart = () => {
-      onSpeechActivityRef.current?.()
+      // Background sound ignored for silence timer
     }
 
     recognition.onresult = (event) => {
@@ -220,12 +220,14 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       }
 
       if (!isExplicitlyStoppedRef.current) {
+        // Keep listening state active so mic stays continuously ON
+        setListening(true)
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
           if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
             start()
           }
-        }, 150)
+        }, 100)
       } else {
         setListening(false)
       }
@@ -236,8 +238,21 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     try {
       recognition.start()
     } catch (e) {
-      isRunningRef.current = false
-      console.warn('Recognition start caught error:', e)
+      if (e.name === 'InvalidStateError') {
+        // Recognition is already active in browser
+        isRunningRef.current = true
+        setListening(true)
+      } else {
+        isRunningRef.current = false
+        console.warn('Recognition start caught error:', e)
+        if (!isExplicitlyStoppedRef.current) {
+          setTimeout(() => {
+            if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
+              start()
+            }
+          }, 250)
+        }
+      }
     }
   }, [])
 
@@ -581,19 +596,26 @@ const InterviewSession = () => {
   const [silenceSeconds, setSilenceSeconds] = useState(0)
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
+  const lastAskedQuestionIndexRef = useRef(-1)
 
   const { speak, cancel: cancelSpeech, speaking } = useSpeechSynthesis()
 
-  // Track candidate speech activity (strictly active only AFTER AI finishes asking)
+  const handleSkipAiVoiceRef = useRef(null)
+
+  // Track candidate speech activity (auto-advances from AI voice if candidate starts speaking)
   const handleSpeechActivity = useCallback(() => {
-    if (isAiAskingRef.current) return
+    if (isAiAskingRef.current) {
+      handleSkipAiVoiceRef.current?.()
+    }
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
   }, [])
 
   // Live transcribed speech directly streams into the candidate's answer box in real-time
   const handleTranscript = useCallback((t) => {
-    if (isAiAskingRef.current) return
+    if (isAiAskingRef.current) {
+      handleSkipAiVoiceRef.current?.()
+    }
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
     setAnswerText(t)
@@ -1010,9 +1032,9 @@ const InterviewSession = () => {
     }
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
-  // Only stop mic when interview is paused, completed, candidate turned mic off, or AI is asking
+  // Only stop mic when interview is paused, completed, or candidate explicitly turned mic off
   useEffect(() => {
-    if (isPaused || isCompleted || !isMicActive || isAiAsking) {
+    if (isPaused || isCompleted || (!isMicActive && !isAiAsking)) {
       stopMic()
     }
   }, [isPaused, isCompleted, isMicActive, isAiAsking, stopMic])
@@ -1031,6 +1053,7 @@ const InterviewSession = () => {
     }
 
     setIsAiAsking(false)
+    isAiAskingRef.current = false
     setIsCountingDown(false)
     setSpeechCountdown(0)
     startTime.current = Date.now()
@@ -1057,6 +1080,10 @@ const InterviewSession = () => {
     cancelSpeech()
     handleAiFinishedAsking()
   }, [cancelSpeech, handleAiFinishedAsking])
+
+  useEffect(() => {
+    handleSkipAiVoiceRef.current = handleSkipAiVoiceAndAnswerNow
+  }, [handleSkipAiVoiceAndAnswerNow])
 
   // Speak question immediately
   const handleSpeakImmediately = useCallback(() => {
@@ -1085,9 +1112,12 @@ const InterviewSession = () => {
     return () => clearInterval(interval)
   }, [isPaused, isCompleted, isAiAsking])
 
-  // When question loads/changes: Mic is strictly OFF while AI asks the question
+  // When question loads/changes: Mic is strictly OFF while AI asks the question ONCE
   useEffect(() => {
     if (!session || isCompleted) return
+    if (lastAskedQuestionIndexRef.current === current) return
+    lastAskedQuestionIndexRef.current = current
+
     aiFinishedForQuestionRef.current = false
     cancelSpeech()
     resetTranscript()
@@ -1246,8 +1276,8 @@ const InterviewSession = () => {
     }
   }, [questionSeconds, isAiAsking, isCountingDown, submitting, isCompleted, session, question])
 
-  // ─── 7-Second Silence Auto-Advance ──────────────────────────────────────────
-  // Once the candidate provides an answer, detect 7 continuous seconds of silence and auto-submit
+  // ─── 6-Second Silence Auto-Advance ──────────────────────────────────────────
+  // Once the candidate provides an answer, detect 6 continuous seconds of silence and auto-submit
   useEffect(() => {
     if (isAiAsking || isCountingDown || isPaused || isCompleted || submitting) {
       setSilenceSeconds(0)
@@ -1263,14 +1293,14 @@ const InterviewSession = () => {
 
     const interval = setInterval(() => {
       const elapsedSec = Math.floor((Date.now() - lastSpeechTimeRef.current) / 1000)
-      if (elapsedSec >= 7) {
-        setSilenceSeconds(7)
+      if (elapsedSec >= 6) {
+        setSilenceSeconds(6)
         clearInterval(interval)
         handleSubmitRef.current(true)
       } else {
         setSilenceSeconds(elapsedSec)
       }
-    }, 400)
+    }, 250)
 
     return () => clearInterval(interval)
   }, [isAiAsking, isCountingDown, isPaused, isCompleted, submitting, answerText])
@@ -2283,9 +2313,16 @@ const InterviewSession = () => {
                     </div>
                   </div>
 
+                  {/* Browser speech recognition support warning */}
+                  {!speechSupported && (
+                    <div className="mb-2 p-2.5 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs rounded-xl flex items-center justify-between">
+                      <span>⚠️ Automatic voice typing requires <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>. If you are using Firefox, please switch to Chrome or type your answers.</span>
+                    </div>
+                  )}
+
                   {/* Single clear warning banner if microphone error */}
                   {speechError && (
-                    <div className="mb-2 p-2.5 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs rounded-xl flex items-center justify-between">
+                    <div className="mb-2 p-2.5 bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-xs rounded-xl flex items-center justify-between">
                       <span>⚠️ {speechError}</span>
                       <button
                         type="button"
@@ -2293,7 +2330,7 @@ const InterviewSession = () => {
                           setIsMicActive(true)
                           startMic()
                         }}
-                        className="px-2.5 py-1 bg-amber-200 dark:bg-amber-800 rounded-lg font-semibold hover:bg-amber-300 cursor-pointer"
+                        className="px-2.5 py-1 bg-rose-200 dark:bg-rose-800 rounded-lg font-semibold hover:bg-rose-300 cursor-pointer"
                       >
                         Retry mic
                       </button>
@@ -2302,24 +2339,53 @@ const InterviewSession = () => {
 
                   {/* Single clear status notification strip */}
                   {isAiAsking ? (
-                    <div className="mb-2 px-3 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                        <span>AI is reading question. Mic turns on automatically when finished.</span>
+                    <div className="mb-2 px-3 py-1.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-200 text-xs flex items-center justify-between shadow-2xs">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                        <span>AI is reading question... Click <strong>Answer now</strong> to speak immediately!</span>
                       </span>
                       <button
                         type="button"
                         onClick={handleSkipAiVoiceAndAnswerNow}
-                        className="font-bold underline cursor-pointer hover:opacity-80"
+                        className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs cursor-pointer shadow-xs transition-colors flex items-center gap-1"
                       >
-                        Answer now
+                        <span>Answer now</span> 🎙️
                       </button>
                     </div>
-                  ) : silenceSeconds >= 2 && answerText.trim().length >= 3 ? (
+                  ) : listening ? (
+                    <div className="mb-2 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between border border-emerald-200/80 dark:border-emerald-800/60">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="font-semibold">🟢 Mic Live: Bolna shuru karein — text yahan automatic likhega</span>
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md">
+                        {speechLang === 'hi-IN' ? 'हिंदी / Hinglish' : 'English'}
+                      </span>
+                    </div>
+                  ) : !isAiAsking ? (
+                    <div className="mb-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        <span>Microphone paused. Click to speak aloud:</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMicActive(true)
+                          startMic()
+                        }}
+                        className="font-bold bg-blue-600 text-white px-2.5 py-0.5 rounded-md text-xs cursor-pointer hover:bg-blue-700"
+                      >
+                        🎙️ Start Speaking
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {silenceSeconds >= 2 && answerText.trim().length >= 3 ? (
                     <div className="mb-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between animate-pulse">
                       <span className="flex items-center gap-1.5">
                         <span>⏱️</span>
-                        <span>Silence detected: advancing in <strong className="font-mono">{7 - silenceSeconds}s</strong>...</span>
+                        <span>Silence detected: advancing in <strong className="font-mono">{6 - silenceSeconds}s</strong>...</span>
                       </span>
                       <button
                         type="button"

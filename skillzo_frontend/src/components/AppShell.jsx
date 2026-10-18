@@ -63,9 +63,7 @@ const AppShell = ({ children, hideSidebar = false }) => {
                 </svg>
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-display font-extrabold text-sm shadow-sm dark:shadow-[0_0_15px_rgba(37,99,235,0.4)]">
-                  S
-                </div>
+                <img src="/logo-icon.png" alt="Skillzo Logo" className="w-7 h-7 object-contain shrink-0" />
                 <span className="font-display font-bold text-lg text-slate-900 dark:text-white">Skillzo</span>
               </div>
             </div>

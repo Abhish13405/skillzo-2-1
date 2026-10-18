@@ -166,9 +166,7 @@ const SidebarContent = ({ onClose }) => {
       {/* Logo Header */}
       <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-display font-extrabold text-base shadow-sm dark:shadow-[0_0_15px_rgba(37,99,235,0.4)]">
-            S
-          </div>
+          <img src="/logo-icon.png" alt="Skillzo Logo" className="w-8 h-8 object-contain shrink-0 drop-shadow-sm" />
           <div>
             <span className="font-display font-extrabold text-base text-slate-900 dark:text-white tracking-tight block leading-tight">Skillzo</span>
             <span className="block text-[9px] font-semibold uppercase tracking-wider text-brand-600 dark:text-blue-400 font-mono">
