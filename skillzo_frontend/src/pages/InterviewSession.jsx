@@ -551,6 +551,13 @@ const InterviewSession = () => {
   const [questionSeconds, setQuestionSeconds] = useState(TOTAL_QUESTION_SECONDS)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const startTime = useRef(Date.now())
+  const sessionStartTimeRef = useRef(Date.now())
+
+  // Completed session metrics & states
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState(() => new Set())
+  const [hasRecordings, setHasRecordings] = useState(false)
+  const [recordingCount, setRecordingCount] = useState(0)
+  const [evaluationStatus, setEvaluationStatus] = useState('pending') // 'pending', 'generating', 'completed', 'failed'
 
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -613,6 +620,9 @@ const InterviewSession = () => {
         }
       })
       streamRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
     }
     setStream(null)
     setIsCameraActive(false)
@@ -922,6 +932,22 @@ const InterviewSession = () => {
         const s = res.data
         setSession(s)
 
+        if (s?.started_at) {
+          const startedMs = new Date(s.started_at).getTime()
+          if (!isNaN(startedMs)) {
+            sessionStartTimeRef.current = startedMs
+          }
+        }
+        if (s?.questions) {
+          const answered = s.questions.filter((q) => q.answer).map((q) => q.id)
+          if (answered.length > 0) {
+            setAnsweredQuestionIds((prev) => new Set([...prev, ...answered]))
+          }
+        }
+        if (s?.overall_score != null) {
+          setEvaluationStatus('completed')
+        }
+
         // If session was already completed, automatically redirect to report
         if (s?.status === 'completed') {
           navigate(`/interview/${sessionId}/report`, { replace: true })
@@ -1196,6 +1222,9 @@ const InterviewSession = () => {
       // Clip is already saved locally on candidate device in IndexedDB via saveRecording()
       // Submitting only text answer and speaking time ensures 0 lag and candidate cloud upload choice
       await submitAnswer(sessionId, answerPayload)
+      if (question?.id) {
+        setAnsweredQuestionIds((prev) => new Set(prev).add(question.id))
+      }
       advanceToNextOrFinish()
     } catch {
       setError('Could not submit answer. Please try again.')
@@ -1271,6 +1300,7 @@ const InterviewSession = () => {
           answer_text: 'Question skipped by candidate (No verbal response).',
           speaking_time_seconds: 0,
         })
+        setAnsweredQuestionIds((prev) => new Set(prev).add(question.id))
       }
     } catch (e) {
       console.warn('Skip answer submission error:', e)
@@ -1343,6 +1373,9 @@ const InterviewSession = () => {
             answer_text: answerText.trim(),
             speaking_time_seconds: speakingTime,
           })
+          if (question?.id) {
+            setAnsweredQuestionIds((prev) => new Set(prev).add(question.id))
+          }
         } catch (e) {
           console.warn('Could not submit active answer prior to finishing:', e)
         }
@@ -1355,15 +1388,69 @@ const InterviewSession = () => {
     }
   }
 
+  // On session completion: stop real media streams, detach video element, refresh data, check recordings
+  useEffect(() => {
+    if (!isCompleted) return
+
+    // 1. Confirm hardware camera & mic shutdown using real stream lifecycle
+    stopAllMedia()
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+
+    // 2. Fetch fresh session details from backend to ensure latest answers & scores
+    getInterviewDetail(sessionId)
+      .then((res) => {
+        if (res?.data) {
+          setSession(res.data)
+          if (res.data.overall_score != null) {
+            setEvaluationStatus('completed')
+          }
+          if (res.data.questions) {
+            const answered = res.data.questions.filter((q) => q.answer).map((q) => q.id)
+            if (answered.length > 0) {
+              setAnsweredQuestionIds((prev) => new Set([...prev, ...answered]))
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not refresh session detail on completion:', err)
+      })
+
+    // 3. Check if candidate has local recordings for this session in IndexedDB
+    getAllRecordings(user, true)
+      .then((clips) => {
+        const sessionClips = (clips || []).filter((c) => String(c.sessionId) === String(sessionId))
+        setHasRecordings(sessionClips.length > 0)
+        setRecordingCount(sessionClips.length)
+      })
+      .catch((err) => {
+        console.warn('Could not inspect local recordings:', err)
+      })
+  }, [isCompleted, sessionId, user, stopAllMedia])
+
   // Open Final Feedback Report
   const handleOpenFeedback = async () => {
+    if (session?.overall_score != null && session?.status === 'completed') {
+      navigate(`/interview/${sessionId}/report`)
+      return
+    }
+
     setCompleting(true)
+    setEvaluationStatus('generating')
     setError('')
     try {
-      await completeInterview(sessionId)
+      const res = await completeInterview(sessionId)
+      if (res?.data) {
+        setSession(res.data)
+      }
+      setEvaluationStatus('completed')
       navigate(`/interview/${sessionId}/report`)
-    } catch {
-      setError('Could not generate final report. Try again.')
+    } catch (err) {
+      console.error('Failed to complete interview:', err)
+      setError(err?.response?.data?.error || 'Could not generate final evaluation report. Please try again.')
+      setEvaluationStatus('failed')
       setCompleting(false)
     }
   }
@@ -1376,7 +1463,7 @@ const InterviewSession = () => {
       const allClips = await getAllRecordings(user, true)
       const sessionClips = allClips.filter((c) => String(c.sessionId) === String(sessionId))
       if (sessionClips.length === 0) {
-        alert('No local recorded clips found for this session.')
+        setError('No local recorded clips found for this session.')
         setUploadingCloud(false)
         return
       }
@@ -1410,11 +1497,40 @@ const InterviewSession = () => {
       }
     } catch (err) {
       console.error('Failed to upload recordings to cloud:', err)
-      setError('Could not complete cloud upload. Please check your internet connection and try clicking Upload again.')
+      setError('Could not complete cloud backup. Please check your internet connection and try again.')
       setCloudUploadStatus('error')
     } finally {
       setUploadingCloud(false)
     }
+  }
+
+  // ─── Derived Session & Completion Metrics ──────────────────────────────────
+  const totalQuestions = questions.length || 1
+  const serverAnsweredCount = session?.questions?.filter((q) => Boolean(q.answer))?.length || 0
+  const localAnsweredCount = answeredQuestionIds.size
+  const answeredCount = Math.min(
+    totalQuestions,
+    Math.max(serverAnsweredCount, localAnsweredCount, isCompleted && isLast ? totalQuestions : 0)
+  )
+
+  const calculateTotalDuration = () => {
+    if (session?.started_at && session?.completed_at) {
+      const start = new Date(session.started_at).getTime()
+      const end = new Date(session.completed_at).getTime()
+      if (!isNaN(start) && !isNaN(end) && end >= start) {
+        return Math.max(1, Math.round((end - start) / 1000))
+      }
+    }
+    return Math.max(1, Math.round((Date.now() - sessionStartTimeRef.current) / 1000))
+  }
+
+  const formatDurationText = (sec) => {
+    if (!sec || sec <= 0) return '0s'
+    const mins = Math.floor(sec / 60)
+    const secs = sec % 60
+    if (mins === 0) return `${secs}s`
+    if (secs === 0) return `${mins}m`
+    return `${mins}m ${secs}s`
   }
 
   if (loadingSession || !session) {
@@ -1477,12 +1593,12 @@ const InterviewSession = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                if (window.confirm(isHrSession ? 'Leave HR interview session?' : 'Leave interview session?')) {
+                if (isCompleted || window.confirm(isHrSession ? 'Leave HR interview session?' : 'Leave interview session?')) {
                   stopAllMedia()
                   navigate(isHrSession ? '/hr' : '/dashboard')
                 }
               }}
-              className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-colors border border-transparent dark:border-slate-700/60"
+              className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-colors border border-transparent dark:border-slate-700/60 cursor-pointer"
               title={isHrSession ? "Back to HR Workspace" : "Back to Dashboard"}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1500,118 +1616,259 @@ const InterviewSession = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium">
-              Question {current + 1} of {questions.length || 1}
-            </span>
-            {!isAiAsking ? (
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                questionSeconds <= 10
-                  ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-semibold'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 10 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}`} />
-                <span className="font-mono">{formatTime(questionSeconds)}</span> left
+            {isCompleted ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-200/80 dark:border-emerald-900/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Session complete
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                AI asking
-              </span>
+              <>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium">
+                  Question {current + 1} of {questions.length || 1}
+                </span>
+                {!isAiAsking ? (
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    questionSeconds <= 10
+                      ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-semibold'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 10 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}`} />
+                    <span className="font-mono">{formatTime(questionSeconds)}</span> left
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    AI asking
+                  </span>
+                )}
+              </>
             )}
           </div>
         </header>
 
-        {error && (
+        {error && !isCompleted && (
           <div className="my-1 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs font-semibold flex items-center justify-between shrink-0">
             <span>{error}</span>
-            <button onClick={() => setError('')} className="text-rose-500 font-bold ml-2">✕</button>
+            <button onClick={() => setError('')} className="text-rose-500 font-bold ml-2 cursor-pointer">✕</button>
           </div>
         )}
 
         {isCompleted ? (
-          /* ─── Completed View ─── */
+          /* ─── Completed View (Clean, Human-Designed & Production Grade) ─── */
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="my-auto py-8 px-4 text-center max-w-md mx-auto"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col justify-center items-center py-6 px-3 sm:px-6 w-full max-w-xl mx-auto overflow-y-auto"
           >
-            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xl shadow-inner border border-transparent dark:border-blue-900/50">
-              🎉
-            </div>
-            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1.5">
-              {isHrSession ? 'HR Interview Finished!' : 'Interview Finished!'}
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-xs mb-4 leading-relaxed">
-              {isHrSession
-                ? 'All HR behavioral questions have been completed. Your camera and microphone are safely turned off.'
-                : 'All questions have been completed. Your camera and microphone are safely turned off.'}
-            </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 text-[11px] font-mono font-bold mb-4">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              Camera & Microphone: OFF
+            {/* Status Icon */}
+            <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 shrink-0">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             </div>
 
-            {/* Cloudinary Upload Option (Leader Portal visibility) */}
-            <div className="p-3.5 mb-4 bg-slate-50 dark:bg-[#131E38]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-left text-xs shadow-2xs">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 text-xs">
-                  <span>☁️ Cloud Backup & Leader Access</span>
-                </span>
-                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
-                  cloudUploadStatus === 'done'
-                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                    : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
-                }`}>
-                  {cloudUploadStatus === 'done' ? '✅ Cloud Uploaded' : 'Optional Choice'}
-                </span>
-              </div>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px] mb-2.5 leading-relaxed">
-                Your video/audio is saved securely on your device. Upload to Cloudinary to make it visible to the Project Leader on the Leader Portal.
-              </p>
-              {cloudUploadStatus === 'done' ? (
-                <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px] flex items-center gap-1.5">
-                  <span>✓</span> Clips uploaded to Cloudinary! Visible now on Project Leader Portal.
-                </div>
-              ) : (
+            {/* Title & Concise Confirmation */}
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white text-center mb-1">
+              {isHrSession ? 'HR interview completed' : 'Interview completed'}
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm text-center max-w-md mb-6 leading-relaxed">
+              Your responses have been recorded and saved. Camera and microphone have been disconnected.
+            </p>
+
+            {/* Error Notification (if report generation or upload fails) */}
+            {error && (
+              <div className="w-full mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs flex items-start justify-between gap-2">
+                <span>{error}</span>
                 <button
                   type="button"
-                  onClick={handleUploadSessionRecordingsToCloud}
-                  disabled={uploadingCloud}
-                  className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                  onClick={() => setError('')}
+                  className="text-rose-500 hover:text-rose-700 dark:hover:text-rose-200 font-bold text-sm leading-none cursor-pointer"
                 >
-                  {uploadingCloud ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Uploading clips to Cloudinary...</span>
-                    </>
-                  ) : (
-                    <span>☁️ Upload Recordings to Cloud (Leader Portal)</span>
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* 3-Metric Summary Panel (Real Session Data) */}
+            <div className="w-full bg-slate-50/80 dark:bg-[#111827]/70 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-5 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 text-center gap-3 sm:gap-0">
+              
+              {/* Metric 1: Questions Completed */}
+              <div className="pt-1 sm:pt-0 sm:px-3">
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                  Questions
+                </span>
+                <span className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                  {answeredCount} of {totalQuestions}
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                  Answered
+                </span>
+              </div>
+
+              {/* Metric 2: Duration */}
+              <div className="pt-3 sm:pt-0 sm:px-3">
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                  Duration
+                </span>
+                <span className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                  {formatDurationText(calculateTotalDuration())}
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                  Total time
+                </span>
+              </div>
+
+              {/* Metric 3: AI Evaluation */}
+              <div className="pt-3 sm:pt-0 sm:px-3">
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                  Evaluation
+                </span>
+                {session?.overall_score != null ? (
+                  <>
+                    <span className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                      {Math.round(session.overall_score)}
+                      <span className="text-xs font-normal text-slate-400">/100</span>
+                    </span>
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium block mt-0.5">
+                      Completed
+                    </span>
+                  </>
+                ) : evaluationStatus === 'generating' || completing ? (
+                  <>
+                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 inline-flex items-center gap-1.5">
+                      <span className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      Analyzing
+                    </span>
+                    <span className="text-[11px] text-blue-500 dark:text-blue-400 block mt-0.5">
+                      Generating report
+                    </span>
+                  </>
+                ) : evaluationStatus === 'failed' ? (
+                  <>
+                    <span className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+                      Failed
+                    </span>
+                    <span className="text-[11px] text-rose-500 dark:text-rose-400 block mt-0.5">
+                      Retry available
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Pending
+                    </span>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-0.5">
+                      Ready to evaluate
+                    </span>
+                  </>
+                )}
+              </div>
+
+            </div>
+
+            {/* Optional Cloud Backup Section (Explained honestly) */}
+            {hasRecordings && (
+              <div className="w-full bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl p-3.5 mb-5 text-left">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-white">
+                    Cloud backup
+                  </span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    Optional
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2.5 leading-relaxed">
+                  Recordings are saved locally in your browser storage. Back up to cloud storage if you want them accessible online to team leaders or across devices.
+                </p>
+
+                {cloudUploadStatus === 'done' ? (
+                  <div className="py-1.5 px-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Recordings backed up to cloud successfully</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleUploadSessionRecordingsToCloud}
+                    disabled={uploadingCloud}
+                    className="w-full py-1.5 px-3 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {uploadingCloud ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-slate-600 dark:border-slate-300 border-t-transparent rounded-full animate-spin" />
+                        <span>Backing up to cloud storage...</span>
+                      </>
+                    ) : cloudUploadStatus === 'error' ? (
+                      <span>Retry cloud backup</span>
+                    ) : (
+                      <span>Back up recordings to cloud</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Action Hierarchy */}
+            <div className="w-full flex flex-col gap-2.5">
+              {/* Primary Action */}
+              <button
+                type="button"
+                onClick={handleOpenFeedback}
+                disabled={completing}
+                className="w-full py-2.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-60"
+              >
+                {completing ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Generating evaluation report...</span>
+                  </>
+                ) : evaluationStatus === 'failed' ? (
+                  <>
+                    <span>Retry generating report</span>
+                    <span>→</span>
+                  </>
+                ) : session?.overall_score != null ? (
+                  <>
+                    <span>View interview report</span>
+                    <span>→</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Generate & view report</span>
+                    <span>→</span>
+                  </>
+                )}
+              </button>
+
+              {/* Secondary Action: Only if recordings exist */}
+              {hasRecordings && (
+                <button
+                  type="button"
+                  onClick={() => navigate(isHrSession ? '/recordings?track=hr' : '/recordings')}
+                  className="w-full py-2.5 px-5 rounded-xl bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>Review session recordings</span>
+                  {recordingCount > 0 && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      ({recordingCount})
+                    </span>
                   )}
                 </button>
               )}
+
+              {/* Tertiary / Simple Navigation Action */}
+              <button
+                type="button"
+                onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
+                className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors text-center cursor-pointer pt-1"
+              >
+                ← Return to {isHrSession ? 'HR workspace' : 'dashboard'}
+              </button>
             </div>
 
-            <div className="flex flex-col gap-2.5">
-              <button
-                onClick={handleOpenFeedback}
-                disabled={completing}
-                className="w-full py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 dark:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {completing ? 'Generating AI Feedback Report...' : '📊 Open Feedback & Comprehensive Report →'}
-              </button>
-              <button
-                onClick={() => navigate(isHrSession ? '/recordings?track=hr' : '/recordings')}
-                className="w-full py-2.5 px-6 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 cursor-pointer"
-              >
-                📼 View Session Recordings Vault
-              </button>
-              <button
-                onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
-                className="w-full py-2 px-4 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-semibold cursor-pointer"
-              >
-                ← Return to {isHrSession ? 'HR Workspace' : 'Dashboard'}
-              </button>
-            </div>
           </motion.div>
         ) : (
           /* ─── EXACT 50 / 50 SPLIT (Half Video / Half Questions - NO SCROLL) ─── */
