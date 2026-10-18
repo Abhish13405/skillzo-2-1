@@ -9,6 +9,7 @@ const AppShell = ({ children, hideSidebar = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const handleSignOut = () => {
     logout()
     navigate('/login')
