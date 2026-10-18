@@ -55,8 +55,16 @@ class StartInterviewView(APIView):
 
         generated_questions = result.get('questions', [])
         if generated_questions:
-            generated_questions[0]['question'] = "Introduce yourself."
-            generated_questions[0]['category'] = "Introduction"
+            role_lower = (data.get('job_role') or '').lower()
+            is_hr_role = any(k in role_lower for k in ['hr', 'behavioral', 'placement', 'culture', 'leadership'])
+            if is_hr_role:
+                if 'introduce' not in generated_questions[0].get('question', '').lower():
+                    generated_questions[0]['question'] = "Welcome! Please introduce yourself, walk me through your background, and tell me what excites you about this role."
+                    generated_questions[0]['category'] = "Introduction"
+            else:
+                if 'introduce' not in generated_questions[0].get('question', '').lower():
+                    generated_questions[0]['question'] = "Introduce yourself."
+                    generated_questions[0]['category'] = "Introduction"
 
         for q in generated_questions:
             InterviewQuestion.objects.create(

@@ -1,0 +1,70 @@
+graph TD
+    subgraph ClientLayer ["Client Layer (Browser / SPA)"]
+        UI["React 18 Single Page App<br/>(Vite, Tailwind CSS, Lucide)"]
+        SpeechAPI["Web Speech API<br/>(SpeechRecognition)"]
+        MediaRec["MediaRecorder API<br/>(WebM Audio/Video)"]
+        WebRTCClient["WebRTC PeerConnection<br/>(1:1 Video/Audio Stream)"]
+        LocalIDB["IndexedDB<br/>(skillzo_recordings_db)"]
+    end
+
+    subgraph GatewayLayer ["Network & Routing Layer"]
+        VercelCDN["Vercel Global Edge CDN<br/>(skillzo-2-1.vercel.app)"]
+        RenderRouter["Render Reverse Proxy / TLS<br/>(skillzo-2-1-2.onrender.com)"]
+        CORS["Django CORS Headers<br/>(Whitelisted Origins & Methods)"]
+    end
+
+    subgraph AppLayer ["Application Layer (Django 5 DRF)"]
+        WSGI["Gunicorn / WSGI Application"]
+        JWTAuth["JWT Authentication<br/>(SimpleJWT Access/Refresh)"]
+        
+        subgraph DjangoApps ["Core Django Applications"]
+            AppAuth["accounts<br/>(Auth, User, OTP, Profile)"]
+            AppDash["dashboard<br/>(Metrics, Activity, Leader Stats)"]
+            AppResume["resume_analysis<br/>(PDF/DOCX Extraction & ATS)"]
+            AppInterview["interview<br/>(Session, Questions, Answer Eval)"]
+        end
+        
+        subgraph CommonServices ["Common Services & Adapters"]
+            GroqWrapper["common.groq_service.GroqService<br/>(Singleton Client, Error Recovery)"]
+            CloudAdapter["common.cloud_storage<br/>(Cloudinary CDN Upload)"]
+            EmailAdapter["Django Mail & Brevo API<br/>(Transactional OTPs)"]
+        end
+    end
+
+    subgraph DataStorageLayer ["Data & Storage Layer"]
+        PostgresSQL["PostgreSQL (Production - Render)<br/>/ SQLite3 (Local Dev)"]
+        LocalMedia["Local Media Directory<br/>(/media/resumes, /media/interview_video)"]
+        CloudinaryCDN["Cloudinary Cloud Media CDN<br/>(Remote MP4/WebM Video Vault)"]
+    end
+
+    subgraph ExternalAILayer ["External AI & Cloud Services"]
+        GroqAPI["Groq Cloud LLM API<br/>(Qwen 2.5 32B / Llama 3.3 70B)"]
+        BrevoAPI["Brevo (Sendinblue) REST API<br/>(Transactional Email Delivery)"]
+        STUN["Google Public STUN<br/>(stun:stun.l.google.com:19302)"]
+    end
+
+    UI --> VercelCDN
+    VercelCDN --> RenderRouter
+    RenderRouter --> WSGI
+    WSGI --> CORS
+    CORS --> JWTAuth
+    JWTAuth --> DjangoApps
+
+    UI -.-> SpeechAPI
+    UI -.-> MediaRec
+    UI -.-> LocalIDB
+    UI <--> WebRTCClient
+    WebRTCClient -.-> STUN
+
+    AppAuth --> EmailAdapter
+    EmailAdapter --> BrevoAPI
+
+    AppResume --> GroqWrapper
+    AppInterview --> GroqWrapper
+    GroqWrapper --> GroqAPI
+
+    AppInterview --> CloudAdapter
+    CloudAdapter --> CloudinaryCDN
+
+    DjangoApps --> PostgresSQL
+    DjangoApps --> LocalMedia

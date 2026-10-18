@@ -327,41 +327,118 @@ Resume text:
 
             return {"questions": questions}
 
-        # ─── 2. HR & BEHAVIORAL ROLES: Use Curated 60-Question Standard HR Bank ─
-        is_hr = any(k in role_lower for k in ["hr", "behavioral", "behavioural", "culture", "fit", "leadership"])
+        # ─── 2. HR & BEHAVIORAL ROLES: AI-Powered Dynamic Generation via Groq ───
+        is_hr = any(k in role_lower for k in ["hr", "behavioral", "behavioural", "culture", "fit", "leadership", "placement"])
         if is_hr:
-            bank = HR_QUESTION_BANK.get(diff_key, HR_QUESTION_BANK["Intermediate"])
+            if diff_key == "Beginner":
+                hr_tier_instructions = (
+                    "TIER: FRESHER / CAMPUS PLACEMENT HR ROUND\n"
+                    "- Generate questions about: candidate's background, academic/college projects, personal strengths & weaknesses, "
+                    "motivation to join our organization, handling constructive criticism from professors/peers, learning new tools quickly, "
+                    "working effectively in teams, adaptability, and career goals for the next 2-3 years."
+                )
+            elif diff_key == "Intermediate":
+                hr_tier_instructions = (
+                    "TIER: STAR METHOD SITUATIONAL & BEHAVIORAL ROUND\n"
+                    "- Generate scenario-based behavioral questions strictly testing the STAR method (Situation, Task, Action, Result).\n"
+                    "- Cover: resolving professional disagreements with peers or managers, handling urgent shifting deadlines, "
+                    "learning from a major project setback, taking proactive initiative on unassigned problems, managing client expectations, "
+                    "and pushing back diplomatically on unrealistic requirements."
+                )
+            else:
+                hr_tier_instructions = (
+                    "TIER: LEADERSHIP, ETHICS & CULTURAL VALUES ROUND\n"
+                    "- Generate high-level questions for leadership and culture fit.\n"
+                    "- Cover: engineering leadership philosophy, building psychological safety, resolving interpersonal team friction, "
+                    "making tough decisions regarding underperformance, managing executive pressure during outages, "
+                    "and balancing business velocity with architectural integrity."
+                )
+
+            exclude_block = ""
+            if exclude_questions:
+                recent_sample = [q.strip() for q in exclude_questions[-15:] if q and q.strip()]
+                if recent_sample:
+                    formatted_excludes = "\n".join(f"- {q}" for q in recent_sample)
+                    exclude_block = f"\nIMPORTANT: Do NOT repeat any of these recently asked questions:\n{formatted_excludes}\n"
+
+            system_prompt = (
+                "You are an expert HR Director, VP of People, and seasoned Talent Acquisition Leader at a top global tech firm. "
+                "You ask insightful, conversational, realistic, ONE-LINE HR interview questions.\n"
+                "CRITICAL MANDATORY RULES:\n"
+                "1. EVERY QUESTION MUST BE EXACTLY ONE SINGLE SENTENCE (12 to 24 words maximum).\n"
+                "2. Questions must be strictly HR, behavioral, situational, or culture fit. NEVER ask coding or technical syntax questions.\n"
+                "3. Follow the requested HR tier instructions strictly.\n"
+                "4. Respond with strictly valid JSON only."
+            )
+
+            questions_needed = max(1, count - 1)
+            user_prompt = f"""
+Generate {questions_needed} {diff_key} level HR & Behavioral interview questions for the role: "{role}".
+{hr_tier_instructions}
+{exclude_block}
+
+CRITICAL REQUIREMENT:
+Every question MUST be a single line ending with a question mark.
+
+Return JSON with EXACTLY this structure:
+{{
+  "questions": [
+    {{"question": "Short single-line HR question?", "category": "HR & Behavioral"}}
+  ]
+}}
+"""
             category_label = (
                 "Core HR & Culture" if diff_key == "Beginner" else
                 ("Behavioral & STAR Method" if diff_key == "Intermediate" else "Leadership & Conflict")
             )
 
-            # Question 1 is ALWAYS Introduce yourself
+            try:
+                raw_res = self._chat(system_prompt, user_prompt, temperature=0.7)
+                q_list = raw_res.get('questions', [])
+
+                intro_q = "Welcome! Please introduce yourself, walk me through your background, and tell me what excites you about this role."
+                final_questions = [
+                    {"id": 1, "question": intro_q, "category": "Introduction"}
+                ]
+
+                for idx, item in enumerate(q_list[:questions_needed]):
+                    q_text = str(item.get('question', '')).strip()
+                    if '\n' in q_text:
+                        q_text = q_text.split('\n')[0].strip()
+                    parts = re.split(r'(?<=[.?!])\s+', q_text)
+                    if len(parts) > 1 and len(parts[0]) >= 20:
+                        q_text = parts[0].strip()
+                    if not q_text.endswith('?'):
+                        q_text = q_text.rstrip('.! ') + '?'
+
+                    cat = item.get('category') or category_label
+                    final_questions.append({
+                        "id": idx + 2,
+                        "question": q_text,
+                        "category": cat
+                    })
+
+                if len(final_questions) >= 2:
+                    return {"questions": final_questions}
+            except Exception as e:
+                logger.warning(f"Groq HR question generation failed, using structured HR bank fallback: {e}")
+
+            # Fallback to curated HR bank if Groq fails
+            bank = HR_QUESTION_BANK.get(diff_key, HR_QUESTION_BANK["Intermediate"])
             questions = [
-                {"id": 1, "question": "Introduce yourself and walk me through your background.", "category": "Introduction"}
+                {"id": 1, "question": "Welcome! Please introduce yourself, walk me through your background, and tell me what excites you about this role.", "category": "Introduction"}
             ]
-
-            pool = bank[1:]  # The 19 specific topic questions for this tier
+            pool = bank[1:]
             recent = [q.strip().lower() for q in (exclude_questions or []) if q and q.strip()]
-
-            # Prioritize questions not recently asked by this user
             fresh_pool = [q for q in pool if q.strip().lower() not in recent]
-            if len(fresh_pool) < (count - 1):
-                candidates = fresh_pool + [q for q in pool if q not in fresh_pool]
-            else:
-                candidates = fresh_pool
-
-            # Select remaining questions up to requested count
-            remaining_needed = max(1, count - 1)
-            selected = candidates[:remaining_needed]
-
+            candidates = fresh_pool if len(fresh_pool) >= (count - 1) else (fresh_pool + [q for q in pool if q not in fresh_pool])
+            selected = candidates[:max(1, count - 1)]
             for idx, q_text in enumerate(selected):
                 questions.append({
                     "id": idx + 2,
                     "question": q_text,
                     "category": category_label,
                 })
-
             return {"questions": questions}
 
         # ─── 3. OTHER ROLES: Mirror the Exact 3-Tier Blueprint with Groq ─────

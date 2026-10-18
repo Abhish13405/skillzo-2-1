@@ -1,0 +1,41 @@
+graph LR
+    Root["/ (Entry Route)"] --> Login["/login (Login)"]
+    Root --> Signup["/signup (Signup)"]
+    Root --> Forgot["/forgot-password (OTP Reset)"]
+
+    subgraph ProtectedRoutes ["Protected Routes (Require JWT Auth)"]
+        Dashboard["/dashboard (4-Track Launcher)"]
+        
+        HRTrack["/hr (Track 1: HR Workspace)"]
+        TechTrack["/technical (Track 2: Technical Studio)"]
+        CandidateTrack["/live-room (Track 3: Candidate Pre-check)"]
+        RecruiterTrack["/leader (Track 3: Recruiter Portal)"]
+        ATSResume["/resume (Track 4: ATS Resume Review)"]
+
+        SetupMock["/interview/setup (Session Configurator)"]
+        ActiveRoom["/interview/:sessionId/session (50/50 Live Room)"]
+        ReportView["/interview/:sessionId/report (AI Report Card)"]
+
+        History["/history (Historical Audits)"]
+        Recordings["/recordings (IndexedDB Media Vault)"]
+        Profile["/profile (User Account Settings)"]
+        LiveCall["/live-interview/:roomId (WebRTC 1:1 Live)"]
+    end
+
+    Dashboard --> HRTrack
+    Dashboard --> TechTrack
+    Dashboard --> CandidateTrack
+    Dashboard --> RecruiterTrack
+    Dashboard --> ATSResume
+
+    HRTrack --> SetupMock
+    TechTrack --> SetupMock
+    SetupMock --> ActiveRoom
+    ActiveRoom --> ReportView
+    Dashboard --> History
+    Dashboard --> Recordings
+    Dashboard --> Profile
+    CandidateTrack --> LiveCall
+    RecruiterTrack --> LiveCall
+
+    Wildcard["* (Catch-all)"] --> NotFound["NotFound (404 Fallback)"]

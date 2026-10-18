@@ -1,0 +1,90 @@
+erDiagram
+    User ||--o{ PasswordResetOTP : "requests"
+    User ||--o{ InterviewSession : "attempts"
+    User ||--o{ Resume : "uploads"
+    InterviewSession ||--|{ InterviewQuestion : "contains"
+    InterviewQuestion ||--o| InterviewAnswer : "evaluated_by"
+
+    User {
+        int id PK
+        string email UK
+        string username
+        string phone
+        string profile_photo
+        string college_or_company
+        string target_role
+        text bio
+        int current_streak
+        int longest_streak
+        date last_active_date
+        datetime date_joined
+        boolean is_active
+        boolean is_staff
+    }
+
+    PasswordResetOTP {
+        int id PK
+        int user_id FK
+        string otp
+        datetime created_at
+        boolean is_used
+    }
+
+    InterviewSession {
+        int id PK
+        int user_id FK
+        string job_role
+        string difficulty
+        string mode
+        string status
+        datetime started_at
+        datetime completed_at
+        int overall_score
+        int technical_score
+        int communication_score
+        string confidence_trend
+        json ai_suggestions
+        string verdict
+    }
+
+    InterviewQuestion {
+        int id PK
+        int session_id FK
+        int order
+        text question_text
+        string category
+    }
+
+    InterviewAnswer {
+        int id PK
+        int question_id FK,UK
+        text answer_text
+        string audio_file
+        string video_file
+        string cloud_video_url
+        string cloud_audio_url
+        int speaking_time_seconds
+        datetime answered_at
+        int technical_knowledge
+        int communication
+        int grammar
+        int confidence
+        int problem_solving
+        int overall_score
+        json strengths
+        json improvements
+        text ideal_answer_summary
+    }
+
+    Resume {
+        int id PK
+        int user_id FK
+        string file
+        datetime uploaded_at
+        json extracted_skills
+        int ats_score
+        json feedback
+        json suggested_job_roles
+        json missing_keywords
+        boolean is_analyzed
+    }

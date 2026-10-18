@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getInterviewDetail, submitAnswer, completeInterview, uploadInterviewRecording } from '../api/interview'
 import { useAuth } from '../context/AuthContext'
@@ -499,9 +499,21 @@ const TOTAL_QUESTION_SECONDS = 90
 const InterviewSession = () => {
   const { sessionId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
 
   const [session, setSession] = useState(null)
+  const isHrSession = Boolean(
+    location.search.includes('track=hr') ||
+    location.state?.isHRTrack ||
+    (session?.job_role && (
+      session.job_role.toLowerCase().includes('hr') ||
+      session.job_role.toLowerCase().includes('behavioral') ||
+      session.job_role.toLowerCase().includes('placement') ||
+      session.job_role.toLowerCase().includes('culture') ||
+      session.job_role.toLowerCase().includes('leadership')
+    ))
+  )
   const [loadingSession, setLoadingSession] = useState(true)
   const [current, setCurrent] = useState(0)
   const questions = session?.questions || []
@@ -1362,10 +1374,12 @@ const InterviewSession = () => {
           📹
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">
-          Initializing Interview Studio
+          {isHrSession ? 'Initializing HR Interview Studio' : 'Initializing Interview Studio'}
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6 leading-relaxed">
-          Connecting webcam, microphone, and AI interviewer. Please tap <strong>Allow</strong> if your browser asks for camera permissions.
+          {isHrSession
+            ? <>Connecting webcam, microphone, and HR Interviewer (Sophia). Please tap <strong>Allow</strong> if your browser asks for camera permissions.</>
+            : <>Connecting webcam, microphone, and AI interviewer. Please tap <strong>Allow</strong> if your browser asks for camera permissions.</>}
         </p>
         <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
         {error ? (
@@ -1383,20 +1397,20 @@ const InterviewSession = () => {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
                 className="btn-primary py-2 px-4 text-xs font-bold"
               >
-                ← Return to Dashboard
+                {isHrSession ? '← Return to HR Workspace' : '← Return to Dashboard'}
               </button>
             </div>
           </div>
         ) : (
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
             className="mt-6 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline cursor-pointer"
           >
-            Cancel & Return to Dashboard
+            {isHrSession ? 'Cancel & Return to HR Workspace' : 'Cancel & Return to Dashboard'}
           </button>
         )}
       </div>
@@ -1413,13 +1427,13 @@ const InterviewSession = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                if (window.confirm('Leave interview session?')) {
+                if (window.confirm(isHrSession ? 'Leave HR interview session?' : 'Leave interview session?')) {
                   stopAllMedia()
-                  navigate('/dashboard')
+                  navigate(isHrSession ? '/hr' : '/dashboard')
                 }
               }}
               className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-colors border border-transparent dark:border-slate-700/60"
-              title="Back to Dashboard"
+              title={isHrSession ? "Back to HR Workspace" : "Back to Dashboard"}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
@@ -1427,7 +1441,7 @@ const InterviewSession = () => {
             </button>
             <div>
               <h1 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 dark:text-white leading-tight">
-                {session?.job_role || 'AI Mock Interview'}
+                {session?.job_role || (isHrSession ? 'HR & Behavioral Interview' : 'AI Mock Interview')}
               </h1>
               <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400 dark:text-slate-400">
                 {session?.difficulty || 'Practice'} · {session?.mode || 'Video'} Mode
@@ -1469,10 +1483,12 @@ const InterviewSession = () => {
               🎉
             </div>
             <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1.5">
-              Interview Finished!
+              {isHrSession ? 'HR Interview Finished!' : 'Interview Finished!'}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-xs mb-4 leading-relaxed">
-              All questions have been completed. Your camera and microphone are safely turned off.
+              {isHrSession
+                ? 'All HR behavioral questions have been completed. Your camera and microphone are safely turned off.'
+                : 'All questions have been completed. Your camera and microphone are safely turned off.'}
             </p>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 text-[11px] font-mono font-bold mb-4">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -1523,15 +1539,21 @@ const InterviewSession = () => {
               <button
                 onClick={handleOpenFeedback}
                 disabled={completing}
-                className="w-full py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 dark:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 dark:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {completing ? 'Generating AI Feedback Report...' : '📊 Open Feedback & Comprehensive Report →'}
               </button>
               <button
-                onClick={() => navigate('/recordings')}
-                className="w-full py-2.5 px-6 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
+                onClick={() => navigate(isHrSession ? '/recordings?track=hr' : '/recordings')}
+                className="w-full py-2.5 px-6 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 cursor-pointer"
               >
                 📼 View Session Recordings Vault
+              </button>
+              <button
+                onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
+                className="w-full py-2 px-4 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-semibold cursor-pointer"
+              >
+                ← Return to {isHrSession ? 'HR Workspace' : 'Dashboard'}
               </button>
             </div>
           </motion.div>
@@ -1634,10 +1656,10 @@ const InterviewSession = () => {
                   <span className={`w-2 h-2 rounded-full ${mainView === 'candidate' && isCameraActive ? 'bg-emerald-500 animate-pulse' : 'bg-blue-600 animate-pulse'}`} />
                   <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
                     {session?.mode === 'video'
-                      ? (mainView === 'candidate' ? (user?.username || 'You: Live 📹') : 'AI Interviewer (Sophia)')
+                      ? (mainView === 'candidate' ? (user?.username || 'You: Live 📹') : (isHrSession ? 'HR Interviewer (Sophia)' : 'AI Interviewer (Sophia)'))
                       : session?.mode === 'audio'
-                      ? 'AI Interviewer (Sophia) · Audio Mode 🎙️'
-                      : 'AI Interviewer (Sophia) · Text Mode 📝'}
+                      ? (isHrSession ? 'HR Interviewer (Sophia) · Audio Mode 🎙️' : 'AI Interviewer (Sophia) · Audio Mode 🎙️')
+                      : (isHrSession ? 'HR Interviewer (Sophia) · Text Mode 📝' : 'AI Interviewer (Sophia) · Text Mode 📝')}
                   </span>
                 </div>
 
@@ -1647,7 +1669,9 @@ const InterviewSession = () => {
                     {isAiAsking ? (
                       <>
                         <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                        <span className="text-indigo-600 dark:text-indigo-400">AI is speaking</span>
+                        <span className="text-indigo-600 dark:text-indigo-400">
+                          {isHrSession ? 'HR Interviewer is speaking' : 'AI is speaking'}
+                        </span>
                       </>
                     ) : isPaused ? (
                       <>

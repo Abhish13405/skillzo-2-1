@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    actor Candidate as Candidate / User
+    participant UI as React UI (InterviewSession.jsx)
+    participant Speech as Web Speech API
+    participant Media as MediaRecorder
+    participant IDB as IndexedDB (recordings)
+    participant API as Django Backend (/api/interview/)
+    participant Groq as Groq Cloud AI (Qwen/Llama)
+    participant DB as Database (PostgreSQL/SQLite)
+    participant Cloud as Cloudinary Media CDN
+
+    Candidate->>UI: Select Role, Difficulty & Question Count
+    UI->>API: POST /api/interview/start/ {role, difficulty, count, mode}
+    API->>Groq: generate_questions(role, difficulty, count)
+    Groq-->>API: JSON: [{order, question_text, category}]
+    API->>DB: INSERT InterviewSession & InterviewQuestions
+    API-->>UI: 201 Created {session_id, questions[]}
+
+    loop For Each Question
+        UI->>Candidate: Display & Read Aloud Question
+        Candidate->>UI: Click "Start Recording / Speak"
+        UI->>Speech: Start SpeechRecognition
+        UI->>Media: Start MediaRecorder (Video/Audio)
+        Candidate->>UI: Speaks Answer
+        Speech-->>UI: Live Transcript Events (Interim -> Final)
+        Candidate->>UI: Click "Submit Answer"
+        UI->>Media: Stop MediaRecorder -> Generates WebM Blob
+        UI->>IDB: saveRecording({sessionId, blob, questionText})
+        
+        opt Video or Audio Mode Cloud Upload
+            UI->>API: POST /api/interview/:id/upload-recording/ (FormData)
+            API->>Cloud: upload_media_to_cloud(video_file)
+            Cloud-->>API: Return Secure HTTPS CDN URL
+            API->>DB: Save cloud_video_url / local video_file
+        end
+
+        UI->>API: POST /api/interview/:id/answer/ {question_id, answer_text}
+        API->>Groq: evaluate_answer(question, answer_text, role)
+        Groq-->>API: JSON: {scores: [tech, comm, grammar, confidence], strengths, improvements}
+        API->>DB: INSERT InterviewAnswer with Metrics
+        API-->>UI: 200 OK {score, feedback, next_question}
+    end
+
+    UI->>API: POST /api/interview/:id/complete/
+    API->>Groq: generate_final_report_summary(session_data)
+    Groq-->>API: JSON: {overall_score, verdict, recommendations}
+    API->>DB: UPDATE InterviewSession status='completed'
+    API-->>UI: 200 OK {status: 'completed'}
+    UI->>Candidate: Redirect to /interview/:id/report (Analytics & PDF Download)

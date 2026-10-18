@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
     /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
 
   if (isLocal) {
-    return `http://${hostname}:8000/api`
+    return `http://${hostname}:8001/api`
   }
 
   // Active verified production backend on Render (ignores dead skillzo-2-1-5 or localhost in production)

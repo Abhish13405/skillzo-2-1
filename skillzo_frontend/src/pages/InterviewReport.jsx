@@ -319,6 +319,29 @@ const InterviewReport = () => {
 
       <div className="mb-4 sm:mb-5 border-b border-slate-200/60 dark:border-slate-800 pb-3 sm:pb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <Link
+              to={
+                ((session.job_role || '').toLowerCase().includes('hr') ||
+                 (session.job_role || '').toLowerCase().includes('behavioral') ||
+                 (session.job_role || '').toLowerCase().includes('placement') ||
+                 (session.job_role || '').toLowerCase().includes('culture'))
+                  ? "/hr"
+                  : "/dashboard"
+              }
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              <span>←</span>
+              <span>
+                {((session.job_role || '').toLowerCase().includes('hr') ||
+                  (session.job_role || '').toLowerCase().includes('behavioral') ||
+                  (session.job_role || '').toLowerCase().includes('placement') ||
+                  (session.job_role || '').toLowerCase().includes('culture'))
+                  ? 'Back to HR Workspace'
+                  : 'Back to Dashboard'}
+              </span>
+            </Link>
+          </div>
           <span className="eyebrow mb-1">Performance Analytics</span>
           <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">
             {session.job_role} · {session.difficulty}

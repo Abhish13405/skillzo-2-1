@@ -177,7 +177,7 @@ const HrStudio = () => {
   }
 
   const startHrMock = (targetRole = 'HR & Behavioral Round') => {
-    navigate('/interview/setup', { state: { role: targetRole, isHRTrack: true } })
+    navigate('/interview/setup?track=hr', { state: { role: targetRole, isHRTrack: true } })
   }
 
   return (

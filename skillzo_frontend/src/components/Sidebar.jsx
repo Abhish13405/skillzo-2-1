@@ -75,16 +75,18 @@ const SidebarContent = ({ onClose }) => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const isHrWorkspace = location.pathname.startsWith('/hr') || location.search.includes('track=hr')
+  const isHrWorkspace = location.pathname.startsWith('/hr') ||
+                        location.search.includes('track=hr') ||
+                        Boolean(location.state?.isHRTrack)
 
   const baseItems = isHrWorkspace
     ? [
-        { to: '/hr',                  label: 'HR Dashboard',     Icon: Icons.Dashboard },
-        { to: '/interview/setup',     label: 'New HR Mock',      Icon: Icons.Interview },
-        { to: '/history?track=hr',    label: 'HR Reports',       Icon: Icons.History },
-        { to: '/recordings?track=hr', label: 'HR Recordings',    Icon: Icons.Recordings },
-        { to: '/resume',              label: 'Resume Analysis',  Icon: Icons.Resume },
-        { to: '/profile',             label: 'Profile',          Icon: Icons.Profile },
+        { to: '/hr',                      label: 'HR Dashboard',     Icon: Icons.Dashboard },
+        { to: '/interview/setup?track=hr', label: 'HR Interview',     Icon: Icons.Interview },
+        { to: '/history?track=hr',        label: 'HR Reports',       Icon: Icons.History },
+        { to: '/recordings?track=hr',     label: 'HR Recordings',    Icon: Icons.Recordings },
+        { to: '/resume',                  label: 'Resume Analysis',  Icon: Icons.Resume },
+        { to: '/profile',                 label: 'Profile',          Icon: Icons.Profile },
       ]
     : [
         { to: '/dashboard',           label: 'Dashboard',        Icon: Icons.Dashboard },
@@ -170,7 +172,7 @@ const SidebarContent = ({ onClose }) => {
           <div>
             <span className="font-display font-extrabold text-base text-slate-900 dark:text-white tracking-tight block leading-tight">Skillzo</span>
             <span className="block text-[9px] font-semibold uppercase tracking-wider text-brand-600 dark:text-blue-400 font-mono">
-              {isHrWorkspace ? 'HR & Behavioral Track' : 'AI Interview Studio'}
+              {isHrWorkspace ? 'HR Interview Studio' : 'AI Interview Studio'}
             </span>
           </div>
         </div>

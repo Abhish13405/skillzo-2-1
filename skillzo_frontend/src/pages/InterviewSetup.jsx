@@ -60,8 +60,10 @@ const MODES = [
 const InterviewSetup = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const isQueryHR = searchParams.get('track') === 'hr' || location.search.includes('track=hr')
   const rawRole = (location.state?.role || '').toLowerCase()
-  const isInitiallyHR = rawRole.includes('hr') || rawRole.includes('behavioral')
+  const isInitiallyHR = isQueryHR || Boolean(location.state?.isHRTrack) || rawRole.includes('hr') || rawRole.includes('behavioral')
 
   const [isHRTrack, setIsHRTrack] = useState(isInitiallyHR)
   const initialRole = isInitiallyHR
@@ -91,7 +93,9 @@ const InterviewSetup = () => {
         mode: mode || 'text',
         question_count: questionCount || 5,
       })
-      navigate(`/interview/${res.data.id}/session`)
+      navigate(`/interview/${res.data.id}/session${isHRTrack ? '?track=hr' : ''}`, {
+        state: { isHRTrack, role: finalRole }
+      })
     } catch (err) {
       setError(err.response?.data?.error || 'Could not start interview. Check backend server and API key.')
     } finally {
@@ -119,7 +123,7 @@ const InterviewSetup = () => {
           </Link>
           <div className="flex items-center gap-2">
             <span className="eyebrow">
-              {isHRTrack ? 'HR & Behavioral Studio' : 'Technical Studio'}
+              {isHRTrack ? 'HR Interview Studio' : 'Technical Studio'}
             </span>
             <span
               className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-md font-semibold border ${
@@ -128,15 +132,15 @@ const InterviewSetup = () => {
                   : 'bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
               }`}
             >
-              {isHRTrack ? 'Behavioral Track' : 'Coding Track'}
+              {isHRTrack ? 'HR Interview Track' : 'Coding Track'}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">
-            {isHRTrack ? 'Set up HR & Behavioral Round' : 'Set up your mock interview'}
+            {isHRTrack ? 'Set up HR Interview' : 'Set up your mock interview'}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
             {isHRTrack
-              ? 'Practice real-world behavioral questions, STAR situational scenarios, and cultural fit with Sophia AI.'
+              ? 'Practice real-world behavioral questions, STAR situational scenarios, and cultural fit with our HR Recruiter AI.'
               : 'Customize your target role, difficulty level, and practice format.'}
           </p>
         </div>
@@ -431,6 +435,8 @@ const InterviewSetup = () => {
               >
                 {loading
                   ? 'Preparing Questions...'
+                  : isHRTrack
+                  ? `🚀 Launch HR ${MODES.find((m) => m.id === mode)?.label || 'Interview'}`
                   : `🚀 Launch ${MODES.find((m) => m.id === mode)?.label || 'Interview'}`}
               </button>
             </div>

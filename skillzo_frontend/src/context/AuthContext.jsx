@@ -13,6 +13,13 @@ export const AuthProvider = ({ children }) => {
   const [authModalFeature, setAuthModalFeature] = useState('this feature')
 
   const loadUser = async () => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const queryToken = urlParams.get('auth_token')
+    if (queryToken) {
+      localStorage.setItem('skillzo_access', queryToken)
+      localStorage.removeItem('skillzo_logged_out')
+    }
+
     const isLoggedOut = localStorage.getItem('skillzo_logged_out') === 'true'
     if (isLoggedOut) {
       setUser(null)

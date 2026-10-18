@@ -6,3 +6,10 @@ __pycache__/
 .DS_Store
 staticfiles/
 dist/
+*.pdf
+Skillzo_*.pdf
+documentation/*.pdf
+build_*.py
+capture_screens.py
+generate_*.py
+*.html

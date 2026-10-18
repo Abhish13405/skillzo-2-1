@@ -1,0 +1,207 @@
+# Skillzo 2.1 — Database Architecture & Data Schema Specification
+
+This document provides the authoritative engineering specification for all database entities, client-side persistence schemas, storage policies, and data flow mechanisms utilized in the Skillzo 2.1 platform.
+
+---
+
+## 1. Relational Database Engine & Environments
+
+| Parameter | Development Environment | Production Environment |
+| :--- | :--- | :--- |
+| **Engine** | SQLite 3.x | PostgreSQL 16.x |
+| **Connection Handler** | `django.db.backends.sqlite3` | `django.db.backends.postgresql` via `dj_database_url` |
+| **SSL Enforcement** | Disabled (`localhost`) | Enabled (`sslmode=require`) |
+| **Connection Pooling** | Single file I/O | `conn_max_age=600` (Persistent connections) |
+| **Default Auto Field** | `django.db.models.BigAutoField` | `django.db.models.BigAutoField` |
+
+---
+
+## 2. Server-Side Data Models (Django ORM)
+
+### 2.1 `accounts.User`
+The custom user entity extending Django's `AbstractUser`. Serves as the central security and profile root for candidate and recruiter accounts.
+
+- **Table Name**: `accounts_user`
+- **Inheritance**: `django.contrib.auth.models.AbstractUser`
+- **Authentication Identifiers**: `USERNAME_FIELD = 'email'`, `REQUIRED_FIELDS = ['username']`
+
+| Field Name | Type | Constraints / Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `BigAutoField` | Primary Key, Auto-increment | Unique identifier for user |
+| `email` | `EmailField` | Unique, Required | Primary login identity |
+| `username` | `CharField(150)` | Null=False | Display name / username handle |
+| `password` | `CharField(128)` | Argon2 / PBKDF2 Hashed | Secure cryptographic hash |
+| `phone` | `CharField(15)` | Nullable, Blank=True | Contact mobile phone number |
+| `profile_photo`| `ImageField` | Upload to `profile_photos/` | Custom profile avatar image |
+| `college_or_company` | `CharField(255)` | Nullable, Blank=True | Institution or employer name |
+| `target_role` | `CharField(100)` | Nullable, Blank=True | Primary target track (e.g. Python Developer) |
+| `bio` | `TextField` | Nullable, Blank=True | Professional bio / candidate summary |
+| `current_streak` | `IntegerField` | Default: `0` | Consecutive days practicing |
+| `longest_streak` | `IntegerField` | Default: `0` | All-time highest practice streak |
+| `last_active_date` | `DateField` | Nullable, Blank=True | Timestamp of last recorded interview activity |
+| `is_staff` | `BooleanField` | Default: `False` | Admin portal access privileges |
+| `is_active` | `BooleanField` | Default: `True` | Account operational status |
+| `date_joined` | `DateTimeField` | Auto-now-add | Account creation timestamp |
+
+---
+
+### 2.2 `accounts.PasswordResetOTP`
+Stores cryptographically random 6-digit numeric verification tokens for password recovery.
+
+- **Table Name**: `accounts_passwordresetotp`
+
+| Field Name | Type | Constraints / Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `BigAutoField` | Primary Key, Auto-increment | Unique token identifier |
+| `user_id` | `ForeignKey` | `accounts.User`, `ON DELETE CASCADE` | Associated user requesting recovery |
+| `otp` | `CharField(6)` | Length: 6 digits | Numeric verification code |
+| `created_at` | `DateTimeField` | Auto-now-add | Creation timestamp (10 min expiry) |
+| `is_used` | `BooleanField` | Default: `False` | Consumed status flag |
+
+---
+
+### 2.3 `interview.InterviewSession`
+Encapsulates an entire interview run, binding the user, role, difficulty, operational mode, and AI final report scores.
+
+- **Table Name**: `interview_interviewsession`
+- **Ordering**: `['-started_at']`
+
+| Field Name | Type | Choices / Values | Constraints / Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `BigAutoField` | - | Primary Key |
+| `user_id` | `ForeignKey` | `accounts.User` | Cascade delete on user removal |
+| `job_role` | `CharField(100)`| - | Target role (e.g., Python Developer, HR Round) |
+| `difficulty` | `CharField(20)` | `Beginner`, `Intermediate`, `Advanced` | Question complexity level |
+| `mode` | `CharField(10)` | `text`, `audio`, `video` | Interview modality (default: `text`) |
+| `status` | `CharField(15)` | `in_progress`, `completed`, `abandoned`| State machine status (default: `in_progress`) |
+| `started_at` | `DateTimeField`| Auto-now-add | Timestamp interview was initiated |
+| `completed_at`| `DateTimeField`| Nullable, Blank=True | Timestamp interview was completed |
+| `overall_score`| `IntegerField` | 0 - 100 (Nullable) | Weighted composite performance score |
+| `technical_score`| `IntegerField`| 0 - 100 (Nullable) | Technical subject matter rating |
+| `communication_score`| `IntegerField`| 0 - 100 (Nullable) | Verbal articulation & clarity rating |
+| `confidence_trend`| `CharField(20)`| `Increasing`, `Stable`, `Decreasing` | Progression of candidate confidence |
+| `ai_suggestions`| `JSONField` | Default: `list` | Actionable recommendations generated by Groq |
+| `verdict` | `CharField(500)`| Nullable, Blank=True | Groq AI one-line hiring decision |
+
+---
+
+### 2.4 `interview.InterviewQuestion`
+Stores the individual questions generated for an interview session.
+
+- **Table Name**: `interview_interviewquestion`
+- **Ordering**: `['order']`
+
+| Field Name | Type | Constraints / Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `BigAutoField` | Primary Key | Unique question identifier |
+| `session_id` | `ForeignKey` | `InterviewSession`, `ON DELETE CASCADE` | Parent session reference |
+| `order` | `IntegerField` | Required (1-indexed) | Sequence number of the question |
+| `question_text` | `TextField` | Required | Full text of interview prompt |
+| `category` | `CharField(100)`| Nullable, Blank=True | e.g. "Core Python", "System Architecture" |
+
+---
+
+### 2.5 `interview.InterviewAnswer`
+Captures the candidate's answer, optional media recordings, and Groq LLM evaluation metrics.
+
+- **Table Name**: `interview_interviewanswer`
+
+| Field Name | Type | Constraints / Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `BigAutoField` | Primary Key | Unique answer evaluation ID |
+| `question_id` | `OneToOneField` | `InterviewQuestion`, `ON DELETE CASCADE` | 1:1 binding to specific question |
+| `answer_text` | `TextField` | Required | Typed text or Speech-to-Text transcript |
+| `audio_file` | `FileField` | Upload to `interview_audio/` | Optional local audio recording file |
+| `video_file` | `FileField` | Upload to `interview_video/` | Optional local video recording file |
+| `cloud_video_url` | `URLField(500)`| Nullable, Blank=True | Cloudinary secure CDN streaming URL |
+| `cloud_audio_url` | `URLField(500)`| Nullable, Blank=True | Cloudinary secure audio URL |
+| `speaking_time_seconds`| `IntegerField` | Nullable | Answer verbal delivery duration |
+| `answered_at` | `DateTimeField` | Auto-now-add | Answer submission timestamp |
+| `technical_knowledge` | `IntegerField` | 0 - 10 | AI technical mastery score |
+| `communication` | `IntegerField` | 0 - 10 | AI verbal articulation score |
+| `grammar` | `IntegerField` | 0 - 10 | AI syntax & grammar score |
+| `confidence` | `IntegerField` | 0 - 10 | AI behavioral confidence rating |
+| `problem_solving` | `IntegerField` | 0 - 10 | AI analytical problem-solving score |
+| `overall_score` | `IntegerField` | 0 - 100 | Composite weighted answer grade |
+| `strengths` | `JSONField` | Default: `list` | Bullet points of exceptional answers |
+| `improvements` | `JSONField` | Default: `list` | Specific corrective advice |
+| `ideal_answer_summary`| `TextField` | Nullable, Blank=True | Model answer generated by AI for comparison |
+
+---
+
+### 2.6 `resume_analysis.Resume`
+Stores uploaded curriculum vitae documents and their parsed ATS scorecard.
+
+- **Table Name**: `resume_analysis_resume`
+- **Ordering**: `['-uploaded_at']`
+
+| Field Name | Type | Constraints / Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `BigAutoField` | Primary Key | Unique resume record ID |
+| `user_id` | `ForeignKey` | `accounts.User`, `ON DELETE CASCADE` | Document owner reference |
+| `file` | `FileField` | Upload to `resumes/` | Raw PDF or DOCX file |
+| `uploaded_at` | `DateTimeField` | Auto-now-add | Upload timestamp |
+| `extracted_skills` | `JSONField` | Default: `list` | List of detected technical skills |
+| `ats_score` | `IntegerField` | Default: `0` (0 - 100) | ATS suitability benchmark rating |
+| `feedback` | `JSONField` | Default: `list` | Detailed structural critiques |
+| `suggested_job_roles` | `JSONField` | Default: `list` | Matched career opportunities |
+| `missing_keywords` | `JSONField` | Default: `list` | Keywords required to beat ATS filters |
+| `is_analyzed` | `BooleanField` | Default: `False` | Processing completion flag |
+
+---
+
+## 3. Client-Side Persistence: IndexedDB Engine
+
+Skillzo 2.1 implements an in-browser IndexedDB vault to allow offline recording playback, zero-latency video review, and reliable background uploading without overloading server memory.
+
+### 3.1 IndexedDB Configuration
+- **Database Name**: `skillzo_recordings_db`
+- **Version**: `1`
+- **Primary Object Store**: `recordings`
+- **Key Path**: `id` (e.g. `rec_171800291_a9f3b`)
+
+### 3.2 Object Store Indexes
+| Index Name | Key Path | Unique | Purpose |
+| :--- | :--- | :--- | :--- |
+| `createdAt` | `createdAt` | `false` | Chronological sorting and range queries |
+| `sessionId` | `sessionId` | `false` | Fast lookup of all video clips for a specific session |
+
+### 3.3 IndexedDB Record Schema
+```javascript
+{
+  id: "rec_1718009941_3k9da1",        // Unique string primary key
+  sessionId: 57,                       // Django session ID
+  jobRole: "Python Developer",         // Role target
+  difficulty: "Intermediate",          // Seniority level
+  mode: "video",                       // Interview modality
+  questionNumber: 2,                   // Question order
+  questionText: "What is the difference between...",
+  blob: Blob,                          // Raw video/webm binary blob
+  mimeType: "video/webm;codecs=vp8,opus",
+  sizeBytes: 1845209,                  // File size in bytes (1.76 MB)
+  durationSeconds: 42,                 // Clip duration
+  createdAt: "2026-10-18T10:12:00Z",  // Timestamp
+  userId: 42,                          // Candidate ID
+  userEmail: "candidate@example.com"   // Candidate identity
+}
+```
+
+---
+
+## 4. Media Storage Architecture
+
+```
+Project Root (skillzo_backend/)
+│
+└── media/
+    ├── profile_photos/        # User avatars (.jpg, .png)
+    ├── resumes/               # Candidate CVs (.pdf, .docx)
+    ├── interview_video/       # Local MP4 / WebM video clips
+    └── interview_audio/       # Local WAV / WebM audio recordings
+```
+
+### 4.1 Cloud CDN Tiering (Cloudinary)
+When `CLOUDINARY_URL` or credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`) are detected in the environment:
+1. Video and audio clips uploaded via `POST /api/interview/<id>/upload-recording/` are pushed directly to the Cloudinary CDN.
+2. The returned HTTPS URL is stored in `cloud_video_url` and `cloud_audio_url`.
+3. If Cloudinary credentials are absent or fail, the system falls back seamlessly to the local filesystem (`media/interview_video/`), ensuring uninterrupted execution.
