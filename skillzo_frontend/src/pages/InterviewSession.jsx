@@ -605,21 +605,25 @@ const InterviewSession = () => {
   // Track candidate speech activity (auto-advances from AI voice if candidate starts speaking)
   const handleSpeechActivity = useCallback(() => {
     if (isAiAskingRef.current) {
-      handleSkipAiVoiceRef.current?.()
+      cancelSpeech()
+      setIsAiAsking(false)
+      isAiAskingRef.current = false
     }
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
-  }, [])
+  }, [cancelSpeech])
 
   // Live transcribed speech directly streams into the candidate's answer box in real-time
   const handleTranscript = useCallback((t) => {
     if (isAiAskingRef.current) {
-      handleSkipAiVoiceRef.current?.()
+      cancelSpeech()
+      setIsAiAsking(false)
+      isAiAskingRef.current = false
     }
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
     setAnswerText(t)
-  }, [])
+  }, [cancelSpeech])
 
   const {
     listening,
@@ -1124,14 +1128,15 @@ const InterviewSession = () => {
     setAnswerText('')
     setSilenceSeconds(0)
 
-    // User's mic is OFF while AI speaks to prevent echo and distraction
-    setIsMicActive(false)
-    stopMic()
+    // Keep candidate's microphone ON and listening so whatever is spoken types immediately!
+    setIsMicActive(true)
     if (streamRef.current) {
       streamRef.current.getAudioTracks().forEach((track) => {
-        track.enabled = false
+        track.enabled = true
       })
     }
+    startMic()
+    startRecording()
 
     setIsAiAsking(true)
     setQuestionSeconds(TOTAL_QUESTION_SECONDS)
