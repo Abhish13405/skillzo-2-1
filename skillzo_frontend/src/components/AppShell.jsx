@@ -9,7 +9,10 @@ const AppShell = ({ children, hideSidebar = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const handleSignOut = () => {
+    logout()
+    navigate('/login')
+  }
 
   return (
     <div className="flex min-h-screen bg-surface-soft dark:bg-[#080D1A] text-slate-900 dark:text-slate-100 font-body transition-colors duration-200">
@@ -34,14 +37,13 @@ const AppShell = ({ children, hideSidebar = false }) => {
               >
                 {theme === 'dark' ? '🌙' : '☀️'}
               </button>
-              {user && (
-                <button
-                  onClick={() => logout()}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 transition-colors cursor-pointer"
-                >
-                  Sign out
-                </button>
-              )}
+              <button
+                onClick={handleSignOut}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-900/50 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 transition-all cursor-pointer shadow-2xs"
+                title="Sign out of your session"
+              >
+                Sign out 🚪
+              </button>
             </div>
           </div>
         ) : (

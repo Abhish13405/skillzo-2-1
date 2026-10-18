@@ -13,6 +13,13 @@ export const AuthProvider = ({ children }) => {
   const [authModalFeature, setAuthModalFeature] = useState('this feature')
 
   const loadUser = async () => {
+    const isLoggedOut = localStorage.getItem('skillzo_logged_out') === 'true'
+    if (isLoggedOut) {
+      setUser(null)
+      setLoading(false)
+      return
+    }
+
     const access = localStorage.getItem('skillzo_access')
     if (!access) {
       // Automatically bootstrap guest candidate session on initial load so anyone can practice immediately without signup
@@ -59,6 +66,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const trimmed = (email || '').trim()
     const res = await authApi.login({ email: trimmed, password })
+    localStorage.removeItem('skillzo_logged_out')
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
     localStorage.removeItem('skillzo_is_guest')
@@ -68,6 +76,7 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (data) => {
     const res = await authApi.signup(data)
+    localStorage.removeItem('skillzo_logged_out')
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
     localStorage.removeItem('skillzo_is_guest')
@@ -78,6 +87,7 @@ export const AuthProvider = ({ children }) => {
   const loginAsGuest = async () => {
     // Instant 1-click candidate login with zero delay (no signup/email required)
     const res = await authApi.login({ email: 'asti@gmail.com', password: 'Skillzo@2026' })
+    localStorage.removeItem('skillzo_logged_out')
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
     localStorage.setItem('skillzo_is_guest', 'true')
@@ -96,6 +106,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.clear()
+    localStorage.setItem('skillzo_logged_out', 'true')
     setUser(null)
   }
 

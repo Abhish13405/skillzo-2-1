@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
 import { getInterviewHistory, getInterviewDetail } from '../api/interview'
@@ -11,11 +11,22 @@ const DIFFICULTIES = ['All', 'Beginner', 'Intermediate', 'Advanced']
 
 const History = () => {
   const { user } = useAuth()
+  const location = useLocation()
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterDiff, setFilterDiff] = useState('All')
+  const [filterTrack, setFilterTrack] = useState(() => {
+    const params = new URLSearchParams(location.search)
+    return params.get('track') || 'all'
+  })
   const [downloadingId, setDownloadingId] = useState(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const t = params.get('track')
+    if (t) setFilterTrack(t)
+  }, [location.search])
 
   const userEmail = (user?.email || '').toLowerCase().trim()
   const isLeader = Boolean(
@@ -113,7 +124,18 @@ const History = () => {
     const matchUser = (!isLeader || showAllCandidates)
       ? true
       : (!s.candidate_email || s.candidate_email.toLowerCase() === (user?.email || '').toLowerCase())
-    return matchSearch && matchDiff && matchUser
+
+    const isHr = (s.job_role || '').toLowerCase().includes('hr') ||
+                 (s.job_role || '').toLowerCase().includes('behavioral') ||
+                 (s.job_role || '').toLowerCase().includes('placement') ||
+                 (s.job_role || '').toLowerCase().includes('culture')
+    const matchTrack = filterTrack === 'all'
+      ? true
+      : filterTrack === 'hr'
+      ? isHr
+      : !isHr
+
+    return matchSearch && matchDiff && matchUser && matchTrack
   })
 
   const getScoreBadge = (score) => {
@@ -121,6 +143,9 @@ const History = () => {
     if (score >= 40) return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50'
     return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50'
   }
+
+  const hrCount = sessions.filter(s => (s.job_role || '').toLowerCase().includes('hr') || (s.job_role || '').toLowerCase().includes('behavioral')).length
+  const techCount = sessions.length - hrCount
 
   return (
     <AppShell>
@@ -133,6 +158,42 @@ const History = () => {
         <Link to="/interview/setup" className="btn-primary shrink-0 shadow-sm py-2 px-3.5 text-xs sm:text-sm">
           + New Interview Session
         </Link>
+      </div>
+
+      {/* Track Scope Tabs (All Tracks vs HR vs Technical) */}
+      <div className="flex gap-2 mb-3 sm:mb-4 overflow-x-auto pb-1">
+        <button
+          onClick={() => setFilterTrack('all')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+            filterTrack === 'all'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+          }`}
+        >
+          All Tracks ({sessions.length})
+        </button>
+        <button
+          onClick={() => setFilterTrack('hr')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
+            filterTrack === 'hr'
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50/50'
+          }`}
+        >
+          <span>👔</span>
+          <span>HR & Behavioral ({hrCount})</span>
+        </button>
+        <button
+          onClick={() => setFilterTrack('technical')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
+            filterTrack === 'technical'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50/50'
+          }`}
+        >
+          <span>💻</span>
+          <span>Technical ({techCount})</span>
+        </button>
       </div>
 
       {/* Leader Scope Toggle */}

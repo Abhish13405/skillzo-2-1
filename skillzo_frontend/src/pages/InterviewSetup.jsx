@@ -111,11 +111,11 @@ const InterviewSetup = () => {
       <div className="mb-4 sm:mb-5 border-b border-slate-200/60 dark:border-slate-800/80 pb-3 sm:pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <Link
-            to="/dashboard"
+            to={isHRTrack ? "/hr" : "/dashboard"}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors mb-1.5"
           >
             <span>←</span>
-            <span>Back to Dashboard</span>
+            <span>{isHRTrack ? "Back to HR Workspace" : "Back to All Tracks"}</span>
           </Link>
           <div className="flex items-center gap-2">
             <span className="eyebrow">

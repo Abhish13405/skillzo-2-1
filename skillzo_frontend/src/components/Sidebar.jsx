@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
@@ -73,6 +73,27 @@ const SidebarContent = ({ onClose }) => {
   const { theme, toggleTheme } = useTheme()
   const [guestActivating, setGuestActivating] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const isHrWorkspace = location.pathname.startsWith('/hr') || location.search.includes('track=hr')
+
+  const baseItems = isHrWorkspace
+    ? [
+        { to: '/hr',                  label: 'HR Dashboard',     Icon: Icons.Dashboard },
+        { to: '/interview/setup',     label: 'New HR Mock',      Icon: Icons.Interview },
+        { to: '/history?track=hr',    label: 'HR Reports',       Icon: Icons.History },
+        { to: '/recordings?track=hr', label: 'HR Recordings',    Icon: Icons.Recordings },
+        { to: '/resume',              label: 'Resume Analysis',  Icon: Icons.Resume },
+        { to: '/profile',             label: 'Profile',          Icon: Icons.Profile },
+      ]
+    : [
+        { to: '/dashboard',           label: 'Dashboard',        Icon: Icons.Dashboard },
+        { to: '/interview/setup',     label: 'AI Interview',     Icon: Icons.Interview },
+        { to: '/resume',              label: 'Resume Analysis',  Icon: Icons.Resume },
+        { to: '/history',             label: 'Reports',          Icon: Icons.History },
+        { to: '/recordings',          label: 'Recordings',       Icon: Icons.Recordings },
+        { to: '/profile',             label: 'Profile',          Icon: Icons.Profile },
+      ]
 
   const handleEnterGuest = async () => {
     setGuestActivating(true)
@@ -105,14 +126,13 @@ const SidebarContent = ({ onClose }) => {
     )
   )
 
-
   const visibleNavItems = isLeader
     ? [
-        ...navItems,
+        ...baseItems,
         { to: '/leader', label: 'Leader Portal', Icon: Icons.LeaderPortal },
       ]
     : [
-        ...navItems,
+        ...baseItems,
         { to: '/live-room', label: 'Live HR Room', Icon: Icons.LiveRoom },
       ]
 
@@ -149,7 +169,9 @@ const SidebarContent = ({ onClose }) => {
           </div>
           <div>
             <span className="font-display font-extrabold text-base text-slate-900 dark:text-white tracking-tight block leading-tight">Skillzo</span>
-            <span className="block text-[9px] font-semibold uppercase tracking-wider text-brand-600 dark:text-blue-400 font-mono">AI Interview Studio</span>
+            <span className="block text-[9px] font-semibold uppercase tracking-wider text-brand-600 dark:text-blue-400 font-mono">
+              {isHrWorkspace ? 'HR & Behavioral Track' : 'AI Interview Studio'}
+            </span>
           </div>
         </div>
         {/* Close button for mobile */}
@@ -162,8 +184,30 @@ const SidebarContent = ({ onClose }) => {
         )}
       </div>
 
+      {/* Track Workspace Switcher Banner */}
+      <div className="px-3 pt-2.5 pb-1">
+        <Link
+          to="/dashboard"
+          onClick={onClose}
+          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs ${
+            isHrWorkspace
+              ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
+              : 'bg-slate-100 dark:bg-[#0D1527] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-200/70'
+          }`}
+          title="Switch between tracks"
+        >
+          <span className="flex items-center gap-1.5">
+            <span>{isHrWorkspace ? '👔' : '🔀'}</span>
+            <span>{isHrWorkspace ? 'Track: HR Round' : 'All 4 Tracks'}</span>
+          </span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-[#131E38] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            {isHrWorkspace ? 'Switch ↩' : 'Tracks'}
+          </span>
+        </Link>
+      </div>
+
       {/* Navigation Links */}
-      <nav className="flex-1 px-2.5 py-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-2.5 py-2 space-y-1 overflow-y-auto">
         {visibleNavItems.map(({ to, label, Icon }) => (
           <NavLink
             key={to}

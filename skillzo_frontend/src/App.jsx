@@ -16,6 +16,7 @@ import History from './pages/History'
 import Recordings from './pages/Recordings'
 import LeaderPortal from './pages/LeaderPortal'
 import TechnicalStudio from './pages/TechnicalStudio'
+import HrStudio from './pages/HrStudio'
 import LiveInterview from './pages/LiveInterview'
 import CandidateLiveRoom from './pages/CandidateLiveRoom'
 import NotFound from './pages/NotFound'
@@ -27,8 +28,9 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/technical" element={<TechnicalStudio />} />
+      <Route path="/dashboard" element={<ProtectedRoute featureName="Track Dashboard"><Dashboard /></ProtectedRoute>} />
+      <Route path="/hr" element={<ProtectedRoute featureName="HR Workspace"><HrStudio /></ProtectedRoute>} />
+      <Route path="/technical" element={<ProtectedRoute featureName="Technical Studio"><TechnicalStudio /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute featureName="Profile"><Profile /></ProtectedRoute>} />
       <Route path="/resume" element={<ProtectedRoute featureName="ATS Resume Analysis"><ResumeAnalysis /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />

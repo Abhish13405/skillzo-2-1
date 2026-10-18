@@ -32,6 +32,10 @@ const Recordings = () => {
   const [recordings, setRecordings] = useState([])
   const [loading, setLoading] = useState(true)
   const [filterMode, setFilterMode] = useState('all') // 'all', 'video', 'audio'
+  const [filterTrack, setFilterTrack] = useState(() => {
+    const params = new URLSearchParams(location.search)
+    return params.get('track') || 'all'
+  })
   const [search, setSearch] = useState('')
   const [storageInfo, setStorageInfo] = useState({ totalBytes: 0, formatted: '0 KB', count: 0 })
   const [activePlayback, setActivePlayback] = useState(null) // Recording object being played in modal
@@ -43,6 +47,12 @@ const Recordings = () => {
     if (params.get('view') === 'all' && isLeader) return 'all'
     return isLeader ? 'all' : 'mine'
   })
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const t = params.get('track')
+    if (t) setFilterTrack(t)
+  }, [location.search])
 
   // Load recordings from IndexedDB
   const loadData = async () => {
@@ -180,7 +190,18 @@ const Recordings = () => {
       (r.jobRole || '').toLowerCase().includes(q) ||
       (r.questionText || '').toLowerCase().includes(q) ||
       (r.userEmail || '').toLowerCase().includes(q)
-    return matchMode && matchSearch
+
+    const isHr = (r.jobRole || '').toLowerCase().includes('hr') ||
+                 (r.jobRole || '').toLowerCase().includes('behavioral') ||
+                 (r.jobRole || '').toLowerCase().includes('placement') ||
+                 (r.jobRole || '').toLowerCase().includes('culture')
+    const matchTrack = filterTrack === 'all'
+      ? true
+      : filterTrack === 'hr'
+      ? isHr
+      : !isHr
+
+    return matchMode && matchSearch && matchTrack
   })
 
   return (
@@ -287,6 +308,42 @@ const Recordings = () => {
           </Link>
         </div>
       )}
+
+      {/* ─── Track Scope Tabs (All Tracks vs HR vs Technical) ─── */}
+      <div className="flex gap-2 mb-3.5 overflow-x-auto pb-1">
+        <button
+          onClick={() => setFilterTrack('all')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+            filterTrack === 'all'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+          }`}
+        >
+          All Clips ({recordings.length})
+        </button>
+        <button
+          onClick={() => setFilterTrack('hr')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
+            filterTrack === 'hr'
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50/50'
+          }`}
+        >
+          <span>👔</span>
+          <span>HR Clips ({recordings.filter(r => (r.jobRole || '').toLowerCase().includes('hr') || (r.jobRole || '').toLowerCase().includes('behavioral')).length})</span>
+        </button>
+        <button
+          onClick={() => setFilterTrack('technical')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
+            filterTrack === 'technical'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50/50'
+          }`}
+        >
+          <span>💻</span>
+          <span>Technical ({recordings.filter(r => !(r.jobRole || '').toLowerCase().includes('hr') && !(r.jobRole || '').toLowerCase().includes('behavioral')).length})</span>
+        </button>
+      </div>
 
       {/* ─── Search & Mode Filter Tabs ─── */}
       <div className="flex flex-col sm:flex-row gap-2.5 mb-5">

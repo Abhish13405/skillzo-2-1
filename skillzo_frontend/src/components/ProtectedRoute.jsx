@@ -9,6 +9,10 @@ const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader 
 
   useEffect(() => {
     if (!loading && !user) {
+      const isLoggedOut = localStorage.getItem('skillzo_logged_out') === 'true'
+      if (isLoggedOut) {
+        return
+      }
       if (requireLeader) {
         openAuthModal(featureName)
       } else {
@@ -20,7 +24,7 @@ const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader 
   }, [loading, user, requireLeader])
 
   if (loading || bootstrappingGuest) return <Loader full />
-  if (!user && requireLeader) return <Navigate to="/dashboard" replace />
+  if (!user) return <Navigate to="/login" replace />
 
   if (requireLeader) {
     const userEmail = (user?.email || '').toLowerCase().trim()
