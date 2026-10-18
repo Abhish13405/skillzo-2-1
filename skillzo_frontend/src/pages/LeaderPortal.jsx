@@ -887,11 +887,22 @@ const LeaderPortal = () => {
                                       )}
                                     </div>
                                     {ans?.answer_text ? (
-                                      <p className="text-slate-600 dark:text-slate-300 text-[10px] mt-1 pl-2.5 border-l-2 border-blue-400 dark:border-blue-600 italic">
-                                        "{ans.answer_text}"
-                                      </p>
+                                      <div className="mt-1 pl-2.5 border-l-2 border-blue-400 dark:border-blue-600 space-y-0.5">
+                                        <span className="text-[9px] font-mono text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider block">Candidate Response:</span>
+                                        <p className="text-slate-700 dark:text-slate-300 text-[10px] font-medium leading-relaxed">
+                                          "{ans.answer_text}"
+                                        </p>
+                                      </div>
                                     ) : (
                                       <p className="text-slate-400 text-[10px] mt-0.5 italic">No answer submitted.</p>
+                                    )}
+                                    {ans?.ideal_answer_summary && (
+                                      <div className="mt-1 pl-2.5 border-l-2 border-emerald-400 dark:border-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20 p-1.5 rounded-r-md">
+                                        <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider block">✓ Ideal / Correct Answer:</span>
+                                        <p className="text-slate-800 dark:text-slate-200 text-[10px] leading-relaxed">
+                                          {ans.ideal_answer_summary}
+                                        </p>
+                                      </div>
                                     )}
                                     {vid && (
                                       <div className="mt-1.5 flex items-center gap-1.5">

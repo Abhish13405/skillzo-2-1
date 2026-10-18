@@ -245,14 +245,15 @@ export const downloadInterviewReportPdf = ({ session, user }) => {
       const qHeaderHeight = Math.max(8, qTextLines.length * 4.5 + 4)
 
       // Estimate total question card height
-      const ansText = q.answer?.answer_text || 'Passed without verbal response.'
-      const idealText = q.answer?.ideal_answer_summary || ''
+      const ansText = q.answer?.answer_text || 'Question skipped or no verbal response recorded.'
+      const idealText = q.answer?.ideal_answer_summary ||
+        `Model Answer: A strong response to "${q.question_text}" should clearly explain the foundational concepts, provide practical implementation details, and outline relevant best practices.`
       const ansLines = doc.splitTextToSize(ansText, contentWidth - 8)
-      const idealLines = idealText ? doc.splitTextToSize(idealText, contentWidth - 8) : []
+      const idealLines = doc.splitTextToSize(idealText, contentWidth - 8)
 
-      const totalNeeded = qHeaderHeight + 8 + ansLines.length * 4 + (idealText ? idealLines.length * 4 + 8 : 0) + 12
+      const totalNeeded = qHeaderHeight + 8 + ansLines.length * 4 + idealLines.length * 4 + 18
 
-      checkPageBreak(Math.min(totalNeeded, 70))
+      checkPageBreak(Math.min(totalNeeded, 75))
 
       // Question header bar
       doc.setFillColor(241, 245, 249)
@@ -269,55 +270,47 @@ export const downloadInterviewReportPdf = ({ session, user }) => {
       currentY += qHeaderHeight + 2
 
       // Scores if answer exists
-      if (q.answer) {
+      if (q.answer && q.answer.overall_score !== undefined && q.answer.overall_score !== null) {
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(7.5)
         doc.setTextColor(...TEXT_MUTED)
         const scoresText = `Score: Overall ${q.answer.overall_score || 0}/100  ·  Technical: ${q.answer.technical_knowledge || 0}/100  ·  Communication: ${q.answer.communication || 0}/100`
         doc.text(scoresText, margin + 4, currentY + 3.5)
         currentY += 6
-
-        // Candidate Answer Box
-        checkPageBreak(ansLines.length * 4 + 8)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(7.5)
-        doc.setTextColor(...TEXT_MUTED)
-        doc.text('YOUR RESPONSE:', margin + 4, currentY + 3.5)
-        currentY += 5
-
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(8)
-        doc.setTextColor(...TEXT_DARK)
-        doc.text(ansLines, margin + 4, currentY + 3)
-        currentY += ansLines.length * 4 + 2
-
-        // Ideal Answer Box
-        if (idealText) {
-          checkPageBreak(idealLines.length * 4 + 8)
-          doc.setFillColor(...BRAND_BLUE_LIGHT)
-          doc.setDrawColor(191, 219, 254)
-          const idealBoxHeight = idealLines.length * 4 + 7
-          doc.roundedRect(margin + 2, currentY, contentWidth - 4, idealBoxHeight, 2, 2, 'FD')
-
-          doc.setFont('helvetica', 'bold')
-          doc.setFontSize(7.5)
-          doc.setTextColor(...BRAND_BLUE)
-          doc.text('IDEAL ANSWER STRUCTURE:', margin + 5, currentY + 4.5)
-
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(8)
-          doc.setTextColor(...TEXT_DARK)
-          doc.text(idealLines, margin + 5, currentY + 8.5)
-
-          currentY += idealBoxHeight + 3
-        }
-      } else {
-        doc.setFont('helvetica', 'italic')
-        doc.setFontSize(8)
-        doc.setTextColor(...TEXT_MUTED)
-        doc.text('Question skipped or left blank.', margin + 4, currentY + 4)
-        currentY += 8
       }
+
+      // Candidate Answer Box (Jo User Ne Bola)
+      checkPageBreak(ansLines.length * 4 + 8)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7.5)
+      doc.setTextColor(37, 99, 235)
+      doc.text('CANDIDATE RESPONSE (USER SPOKEN/TYPED):', margin + 4, currentY + 3.5)
+      currentY += 5
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(...TEXT_DARK)
+      doc.text(ansLines, margin + 4, currentY + 3)
+      currentY += ansLines.length * 4 + 3
+
+      // Ideal / Correct Answer Box (Sahi Uttar Jo Hona Chahiye)
+      checkPageBreak(idealLines.length * 4 + 9)
+      doc.setFillColor(236, 253, 245)
+      doc.setDrawColor(167, 243, 208)
+      const idealBoxHeight = idealLines.length * 4 + 7
+      doc.roundedRect(margin + 2, currentY, contentWidth - 4, idealBoxHeight, 2, 2, 'FD')
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7.5)
+      doc.setTextColor(5, 150, 105)
+      doc.text('CORRECT / IDEAL ANSWER (MODEL ANSWER):', margin + 5, currentY + 4.5)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(15, 23, 42)
+      doc.text(idealLines, margin + 5, currentY + 8.5)
+
+      currentY += idealBoxHeight + 3
 
       // Separator Line
       doc.setDrawColor(241, 245, 249)

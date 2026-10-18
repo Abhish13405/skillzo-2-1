@@ -686,7 +686,7 @@ Evaluate the answer and return JSON with EXACTLY this structure:
   "overall_score": <integer 0-100>,
   "strengths": ["point1", "point2"],
   "improvements": ["point1", "point2"],
-  "ideal_answer_summary": "short 2-3 line summary of a strong answer"
+  "ideal_answer_summary": "Comprehensive, accurate, and well-explained correct model answer to the question (3-5 detailed sentences explaining the exact concepts, facts, code/STAR logic, and best practices that make this the correct answer)."
 }}
 """
         return self._chat(system_prompt, user_prompt)

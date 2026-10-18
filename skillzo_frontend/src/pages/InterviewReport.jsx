@@ -433,151 +433,184 @@ const InterviewReport = () => {
       <div className="card shadow-craft border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527]">
         <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white mb-4">Question-by-Question Evaluation</h3>
         <div className="space-y-6">
-          {session.questions.map((q, i) => (
-            <div key={q.id} className="border-b border-slate-100 dark:border-slate-800/80 last:border-0 pb-6 last:pb-0">
-              <div className="flex items-start gap-3 mb-3">
-                <span className="font-mono text-blue-500 font-bold shrink-0 text-sm mt-0.5">{i + 1}.</span>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">{q.question_text}</p>
-              </div>
-              {(() => {
-                const ans = q.answer || (q.answers && q.answers[0]) || null
-                const isBlankOrTimeout = !ans?.answer_text ||
-                  ans.answer_text.includes('Time expired') ||
-                  ans.answer_text.includes('Passed without verbal')
+          {session.questions.map((q, i) => {
+            const ans = q.answer || (q.answers && q.answers[0]) || null
+            const isBlankOrTimeout = !ans?.answer_text ||
+              ans.answer_text.includes('Time expired') ||
+              ans.answer_text.includes('Passed without verbal') ||
+              ans.answer_text.includes('Question skipped')
 
-                if (!ans) {
-                  return (
-                    <div className="ml-6 p-3 bg-slate-50 dark:bg-[#131E38]/50 border border-slate-200/60 dark:border-slate-800 rounded-xl text-xs text-slate-400 dark:text-slate-500 italic">
-                      Question skipped or left blank.
+            const localClip = localClips.find(
+              (c) => Number(c.questionNumber) === Number(q.order) || Number(c.questionNumber) === (i + 1)
+            )
+            const mediaUrl = ans?.video_url || ans?.audio_url || (localClip?.blob ? URL.createObjectURL(localClip.blob) : null)
+            const isCloud = Boolean(
+              (ans?.video_url && ans?.video_url.includes('cloudinary')) ||
+              (ans?.audio_url && ans?.audio_url.includes('cloudinary')) ||
+              localClip?.uploadedToCloud ||
+              localClip?.cloudUrl
+            )
+            const isVideo = Boolean(ans?.video_url || localClip?.mode !== 'audio' || session.mode === 'video')
+
+            // Fallback ideal answer explanation if backend summary is empty
+            const idealAnswerText = ans?.ideal_answer_summary ||
+              `A high-scoring answer for this question should directly address "${q.question_text}". It should outline clear foundational concepts, provide practical implementation steps or examples, and discuss best practices and edge cases relevant to the ${session.job_role || 'target'} role.`
+
+            return (
+              <div key={q.id} className="border-b border-slate-200/80 dark:border-slate-800/80 last:border-0 pb-6 last:pb-0">
+                {/* 1. AI Question Header */}
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 font-mono font-extrabold flex items-center justify-center shrink-0 text-xs border border-blue-200/80 dark:border-blue-800/60 shadow-2xs">
+                    Q{i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-[10px] font-mono uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/60">
+                        🤖 AI Question
+                      </span>
+                      <span className="text-[10px] font-mono uppercase tracking-wider font-medium text-slate-500 dark:text-slate-400">
+                        {session.mode === 'video' ? '📹 Video Round' : session.mode === 'audio' ? '🎙️ Audio Round' : '⌨️ Text Round'}
+                      </span>
                     </div>
-                  )
-                }
+                    <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-relaxed">
+                      {q.question_text}
+                    </p>
+                  </div>
+                </div>
 
-                return (
-                  <div className="ml-6 space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {[
-                        ['Overall', ans.overall_score],
-                        ['Technical', ans.technical_knowledge],
-                        ['Communication', ans.communication],
-                      ].map(([label, val]) => (
-                        <span key={label} className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] border border-slate-200 dark:border-slate-800">
-                          <span className="text-slate-500 dark:text-slate-400">{label}: </span>
-                          <span className={val >= 75 ? 'text-emerald-500' : val >= 40 ? 'text-amber-500' : 'text-blue-500'}>{val}</span>
+                <div className="ml-0 sm:ml-11 space-y-3.5">
+                  {/* 2. Candidate's Spoken Answer (Jo user ne bola) */}
+                  <div className="bg-slate-50/90 dark:bg-[#131E38]/70 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xs">
+                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                          🗣️
                         </span>
-                      ))}
+                        <strong className="text-blue-600 dark:text-blue-400 text-xs font-mono font-bold uppercase tracking-wider">
+                          Candidate's Spoken Answer (जो आपने बोला / उत्तर):
+                        </strong>
+                      </div>
+                      {ans?.speaking_time_seconds ? (
+                        <span className="text-[10px] font-mono font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#0D1527] px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800">
+                          ⏱️ Spoken Duration: {ans.speaking_time_seconds}s
+                        </span>
+                      ) : null}
                     </div>
 
                     {isBlankOrTimeout ? (
-                      <div className="bg-amber-50/70 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200/70 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                        <strong className="text-amber-900 dark:text-amber-200 block mb-1">⚠️ No verbal response recorded:</strong>
-                        {ans.answer_text}
+                      <div className="bg-amber-50/80 dark:bg-amber-950/30 p-3 rounded-xl border border-amber-200/70 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300">
+                        <span className="font-semibold">⚠️ Koi verbal response record nahi hua: </span>
+                        <span>{ans?.answer_text || 'Question skipped or left blank.'}</span>
                       </div>
                     ) : (
-                      <div className="bg-slate-50 dark:bg-[#131E38]/80 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-100 leading-relaxed font-sans">
-                        <strong className="text-blue-600 dark:text-blue-400 block mb-1.5 text-[11px] font-mono uppercase tracking-wider">
-                          Your Answer:
-                        </strong>
-                        <p className="whitespace-pre-wrap">{ans.answer_text}</p>
-                      </div>
+                      <p className="text-xs sm:text-[13px] text-slate-800 dark:text-slate-100 font-medium whitespace-pre-wrap leading-relaxed pl-1">
+                        "{ans?.answer_text}"
+                      </p>
                     )}
 
-                    {/* Candidate Recorded Video / Audio Answer Clip */}
-                    {(() => {
-                      const localClip = localClips.find(
-                        (c) => Number(c.questionNumber) === Number(q.order) || Number(c.questionNumber) === (i + 1)
-                      )
-                      const mediaUrl = ans.video_url || ans.audio_url || (localClip?.blob ? URL.createObjectURL(localClip.blob) : null)
-                      if (!mediaUrl) return null
-
-                      const isCloud = Boolean(
-                        (ans.video_url && ans.video_url.includes('cloudinary')) ||
-                        (ans.audio_url && ans.audio_url.includes('cloudinary')) ||
-                        localClip?.uploadedToCloud ||
-                        localClip?.cloudUrl
-                      )
-                      const isVideo = Boolean(ans.video_url || localClip?.mode !== 'audio')
-
-                      return (
-                        <div className="bg-slate-900/90 dark:bg-black/90 p-3.5 rounded-xl border border-slate-800 text-xs space-y-2">
-                          <div className="flex items-center justify-between text-[11px] font-mono text-slate-300 flex-wrap gap-2">
-                            <span className="flex items-center gap-1.5 font-bold">
-                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                              <span>Candidate {isVideo ? '📹 Video' : '🎙️ Audio'} Recording</span>
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {ans.speaking_time_seconds || localClip?.durationSeconds ? (
-                                <span className="text-slate-400 font-mono">{ans.speaking_time_seconds || localClip?.durationSeconds}s</span>
-                              ) : null}
-                              {isCloud ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
-                                  <span>☁️</span> Cloudinary Uploaded
-                                </span>
-                              ) : localClip?.blob ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUploadReportClip(localClip, q.id, i + 1)}
-                                  disabled={uploadingQNum === (i + 1)}
-                                  className="px-2.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-xs"
-                                  title="Upload this clip to Cloudinary so Project Leader can watch it"
-                                >
-                                  {uploadingQNum === (i + 1) ? 'Uploading...' : '☁️ Upload to Cloud'}
-                                </button>
-                              ) : null}
-                            </div>
+                    {/* Candidate Recorded Video / Audio Answer Playback */}
+                    {mediaUrl && (
+                      <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-600 dark:text-slate-300 flex-wrap gap-2">
+                          <span className="flex items-center gap-1.5 font-bold">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            <span>Candidate {isVideo ? '📹 Video' : '🎙️ Audio'} Recording</span>
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {isCloud ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
+                                <span>☁️</span> Cloudinary Uploaded
+                              </span>
+                            ) : localClip?.blob ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUploadReportClip(localClip, q.id, i + 1)}
+                                disabled={uploadingQNum === (i + 1)}
+                                className="px-2.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-xs"
+                                title="Upload this clip to Cloudinary so Project Leader can watch it"
+                              >
+                                {uploadingQNum === (i + 1) ? 'Uploading...' : '☁️ Upload to Cloud'}
+                              </button>
+                            ) : null}
                           </div>
-                          {isVideo ? (
-                            <video
-                              src={mediaUrl}
-                              controls
-                              preload="metadata"
-                              className="w-full max-h-72 rounded-lg bg-black object-contain"
-                            />
-                          ) : (
-                            <audio
-                              src={mediaUrl}
-                              controls
-                              preload="metadata"
-                              className="w-full"
-                            />
-                          )}
                         </div>
-                      )
-                    })()}
-
-                    {ans.strengths?.length > 0 && (
-                      <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs">
-                        <strong className="text-emerald-700 dark:text-emerald-300 block mb-1 font-semibold">✓ Key Strengths:</strong>
-                        <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300">
-                          {ans.strengths.map((str, sIdx) => (
-                            <li key={sIdx}>{str}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {ans.improvements?.length > 0 && (
-                      <div className="bg-amber-50/50 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-100 dark:border-amber-900/40 text-xs">
-                        <strong className="text-amber-700 dark:text-amber-300 block mb-1 font-semibold">↗ Recommendations for Improvement:</strong>
-                        <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300">
-                          {ans.improvements.map((imp, iIdx) => (
-                            <li key={iIdx}>{imp}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {ans.ideal_answer_summary && (
-                      <div className="bg-brand-50/50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-brand-100 dark:border-blue-900/40 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                        <strong className="text-blue-600 dark:text-blue-300 block mb-1">💡 Ideal Answer Structure:</strong>
-                        {ans.ideal_answer_summary}
+                        {isVideo ? (
+                          <video
+                            src={mediaUrl}
+                            controls
+                            preload="metadata"
+                            className="w-full max-h-72 rounded-xl bg-black object-contain shadow-xs"
+                          />
+                        ) : (
+                          <audio
+                            src={mediaUrl}
+                            controls
+                            preload="metadata"
+                            className="w-full"
+                          />
+                        )}
                       </div>
                     )}
                   </div>
-                )
-              })()}
-            </div>
-          ))}
+
+                  {/* 3. Correct / Ideal Model Answer (Sahi Uttar Jo Hona Chahiye Tha) */}
+                  <div className="bg-gradient-to-br from-emerald-50/90 to-teal-50/60 dark:from-[#062419]/70 dark:to-[#092B21]/50 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-700/70 shadow-2xs">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
+                        ✓
+                      </div>
+                      <strong className="text-emerald-800 dark:text-emerald-300 text-xs font-mono font-bold uppercase tracking-wider">
+                        Ideal / Correct Model Answer (सही उत्तर जो होना चाहिए):
+                      </strong>
+                    </div>
+                    <p className="text-xs sm:text-[13px] text-slate-800 dark:text-emerald-50/90 font-medium whitespace-pre-wrap leading-relaxed pl-1">
+                      {idealAnswerText}
+                    </p>
+                  </div>
+
+                  {/* 4. Score Badges & Evaluator Feedback */}
+                  {ans && (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {[
+                          ['Overall Score', ans.overall_score],
+                          ['Technical Knowledge', ans.technical_knowledge],
+                          ['Communication', ans.communication],
+                        ].map(([label, val]) => (
+                          <span key={label} className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131E38] border border-slate-200 dark:border-slate-800">
+                            <span className="text-slate-500 dark:text-slate-400">{label}: </span>
+                            <span className={val >= 75 ? 'text-emerald-500' : val >= 40 ? 'text-amber-500' : 'text-blue-500'}>{val ?? 0}/100</span>
+                          </span>
+                        ))}
+                      </div>
+
+                      {ans.strengths?.length > 0 && (
+                        <div className="bg-emerald-50/40 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs">
+                          <strong className="text-emerald-700 dark:text-emerald-300 block mb-1 font-semibold">✓ Key Strengths in Your Response:</strong>
+                          <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300">
+                            {ans.strengths.map((str, sIdx) => (
+                              <li key={sIdx}>{str}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {ans.improvements?.length > 0 && (
+                        <div className="bg-amber-50/40 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-100 dark:border-amber-900/40 text-xs">
+                          <strong className="text-amber-700 dark:text-amber-300 block mb-1 font-semibold">↗ Recommendations for Improvement:</strong>
+                          <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300">
+                            {ans.improvements.map((imp, iIdx) => (
+                              <li key={iIdx}>{imp}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 

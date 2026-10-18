@@ -1229,6 +1229,17 @@ const InterviewSession = () => {
     try {
       await stopAndSaveRecording(current + 1, question?.question_text)
     } catch {}
+    try {
+      if (question?.id) {
+        await submitAnswer(sessionId, {
+          question_id: question.id,
+          answer_text: 'Question skipped by candidate (No verbal response).',
+          speaking_time_seconds: 0,
+        })
+      }
+    } catch (e) {
+      console.warn('Skip answer submission error:', e)
+    }
     advanceToNextOrFinish()
   }
 
