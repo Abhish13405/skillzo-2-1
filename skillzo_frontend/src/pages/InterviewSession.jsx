@@ -576,10 +576,14 @@ const InterviewSession = () => {
     isAiAskingRef.current = isAiAsking
   }, [isAiAsking])
 
-  // 2-second silent delay between AI finishing question and candidate mic turning ON
-  const [micWarmupSeconds, setMicWarmupSeconds] = useState(0)
-  const micWarmupSecondsRef = useRef(0)
+  // 2-second silent delay between AI finishing question and candidate mic turning ON (Strict: No countdown UI)
+  const [isWarmup, setIsWarmup] = useState(false)
+  const isWarmupRef = useRef(false)
   const micWarmupTimerRef = useRef(null)
+
+  // Duplicate submission guard refs
+  const isSubmittingRef = useRef(false)
+  const submittedQuestionIndexRef = useRef(-1)
 
   // Timers: 15 seconds max per question
   const [questionSeconds, setQuestionSeconds] = useState(TOTAL_QUESTION_SECONDS)
@@ -612,8 +616,6 @@ const InterviewSession = () => {
 
   // ─── Real-time Speech-to-Text Dictation & Synthesis Handlers ───────────
   const [speechLang, setSpeechLang] = useState('en-IN')
-  const [autoSubmitOnSilence, setAutoSubmitOnSilence] = useState(false) // Safe default: no unexpected premature submit
-  const SILENCE_TIMEOUT_SECONDS = 15
   const [silenceSeconds, setSilenceSeconds] = useState(0)
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
@@ -625,7 +627,7 @@ const InterviewSession = () => {
 
   // Track candidate speech activity: strictly ignored while AI is speaking or in 2s warmup
   const handleSpeechActivity = useCallback(() => {
-    if (isAiAskingRef.current || micWarmupSecondsRef.current > 0) {
+    if (isAiAskingRef.current || isWarmupRef.current) {
       return
     }
     lastSpeechTimeRef.current = Date.now()
@@ -634,7 +636,7 @@ const InterviewSession = () => {
 
   // Live transcribed speech directly streams into the candidate's answer box in real-time
   const handleTranscript = useCallback((t) => {
-    if (isAiAskingRef.current || micWarmupSecondsRef.current > 0) {
+    if (isAiAskingRef.current || isWarmupRef.current) {
       return
     }
     lastSpeechTimeRef.current = Date.now()
@@ -1050,21 +1052,15 @@ const InterviewSession = () => {
 
     setIsCountingDown(false)
     setSpeechCountdown(0)
-    setMicWarmupSeconds(2) // 2-second silent delay before mic starts
-    micWarmupSecondsRef.current = 2
+    setIsWarmup(true)
+    isWarmupRef.current = true
 
     if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
 
-    // Countdown 2s -> 1s
-    setTimeout(() => {
-      setMicWarmupSeconds(1)
-      micWarmupSecondsRef.current = 1
-    }, 1000)
-
-    // After exactly 2 seconds, turn candidate mic ON silently without any beep
+    // Exactly 2 seconds silent delay after AI finishes speaking (Strict: No countdown UI)
     micWarmupTimerRef.current = setTimeout(() => {
-      setMicWarmupSeconds(0)
-      micWarmupSecondsRef.current = 0
+      setIsWarmup(false)
+      isWarmupRef.current = false
       setIsAiAsking(false)
       isAiAskingRef.current = false
       setQuestionSeconds(TOTAL_QUESTION_SECONDS)
@@ -1080,7 +1076,7 @@ const InterviewSession = () => {
         })
       }
 
-      // Turn user's mic ON silently
+      // Automatically activate candidate mic silently
       if (!isPaused) {
         setIsMicActive(true)
         resetTranscript()
@@ -1094,8 +1090,8 @@ const InterviewSession = () => {
   const handleSkipAiVoiceAndAnswerNow = useCallback(() => {
     cancelSpeech()
     if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
-    setMicWarmupSeconds(0)
-    micWarmupSecondsRef.current = 0
+    setIsWarmup(false)
+    isWarmupRef.current = false
     aiFinishedForQuestionRef.current = true
     setIsCountingDown(false)
     setSpeechCountdown(0)
@@ -1142,7 +1138,7 @@ const InterviewSession = () => {
 
   // Timers: Count down question duration AFTER AI finishes asking and 2s silent warmup completes (15 seconds limit)
   useEffect(() => {
-    if (isPaused || isCompleted || isAiAsking || micWarmupSeconds > 0) return
+    if (isPaused || isCompleted || isAiAsking || isWarmup) return
 
     const interval = setInterval(() => {
       setQuestionSeconds((prev) => (prev > 0 ? prev - 1 : 0))
@@ -1150,7 +1146,7 @@ const InterviewSession = () => {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [isPaused, isCompleted, isAiAsking, micWarmupSeconds])
+  }, [isPaused, isCompleted, isAiAsking, isWarmup])
 
   // When question loads/changes: Mic is strictly OFF while AI asks the question ONCE
   useEffect(() => {
@@ -1159,8 +1155,8 @@ const InterviewSession = () => {
     lastAskedQuestionIndexRef.current = current
 
     if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
-    setMicWarmupSeconds(0)
-    micWarmupSecondsRef.current = 0
+    setIsWarmup(false)
+    isWarmupRef.current = false
     aiFinishedForQuestionRef.current = false
     cancelSpeech()
     resetTranscript()
@@ -1213,7 +1209,7 @@ const InterviewSession = () => {
       }, 1000)
     }
 
-    // AI speaks question
+    // AI speaks question - actual completion event (onend) triggers handleAiFinishedAsking
     const startTimer = setTimeout(() => {
       setIsCountingDown(false)
       setSpeechCountdown(0)
@@ -1222,19 +1218,9 @@ const InterviewSession = () => {
       })
     }, delayMs)
 
-    // Safety fallback: Never freeze
-    const wordCount = (effectiveQuestionText || '').trim().split(/\s+/).filter(Boolean).length
-    const expectedSpeechMs = Math.min(8000, Math.max(3000, wordCount * 380 + 1000))
-    const fallbackTimer = setTimeout(() => {
-      if (!aiFinishedForQuestionRef.current) {
-        handleAiFinishedAsking()
-      }
-    }, delayMs + expectedSpeechMs)
-
     return () => {
       if (countdownInterval) clearInterval(countdownInterval)
       clearTimeout(startTimer)
-      clearTimeout(fallbackTimer)
       cancelSpeech()
     }
   }, [current, session, isCompleted]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1252,6 +1238,7 @@ const InterviewSession = () => {
       stopAllMedia()
       setIsCompleted(true)
     } else {
+      isSubmittingRef.current = false
       // Seamless silent transition without aborting speech recognition (avoids Android beep)
       setIsMicActive(false)
       cancelSpeech()
@@ -1272,11 +1259,21 @@ const InterviewSession = () => {
     }
   }
 
-  // Submit Answer (supports manual submission or automatic transition on 90s timeout)
+  // Submit Answer (supports manual submission or automatic transition on silence/timeout)
   const handleSubmitAnswer = async (isAutoSubmit = false) => {
-    if (submitting) return
+    if (isSubmittingRef.current || submitting) return
+    if (submittedQuestionIndexRef.current === current) return
+
     // When manually clicking, confirm if answer is empty. If auto-submitting on timeout, do NOT block with dialog
     if (!isAutoSubmit && !answerText.trim() && !window.confirm('Submit without answer text?')) return
+
+    // Do not submit empty answer automatically if user has not spoken yet unless 15s limit reached
+    if (isAutoSubmit && questionSeconds > 0 && answerText.trim().length < 3) {
+      return
+    }
+
+    isSubmittingRef.current = true
+    submittedQuestionIndexRef.current = current
     setSubmitting(true)
     setError('')
     const speakingTime = Math.round((Date.now() - startTime.current) / 1000)
@@ -1291,8 +1288,6 @@ const InterviewSession = () => {
         speaking_time_seconds: speakingTime,
       }
 
-      // Clip is already saved locally on candidate device in IndexedDB via saveRecording()
-      // Submitting only text answer and speaking time ensures 0 lag and candidate cloud upload choice
       await submitAnswer(sessionId, answerPayload)
       if (question?.id) {
         setAnsweredQuestionIds((prev) => new Set(prev).add(question.id))
@@ -1300,6 +1295,7 @@ const InterviewSession = () => {
       advanceToNextOrFinish()
     } catch {
       setError('Could not submit answer. Please try again.')
+      isSubmittingRef.current = false
     } finally {
       setSubmitting(false)
     }
@@ -1313,19 +1309,21 @@ const InterviewSession = () => {
 
   // Auto-advance to next question when total question time (15s) expires
   useEffect(() => {
-    if (questionSeconds === 0 && !isAiAsking && micWarmupSeconds === 0 && !isCountingDown && !submitting && !isCompleted && session && question) {
+    if (questionSeconds === 0 && !isAiAsking && !isWarmup && !isCountingDown && !submitting && !isCompleted && session && question) {
       handleSubmitRef.current(true)
     }
-  }, [questionSeconds, isAiAsking, micWarmupSeconds, isCountingDown, submitting, isCompleted, session, question])
+  }, [questionSeconds, isAiAsking, isWarmup, isCountingDown, submitting, isCompleted, session, question])
 
-  // ─── 15-Second Silence Auto-Advance (Relaxed & Optional) ────────────────────
+  // ─── Automatic Silence Detection & Answer Submission ────────────────────────
+  // Automatically detects when user stops speaking after answering, waiting 3.5s of silence
+  const SILENCE_THRESHOLD_SECONDS = 3.5
   useEffect(() => {
-    if (!autoSubmitOnSilence || isAiAsking || isCountingDown || isPaused || isCompleted || submitting) {
+    if (isAiAsking || isWarmup || isCountingDown || isPaused || isCompleted || submitting) {
       setSilenceSeconds(0)
       return
     }
 
-    // Activate only after candidate has spoken or typed at least 3 characters
+    // Only activate silence auto-submission AFTER candidate has spoken at least 3 characters
     const hasSpoken = Boolean(answerText.trim().length >= 3)
     if (!hasSpoken) {
       setSilenceSeconds(0)
@@ -1333,18 +1331,17 @@ const InterviewSession = () => {
     }
 
     const interval = setInterval(() => {
-      const elapsedSec = Math.floor((Date.now() - lastSpeechTimeRef.current) / 1000)
-      if (elapsedSec >= SILENCE_TIMEOUT_SECONDS) {
-        setSilenceSeconds(SILENCE_TIMEOUT_SECONDS)
+      const elapsedSec = (Date.now() - lastSpeechTimeRef.current) / 1000
+      if (elapsedSec >= SILENCE_THRESHOLD_SECONDS) {
         clearInterval(interval)
         handleSubmitRef.current(true)
       } else {
-        setSilenceSeconds(elapsedSec)
+        setSilenceSeconds(Math.floor(elapsedSec))
       }
-    }, 250)
+    }, 200)
 
     return () => clearInterval(interval)
-  }, [autoSubmitOnSilence, isAiAsking, isCountingDown, isPaused, isCompleted, submitting, answerText])
+  }, [isAiAsking, isWarmup, isCountingDown, isPaused, isCompleted, submitting, answerText])
 
   // Enter key handler inside Textarea (Ctrl+Enter / Cmd+Enter = submit, Enter = natural new line)
   const handleTextareaKeyDown = (e) => {
@@ -2051,10 +2048,10 @@ const InterviewSession = () => {
                 {/* Bottom-Left Unified Status Pill */}
                 <div className="absolute bottom-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#121212]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5 border border-transparent dark:border-neutral-800">
                   <span className="text-[10px] sm:text-[11px] font-medium tracking-tight flex items-center gap-1.5">
-                    {micWarmupSeconds > 0 ? (
+                    {isWarmup ? (
                       <>
-                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                        <span className="text-amber-600 dark:text-amber-400 font-semibold">Mic in {micWarmupSeconds}s</span>
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">Listening shortly</span>
                       </>
                     ) : isAiAsking ? (
                       <>
@@ -2083,7 +2080,7 @@ const InterviewSession = () => {
                 </div>
 
                 {/* Bottom-Right Video Time Duration Badge */}
-                {!isAiAsking && micWarmupSeconds === 0 && (
+                {!isAiAsking && !isWarmup && (
                   <div className="absolute bottom-2.5 right-2.5 z-20 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md flex items-center gap-1.5 text-white text-[11px]">
                     <span className="flex items-center gap-1 font-semibold text-slate-100">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
@@ -2102,7 +2099,7 @@ const InterviewSession = () => {
                 )}
 
                 {/* Bottom Video Progress Bar (0 to 100%) */}
-                {!isAiAsking && micWarmupSeconds === 0 && (
+                {!isAiAsking && !isWarmup && (
                   <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/50 z-30 overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${
@@ -2281,10 +2278,10 @@ const InterviewSession = () => {
                     </button>
                   </div>
 
-                  {micWarmupSeconds > 0 ? (
+                  {isWarmup ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                      Mic in {micWarmupSeconds}s
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Listening shortly
                     </span>
                   ) : isAiAsking ? (
                     <div className="flex items-center gap-2">
@@ -2365,20 +2362,11 @@ const InterviewSession = () => {
                         </button>
                       </div>
 
-                      {/* Auto-Advance on Silence Toggle */}
-                      <button
-                        type="button"
-                        onClick={() => setAutoSubmitOnSilence((v) => !v)}
-                        className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border ${
-                          autoSubmitOnSilence
-                            ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300'
-                            : 'bg-slate-100 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-neutral-700'
-                        }`}
-                        title={autoSubmitOnSilence ? 'Auto-submit active (15s pause) · Click to switch to manual submit' : 'Manual submit active · Candidate submits answer when done'}
-                      >
-                        <span>⏱️</span>
-                        <span>{autoSubmitOnSilence ? 'Auto-advance: 15s' : 'Auto-advance: OFF'}</span>
-                      </button>
+                      {/* Auto-submit on answer complete badge */}
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Auto-submit on answer complete</span>
+                      </div>
                     </div>
                   </div>
 
@@ -2407,19 +2395,12 @@ const InterviewSession = () => {
                   )}
 
                   {/* Single clear status notification strip */}
-                  {micWarmupSeconds > 0 ? (
+                  {isWarmup ? (
                     <div className="mb-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between border border-amber-200/80 dark:border-amber-900/60 shadow-2xs">
                       <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                        <span className="font-semibold">Question complete · Microphone turning ON silently in {micWarmupSeconds}s...</span>
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="font-semibold">Question complete · Microphone activating automatically...</span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={handleSkipAiVoiceAndAnswerNow}
-                        className="font-bold bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-0.5 rounded-lg text-xs cursor-pointer shadow-xs"
-                      >
-                        Speak now →
-                      </button>
                     </div>
                   ) : isAiAsking ? (
                     <div className="mb-2 px-3 py-1.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-200 text-xs flex items-center justify-between shadow-2xs">
@@ -2461,36 +2442,7 @@ const InterviewSession = () => {
                         }}
                         className="font-bold bg-blue-600 text-white px-2.5 py-0.5 rounded-md text-xs cursor-pointer hover:bg-blue-700"
                       >
-                        🎙️ Start Speaking
                       </button>
-                    </div>
-                  ) : null}
-
-                  {autoSubmitOnSilence && silenceSeconds >= 8 && answerText.trim().length >= 3 ? (
-                    <div className="mb-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between animate-pulse">
-                      <span className="flex items-center gap-1.5">
-                        <span>⏱️</span>
-                        <span>Pause detected: auto-submitting in <strong className="font-mono">{SILENCE_TIMEOUT_SECONDS - silenceSeconds}s</strong>...</span>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            lastSpeechTimeRef.current = Date.now()
-                            setSilenceSeconds(0)
-                          }}
-                          className="font-bold bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 px-2.5 py-0.5 rounded-md hover:bg-amber-300 cursor-pointer"
-                        >
-                          ✋ Keep speaking
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSubmitRef.current(true)}
-                          className="font-bold underline cursor-pointer hover:opacity-80"
-                        >
-                          Submit now →
-                        </button>
-                      </div>
                     </div>
                   ) : null}
                 </div>
