@@ -81,16 +81,16 @@ const SidebarContent = ({ onClose }) => {
 
   const baseItems = isHrWorkspace
     ? [
-        { to: '/hr',                      label: 'HR Dashboard',     Icon: Icons.Dashboard },
+        { to: '/hr',                      label: 'Dashboard',        Icon: Icons.Dashboard },
         { to: '/interview/setup?track=hr', label: 'HR Interview',     Icon: Icons.Interview },
-        { to: '/history?track=hr',        label: 'HR Reports',       Icon: Icons.History },
-        { to: '/recordings?track=hr',     label: 'HR Recordings',    Icon: Icons.Recordings },
         { to: '/resume',                  label: 'Resume Analysis',  Icon: Icons.Resume },
+        { to: '/history?track=hr',        label: 'Reports',          Icon: Icons.History },
+        { to: '/recordings?track=hr',     label: 'Recordings',       Icon: Icons.Recordings },
         { to: '/profile',                 label: 'Profile',          Icon: Icons.Profile },
       ]
     : [
-        { to: '/dashboard',           label: 'Dashboard',        Icon: Icons.Dashboard },
-        { to: '/interview/setup',     label: 'AI Interview',     Icon: Icons.Interview },
+        { to: '/technical',           label: 'Dashboard',        Icon: Icons.Dashboard },
+        { to: '/interview/setup',     label: 'Tech Interview',   Icon: Icons.Interview },
         { to: '/resume',              label: 'Resume Analysis',  Icon: Icons.Resume },
         { to: '/history',             label: 'Reports',          Icon: Icons.History },
         { to: '/recordings',          label: 'Recordings',       Icon: Icons.Recordings },
@@ -128,15 +128,7 @@ const SidebarContent = ({ onClose }) => {
     )
   )
 
-  const visibleNavItems = isLeader
-    ? [
-        ...baseItems,
-        { to: '/leader', label: 'Leader Portal', Icon: Icons.LeaderPortal },
-      ]
-    : [
-        ...baseItems,
-        { to: '/live-room', label: 'Live HR Room', Icon: Icons.LiveRoom },
-      ]
+  const visibleNavItems = baseItems
 
   const handleLogout = () => {
     logout()

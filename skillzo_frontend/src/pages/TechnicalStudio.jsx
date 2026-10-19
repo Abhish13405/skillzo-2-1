@@ -111,40 +111,50 @@ const TechnicalStudio = () => {
           </div>
         </div>
 
-        {/* 4 Stat Cards */}
+        {/* 4 Stat Cards: Average, High Score, Low Score, Kitne Diye */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-5">
           <div className="card flex flex-col items-center justify-center py-3.5 px-3">
-            <ReadinessDial score={data.average_score} size={76} label="Average Score" />
+            <ReadinessDial score={data.average_score} size={76} label="Technical Avg" />
           </div>
           <div className="card flex flex-col items-center justify-center py-3.5 px-3">
-            <ReadinessDial score={data.best_score} size={76} label="Best Score" />
+            <ReadinessDial score={data.best_score} size={76} label="High Score" />
           </div>
           <div className="card flex flex-col justify-between p-3.5 sm:p-4">
             <div>
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                Total Practice
-              </span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  Low Score
+                </span>
+                <span className="text-sm">📉</span>
+              </div>
               <p className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white mt-1">
-                {data.total_interviews}
+                {(() => {
+                  const scs = (data.progress_chart || []).map((p) => p.score).filter((s) => typeof s === 'number' && s >= 0)
+                  return scs.length > 0 ? Math.min(...scs) : 0
+                })()}
+                <span className="text-xs text-slate-400 font-mono font-normal"> / 100</span>
               </p>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-2">
-              Completed rounds
+              Baseline practice round
             </p>
           </div>
           <div className="card flex flex-col justify-between p-3.5 sm:p-4">
             <div>
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                Daily Target
-              </span>
-              <p className={`text-2xl sm:text-3xl font-display font-extrabold mt-1 ${goalDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                {data.daily_goal.completed_today}/{data.daily_goal.target}
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                  Kitne Interview Diye
+                </span>
+                <span className="text-sm">📋</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white mt-1">
+                {data.total_interviews}
               </p>
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-2">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Status</span>
-              <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full ${goalDone ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900' : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900'}`}>
-                {goalDone ? 'Achieved' : 'In Progress'}
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Daily Target</span>
+              <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                {data.daily_goal?.completed_today || 0}/{data.daily_goal?.target || 1}
               </span>
             </div>
           </div>
@@ -187,9 +197,27 @@ const TechnicalStudio = () => {
 
           <div className="card flex flex-col p-4">
             <div className="mb-3">
-              <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">AI Coach Insights</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Tailored suggestions for improvement</p>
+              <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">Core Strengths & AI Insights</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Verified competencies & recommendations</p>
             </div>
+
+            {/* Strengths Pills */}
+            {(data.strengths || []).length > 0 && (
+              <div className="mb-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1.5">
+                  Verified Strengths
+                </span>
+                <div className="space-y-1">
+                  {data.strengths.slice(0, 3).map((st, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/30 p-1.5 rounded-lg border border-emerald-200/50 dark:border-emerald-900/40 font-medium">
+                      <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                      <span className="leading-tight">{st}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {data.ai_suggestions.length === 0 ? (
               <div className="text-center py-6 my-auto bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
                 <p className="text-xs text-slate-500 dark:text-slate-400">Suggestions will generate based on your interview answers.</p>

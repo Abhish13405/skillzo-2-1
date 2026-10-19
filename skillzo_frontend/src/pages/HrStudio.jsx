@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import AppShell from '../components/AppShell'
 import ReadinessDial from '../components/ReadinessDial'
 import Loader from '../components/Loader'
@@ -142,11 +143,26 @@ const HrStudio = () => {
 
   // Metrics computation
   const completedHrCount = hrSessions.length
+  const hrScoreValues = hrSessions
+    .map((s) => s.overall_score)
+    .filter((sc) => typeof sc === 'number' && sc >= 0)
+  const highScore = hrScoreValues.length > 0 ? Math.max(...hrScoreValues) : 0
+  const lowScore = hrScoreValues.length > 0 ? Math.min(...hrScoreValues) : 0
   const avgScore = completedHrCount > 0
-    ? Math.round(hrSessions.reduce((acc, s) => acc + (s.overall_score || 75), 0) / completedHrCount)
-    : 84
+    ? Math.round(hrSessions.reduce((acc, s) => acc + (s.overall_score || 0), 0) / completedHrCount)
+    : 0
   const starScore = Math.min(10, (avgScore / 10).toFixed(1))
   const commScore = Math.min(98, Math.max(70, avgScore + 6))
+
+  const hrChartData = hrSessions
+    .filter((s) => typeof s.overall_score === 'number')
+    .slice(-10)
+    .reverse()
+    .map((s) => ({
+      date: (s.completed_at || s.started_at || '').slice(0, 10),
+      score: s.overall_score,
+      role: s.job_role,
+    }))
 
   const handleDownloadPdf = async (e, sessionItem) => {
     e.preventDefault()
@@ -261,13 +277,13 @@ const HrStudio = () => {
         {/* ─── TAB 1: HR DASHBOARD ────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* 4 Metric Cards */}
+            {/* 4 Metric Cards: Average, High Score, Low Score, Total Mocks */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {/* Card 1: HR Readiness Score */}
               <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                    HR Readiness
+                    HR Average
                   </span>
                   <span className="text-base">🎯</span>
                 </div>
@@ -287,51 +303,49 @@ const HrStudio = () => {
                 </div>
               </div>
 
-              {/* Card 2: STAR Behavioral Score */}
-              <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                    STAR Compliance
-                  </span>
-                  <span className="text-base">⭐</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white">
-                    {starScore}
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono">/ 10</span>
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
-                  Structured Situation, Task, Action & Result answers
-                </p>
-              </div>
-
-              {/* Card 3: Communication & Fluency */}
+              {/* Card 2: Highest Score */}
               <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    Speech Fluency
+                    High Score
                   </span>
-                  <span className="text-base">🎙️</span>
+                  <span className="text-base">🏆</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white">
-                    {commScore}%
+                    {highScore}
                   </span>
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                    Clear Pacing
-                  </span>
+                  <span className="text-xs text-slate-400 font-mono">/ 100</span>
                 </div>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
-                  Pacing, clarity, and grammatical structure
+                  Aapka best HR behavioral score
                 </p>
               </div>
 
-              {/* Card 4: HR Mocks Completed */}
+              {/* Card 3: Lowest Score */}
               <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                    Completed Mocks
+                    Low Score
+                  </span>
+                  <span className="text-base">📉</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white">
+                    {lowScore}
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">/ 100</span>
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                  Starting baseline practice round
+                </p>
+              </div>
+
+              {/* Card 4: Kitne Interview Diye */}
+              <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Kitne Interview Diye
                   </span>
                   <span className="text-base">📋</span>
                 </div>
@@ -345,6 +359,48 @@ const HrStudio = () => {
                   {hrRecordings.length} video/audio recordings saved
                 </p>
               </div>
+            </div>
+
+            {/* HR Performance Growth Journey Chart */}
+            <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
+                    HR Performance Growth Journey
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Historical score trajectory across your HR & behavioral rounds
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
+                  {hrChartData.length} HR Rounds
+                </span>
+              </div>
+              {hrChartData.length === 0 ? (
+                <div className="h-36 flex items-center justify-center bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Complete your first HR mock to visualize performance growth.</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={160}>
+                  <LineChart data={hrChartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} />
+                    <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} />
+                    <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
+                    <Tooltip
+                      contentStyle={{ background: '#0D1527', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: '12px', color: '#F8FAFC' }}
+                      labelStyle={{ color: '#A5B4FC', fontWeight: 'bold' }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#6366F1"
+                      strokeWidth={2.5}
+                      dot={{ fill: '#6366F1', r: 3.5, strokeWidth: 1.5, stroke: '#1E293B' }}
+                      activeDot={{ r: 5, fill: '#818CF8' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             {/* HR Focus Curriculum Tracks (3 Launch Cards) */}
