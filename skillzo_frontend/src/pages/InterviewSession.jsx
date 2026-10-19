@@ -578,6 +578,7 @@ const InterviewSession = () => {
 
   // 2-second silent delay between AI finishing question and candidate mic turning ON
   const [micWarmupSeconds, setMicWarmupSeconds] = useState(0)
+  const micWarmupSecondsRef = useRef(0)
   const micWarmupTimerRef = useRef(null)
 
   // Timers: 15 seconds max per question
@@ -622,28 +623,24 @@ const InterviewSession = () => {
 
   const handleSkipAiVoiceRef = useRef(null)
 
-  // Track candidate speech activity (auto-advances from AI voice if candidate starts speaking)
+  // Track candidate speech activity: strictly ignored while AI is speaking or in 2s warmup
   const handleSpeechActivity = useCallback(() => {
-    if (isAiAskingRef.current) {
-      cancelSpeech()
-      setIsAiAsking(false)
-      isAiAskingRef.current = false
+    if (isAiAskingRef.current || micWarmupSecondsRef.current > 0) {
+      return
     }
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
-  }, [cancelSpeech])
+  }, [])
 
   // Live transcribed speech directly streams into the candidate's answer box in real-time
   const handleTranscript = useCallback((t) => {
-    if (isAiAskingRef.current) {
-      cancelSpeech()
-      setIsAiAsking(false)
-      isAiAskingRef.current = false
+    if (isAiAskingRef.current || micWarmupSecondsRef.current > 0) {
+      return
     }
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
     setAnswerText(t)
-  }, [cancelSpeech])
+  }, [])
 
   const {
     listening,
@@ -1054,17 +1051,20 @@ const InterviewSession = () => {
     setIsCountingDown(false)
     setSpeechCountdown(0)
     setMicWarmupSeconds(2) // 2-second silent delay before mic starts
+    micWarmupSecondsRef.current = 2
 
     if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
 
     // Countdown 2s -> 1s
     setTimeout(() => {
       setMicWarmupSeconds(1)
+      micWarmupSecondsRef.current = 1
     }, 1000)
 
     // After exactly 2 seconds, turn candidate mic ON silently without any beep
     micWarmupTimerRef.current = setTimeout(() => {
       setMicWarmupSeconds(0)
+      micWarmupSecondsRef.current = 0
       setIsAiAsking(false)
       isAiAskingRef.current = false
       setQuestionSeconds(TOTAL_QUESTION_SECONDS)
@@ -1095,6 +1095,7 @@ const InterviewSession = () => {
     cancelSpeech()
     if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
     setMicWarmupSeconds(0)
+    micWarmupSecondsRef.current = 0
     aiFinishedForQuestionRef.current = true
     setIsCountingDown(false)
     setSpeechCountdown(0)
@@ -1159,14 +1160,14 @@ const InterviewSession = () => {
 
     if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
     setMicWarmupSeconds(0)
+    micWarmupSecondsRef.current = 0
     aiFinishedForQuestionRef.current = false
     cancelSpeech()
     resetTranscript()
     setAnswerText('')
     setSilenceSeconds(0)
 
-    // Candidate's microphone is kept OFF while AI reads the question to prevent laptop speaker audio loop
-    stopMic()
+    // Silently mute hardware audio tracks without aborting speech recognition to eliminate off/on beeps
     setIsMicActive(false)
     if (streamRef.current) {
       streamRef.current.getAudioTracks().forEach((track) => {
@@ -1251,7 +1252,7 @@ const InterviewSession = () => {
       stopAllMedia()
       setIsCompleted(true)
     } else {
-      stopMic()
+      // Seamless silent transition without aborting speech recognition (avoids Android beep)
       setIsMicActive(false)
       cancelSpeech()
       resetTranscript()
@@ -1276,7 +1277,6 @@ const InterviewSession = () => {
     if (submitting) return
     // When manually clicking, confirm if answer is empty. If auto-submitting on timeout, do NOT block with dialog
     if (!isAutoSubmit && !answerText.trim() && !window.confirm('Submit without answer text?')) return
-    if (listening) stopMic()
     setSubmitting(true)
     setError('')
     const speakingTime = Math.round((Date.now() - startTime.current) / 1000)
