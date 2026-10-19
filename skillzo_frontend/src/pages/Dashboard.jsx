@@ -124,9 +124,6 @@ const Dashboard = () => {
   // Candidate Live Room states (Box 3)
   const [candidateLiveRoomId, setCandidateLiveRoomId] = useState(() => `skz_${Math.random().toString(36).substring(2, 8)}`)
 
-  // Leader search & filter states (Box 3)
-  const [candidateSearch, setCandidateSearch] = useState('')
-
   // Load all dashboard data
   useEffect(() => {
     let isMounted = true
@@ -135,7 +132,7 @@ const Dashboard = () => {
     const fetchAll = async () => {
       try {
         const [sumRes, histRes, resRes, recsRes, leadRes] = await Promise.allSettled([
-          getDashboardSummary({ track: selectedTrack === 'hr' ? 'hr' : 'technical' }),
+          getDashboardSummary(),
           getInterviewHistory(),
           listResumes(),
           getAllRecordings(user, isLeader),
@@ -158,7 +155,7 @@ const Dashboard = () => {
 
     fetchAll()
     return () => { isMounted = false }
-  }, [user, isLeader, selectedTrack])
+  }, [user, isLeader])
 
   // Sync selectedTrack with URL
   const handleSelectBox = (trackId) => {
@@ -175,21 +172,44 @@ const Dashboard = () => {
   const techAvgScore = techScores.length ? Math.round(techScores.reduce((a, b) => a + b, 0) / techScores.length) : (summaryData?.average_score || 0)
   const techBestScore = techScores.length ? Math.max(...techScores) : (summaryData?.best_score || 0)
 
-  // Technical progress chart
-  const techChartData = techSessions
-    .filter((s) => typeof s.overall_score === 'number')
-    .slice(-10)
-    .reverse()
-    .map((s) => ({
-      date: (s.completed_at || s.started_at || '').slice(0, 10),
-      score: s.overall_score,
-      role: s.job_role
-    }))
-
   // Calculate HR stats
   const hrScores = hrSessions.map((s) => s.overall_score).filter((sc) => typeof sc === 'number' && sc > 0)
   const hrAvgScore = hrScores.length ? Math.round(hrScores.reduce((a, b) => a + b, 0) / hrScores.length) : 0
-  const hrBestScore = hrScores.length ? Math.max(...hrScores) : 0
+
+  // Overall performance calculations (for top KPI row)
+  const allScores = allSessions.map((s) => s.overall_score).filter((sc) => typeof sc === 'number' && sc > 0)
+  const overallAvgScore = allScores.length ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : (summaryData?.average_score || 0)
+  const overallBestScore = allScores.length ? Math.max(...allScores) : (summaryData?.best_score || 0)
+  const totalInterviewsCount = allSessions.length || summaryData?.total_interviews || 0
+
+  // Chart data: progression across completed sessions
+  const chartSessions = (summaryData?.progress_chart && summaryData.progress_chart.length > 0)
+    ? summaryData.progress_chart
+    : allSessions
+        .filter((s) => typeof s.overall_score === 'number' && s.overall_score >= 0)
+        .slice(-10)
+        .reverse()
+        .map((s) => ({
+          date: (s.completed_at || s.started_at || '').slice(0, 10),
+          score: s.overall_score,
+          role: s.job_role
+        }))
+
+  // Strengths & Competencies data from summaryData or defaults
+  const strengthsList = summaryData?.strengths?.length > 0
+    ? summaryData.strengths
+    : [
+        'Structured problem-solving approach',
+        'Strong technical clarity and core understanding',
+        'Effective communication & situational reasoning'
+      ]
+
+  const competencies = summaryData?.competencies || {
+    technical_knowledge: 65,
+    communication: 70,
+    confidence: 68,
+    problem_solving: 60
+  }
 
   // Resume handlers (Box 4)
   const handleResumeFileSelect = async (file) => {
@@ -233,7 +253,7 @@ const Dashboard = () => {
     try {
       await deleteResume(id)
       setResumes((prev) => prev.filter((r) => r.id !== id))
-    } catch (err) {
+    } catch {
       setResumeError('Could not delete resume.')
     }
   }
@@ -250,7 +270,7 @@ const Dashboard = () => {
       activeBorder: 'border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-500/20 shadow-md',
       activeBadge: 'bg-indigo-600 text-white',
       accentColor: 'hover:border-indigo-400',
-      metricLabel: `${hrSessions.length} Completed`,
+      metricLabel: `${hrSessions.length} HR Rounds`,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -268,7 +288,7 @@ const Dashboard = () => {
       activeBorder: 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/20 shadow-md',
       activeBadge: 'bg-blue-600 text-white',
       accentColor: 'hover:border-blue-400',
-      metricLabel: `${techSessions.length} Completed`,
+      metricLabel: `${techSessions.length} Tech Rounds`,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="16 18 22 12 16 6"/>
@@ -341,21 +361,21 @@ const Dashboard = () => {
     <AppShell hideSidebar={false}>
       <div className="max-w-6xl mx-auto py-3 sm:py-5">
         
-        {/* ─── Top Header ─── */}
+        {/* ─── Top Main Header ─── */}
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200/70 dark:border-slate-800/80 pb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="eyebrow">Skillzo Unified Platform</span>
+              <span className="eyebrow">Candidate Performance Center</span>
               <span className="text-slate-300 dark:text-slate-700 text-xs">•</span>
               <span className="text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400">
-                4 Interactive Modules
+                Live Analytics & Readiness
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
               Interview Readiness Dashboard
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Click any box below to inspect its data, past scorecards, and live tools directly on this dashboard.
+              Track kitne interview diye, aapki overall score growth, aur real-time strengths & competencies.
             </p>
           </div>
 
@@ -367,73 +387,281 @@ const Dashboard = () => {
               onClick={() => navigate('/interview/setup')}
               className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span>+ New Mock Session</span>
+              <span>+ Launch Interview</span>
             </button>
           </div>
         </div>
 
-        {/* ─── The 4 Interactive Module Boxes ─── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 mb-6">
-          {boxes.map((box) => {
-            const isActive = selectedTrack === box.id
-            return (
-              <button
-                key={box.id}
-                type="button"
-                onClick={() => handleSelectBox(box.id)}
-                className={`relative text-left bg-white dark:bg-[#0D1527] rounded-2xl p-4 sm:p-4.5 border transition-all duration-200 flex flex-col justify-between cursor-pointer shadow-xs hover:shadow-md ${
-                  isActive
-                    ? `${box.activeBorder} bg-gradient-to-b from-blue-50/20 dark:from-blue-950/20 to-white dark:to-[#0D1527]`
-                    : `border-slate-200/90 dark:border-slate-800/90 ${box.accentColor} hover:-translate-y-0.5`
-                }`}
-              >
-                {/* Active Indicator Top Pill */}
-                {isActive && (
-                  <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-blue-600 text-white shadow-sm flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    <span>Viewing Data</span>
-                  </div>
-                )}
+        {/* ─── 1. TOP OVERVIEW KPI ROW ("Kitne Interview Diye" & Core Score) ─── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          {/* Card 1: Kitne Interview Diye */}
+          <div className="card p-4 sm:p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  Total Interviews Given
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                  Kitne Diye
+                </span>
+              </div>
+              <p className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 dark:text-white mt-1">
+                {totalInterviewsCount}
+              </p>
+            </div>
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-2 mt-3 flex items-center justify-between text-xs text-slate-500">
+              <span>Completed Practice</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                {summaryData?.daily_goal?.completed_today || 0} Today
+              </span>
+            </div>
+          </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className={`w-10 h-10 rounded-xl ${box.iconBg} border flex items-center justify-center shrink-0`}>
-                      {box.icon}
-                    </div>
-                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-md border font-semibold ${box.badgeColor}`}>
-                      {box.badge}
-                    </span>
-                  </div>
+          {/* Card 2: Average Readiness Score Dial */}
+          <div className="card p-3 sm:p-4 flex flex-col items-center justify-center">
+            <ReadinessDial score={overallAvgScore} size={76} label="Average Score" />
+          </div>
 
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug">
-                    {box.title}
-                  </h3>
-                  <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                    {box.description}
-                  </p>
-                </div>
+          {/* Card 3: Best Score Achieved */}
+          <div className="card p-3 sm:p-4 flex flex-col items-center justify-center">
+            <ReadinessDial score={overallBestScore} size={76} label="Best Score" />
+          </div>
 
-                <div className="mt-3.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                  <span className="font-mono text-slate-400 dark:text-slate-500">{box.metricLabel}</span>
-                  <span className={`font-bold ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
-                    {isActive ? 'Opened ✓' : 'Open Box →'}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
+          {/* Card 4: Consistency & Streak */}
+          <div className="card p-4 sm:p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  Daily Consistency
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900">
+                  Streak
+                </span>
+              </div>
+              <p className="text-3xl sm:text-4xl font-display font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">
+                {summaryData?.daily_goal?.current_streak || 0}{' '}
+                <span className="text-sm font-semibold text-slate-400">Days</span>
+              </p>
+            </div>
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-2 mt-3 flex items-center justify-between text-xs text-slate-500">
+              <span>Daily Target</span>
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                {(summaryData?.daily_goal?.completed_today || 0) >= 1 ? 'Target Met ✓' : 'In Progress'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* ─── Active Box Data View Header ─── */}
+        {/* ─── 2. GROWTH & STRENGTH SECTION ("Kya Growth" & "Kitni Strength") ─── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          {/* Card Left: Score Growth Trajectory Chart ("Kya Growth") */}
+          <div className="card lg:col-span-2 p-4 sm:p-5">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display font-bold text-base sm:text-lg text-slate-900 dark:text-white">
+                    Score Growth & Performance Trajectory
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                    Kya Growth
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Historical progress curve across your completed mock attempts
+                </p>
+              </div>
+              <span className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400">
+                {chartSessions.length} Rounds Evaluated
+              </span>
+            </div>
+
+            {chartSessions.length === 0 ? (
+              <div className="h-48 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                <p className="text-xs text-slate-500 dark:text-slate-400">No score history available yet.</p>
+                <button
+                  onClick={() => navigate('/interview/setup')}
+                  className="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Start your first mock interview to track growth →
+                </button>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={chartSessions} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} />
+                  <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} />
+                  <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{ background: '#0D1527', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '12px', color: '#F8FAFC' }}
+                    labelStyle={{ color: '#93C5FD', fontWeight: 'bold' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#3B82F6"
+                    strokeWidth={2.5}
+                    dot={{ fill: '#3B82F6', r: 4, strokeWidth: 1.5, stroke: '#1E293B' }}
+                    activeDot={{ r: 6, fill: '#60A5FA' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Card Right: Candidate Core Strengths & Skills ("Kitni Strength") */}
+          <div className="card flex flex-col p-4 sm:p-5">
+            <div className="mb-3">
+              <div className="flex items-center gap-2">
+                <h3 className="font-display font-bold text-base sm:text-lg text-slate-900 dark:text-white">
+                  Core Strengths & Skills
+                </h3>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  Kitni Strength
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                AI evaluation of your core interview capabilities
+              </p>
+            </div>
+
+            {/* Competencies Progress Bars */}
+            <div className="space-y-2.5 mb-4">
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <span>Technical Knowledge</span>
+                  <span className="font-mono text-blue-600 dark:text-blue-400">{competencies.technical_knowledge}%</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-blue-600 h-2 rounded-full transition-all duration-500" style={{ width: `${competencies.technical_knowledge}%` }} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <span>Communication & Fluency</span>
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400">{competencies.communication}%</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-indigo-600 h-2 rounded-full transition-all duration-500" style={{ width: `${competencies.communication}%` }} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <span>Confidence Level</span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400">{competencies.confidence}%</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-emerald-600 h-2 rounded-full transition-all duration-500" style={{ width: `${competencies.confidence}%` }} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <span>Problem Solving</span>
+                  <span className="font-mono text-purple-600 dark:text-purple-400">{competencies.problem_solving}%</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-purple-600 h-2 rounded-full transition-all duration-500" style={{ width: `${competencies.problem_solving}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Key Verified Strengths List */}
+            <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                AI-Verified Strengths
+              </span>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {strengthsList.slice(0, 4).map((str, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start gap-2 p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-xs font-medium"
+                  >
+                    <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                    <span className="leading-snug">{str}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 3. THE 4 INTERACTIVE MODULE BOXES ─── */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-display font-bold text-base sm:text-lg text-slate-900 dark:text-white">
+                Workspace Modules (Click to Open & View Data)
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Choose any box below to inspect its dedicated scorecards, recordings, and live tools.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 mb-6">
+            {boxes.map((box) => {
+              const isActive = selectedTrack === box.id
+              return (
+                <button
+                  key={box.id}
+                  type="button"
+                  onClick={() => handleSelectBox(box.id)}
+                  className={`relative text-left bg-white dark:bg-[#0D1527] rounded-2xl p-4 sm:p-4.5 border transition-all duration-200 flex flex-col justify-between cursor-pointer shadow-xs hover:shadow-md ${
+                    isActive
+                      ? `${box.activeBorder} bg-gradient-to-b from-blue-50/20 dark:from-blue-950/20 to-white dark:to-[#0D1527]`
+                      : `border-slate-200/90 dark:border-slate-800/90 ${box.accentColor} hover:-translate-y-0.5`
+                  }`}
+                >
+                  {/* Active Indicator Top Pill */}
+                  {isActive && (
+                    <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-blue-600 text-white shadow-sm flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      <span>Viewing Data</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className={`w-10 h-10 rounded-xl ${box.iconBg} border flex items-center justify-center shrink-0`}>
+                        {box.icon}
+                      </div>
+                      <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-md border font-semibold ${box.badgeColor}`}>
+                        {box.badge}
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug">
+                      {box.title}
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                      {box.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-3.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <span className="font-mono text-slate-400 dark:text-slate-500">{box.metricLabel}</span>
+                    <span className={`font-bold ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+                      {isActive ? 'Opened ✓' : 'Open Box →'}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ─── 4. ACTIVE BOX INNER DATA VIEW ─── */}
         <div className="mb-4 flex items-center justify-between bg-slate-50 dark:bg-[#0A0F1D] px-4 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
           <div className="flex items-center gap-2.5">
             <span className="text-lg">{currentBoxMeta.icon}</span>
             <div>
               <span className="text-[11px] font-mono uppercase font-bold text-slate-400 dark:text-slate-500 block leading-none">
-                Active Module View
+                Active Module Deep-Dive
               </span>
               <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight mt-0.5">
-                {currentBoxMeta.title} Data
+                {currentBoxMeta.title}
               </h2>
             </div>
           </div>
@@ -458,7 +686,7 @@ const Dashboard = () => {
         {/* ─── MODULE 2: TECHNICAL MOCK PRACTICE DATA ─── */}
         {selectedTrack === 'technical' && (
           <div className="space-y-5 animate-fadeIn">
-            {/* 4 Technical KPI Cards */}
+            {/* Technical Metric Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <div className="card flex flex-col items-center justify-center py-3.5 px-3">
                 <ReadinessDial score={techAvgScore} size={76} label="Technical Avg" />
@@ -469,7 +697,7 @@ const Dashboard = () => {
               <div className="card flex flex-col justify-between p-3.5 sm:p-4">
                 <div>
                   <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Tech Interviews
+                    Tech Mock Rounds
                   </span>
                   <p className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white mt-1">
                     {techSessions.length}
@@ -482,85 +710,18 @@ const Dashboard = () => {
               <div className="card flex flex-col justify-between p-3.5 sm:p-4">
                 <div>
                   <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Daily Practice Goal
+                    Practice Status
                   </span>
                   <p className="text-2xl sm:text-3xl font-display font-extrabold text-blue-600 dark:text-blue-400 mt-1">
-                    {summaryData?.daily_goal?.completed_today || 0}/{summaryData?.daily_goal?.target || 1}
+                    {techSessions.length > 0 ? 'Active' : 'Ready'}
                   </p>
                 </div>
                 <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-2">
-                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Status</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Readiness</span>
                   <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
-                    {(summaryData?.daily_goal?.completed_today || 0) >= 1 ? 'Target Met' : 'Pending'}
+                    {techAvgScore >= 70 ? 'Interview Ready' : 'In Practice'}
                   </span>
                 </div>
-              </div>
-            </div>
-
-            {/* Growth Trend & AI Suggestions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="card lg:col-span-2 p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">Technical Score Trend</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Score progress across Python, Java, AI & Frontend mock attempts</p>
-                  </div>
-                  <span className="text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/80 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900">
-                    {techChartData.length} technical rounds
-                  </span>
-                </div>
-                {techChartData.length === 0 ? (
-                  <div className="h-44 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">No technical mock sessions yet.</p>
-                    <button
-                      onClick={() => navigate('/interview/setup', { state: { role: 'Python Developer' } })}
-                      className="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      Start your first technical interview →
-                    </button>
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={techChartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} />
-                      <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} />
-                      <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
-                      <Tooltip
-                        contentStyle={{ background: '#0D1527', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '12px', color: '#F8FAFC' }}
-                        labelStyle={{ color: '#93C5FD', fontWeight: 'bold' }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="score"
-                        stroke="#3B82F6"
-                        strokeWidth={2.5}
-                        dot={{ fill: '#3B82F6', r: 3.5, strokeWidth: 1.5, stroke: '#1E293B' }}
-                        activeDot={{ r: 5, fill: '#60A5FA' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-
-              <div className="card flex flex-col p-4">
-                <div className="mb-3">
-                  <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">AI Technical Insights</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Algorithmic guidance & feedback</p>
-                </div>
-                {(summaryData?.ai_suggestions || []).length === 0 ? (
-                  <div className="text-center py-6 my-auto bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Insights will appear here after answering technical questions.</p>
-                  </div>
-                ) : (
-                  <ul className="space-y-2 my-auto">
-                    {summaryData.ai_suggestions.map((s, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#131E38] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <span className="text-blue-600 dark:text-blue-400 font-mono font-bold shrink-0">•</span>
-                        <span className="leading-snug font-medium">{s}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </div>
 

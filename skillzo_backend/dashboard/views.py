@@ -4,7 +4,7 @@ from rest_framework import permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from interview.models import InterviewSession
+from interview.models import InterviewSession, InterviewAnswer
 from interview.serializers import InterviewSessionSerializer
 
 
@@ -101,6 +101,32 @@ class DashboardSummaryView(APIView):
         latest_session = completed.order_by('-completed_at').first()
         ai_suggestions = latest_session.ai_suggestions if latest_session else []
 
+        # Collect candidate strengths & competencies from evaluated answers
+        answers_qs = InterviewAnswer.objects.filter(question__session__in=completed)
+        all_strengths = []
+        for ans in answers_qs.exclude(strengths__isnull=True):
+            if isinstance(ans.strengths, list):
+                all_strengths.extend(ans.strengths)
+
+        unique_strengths = []
+        for s in all_strengths:
+            clean_s = str(s).strip()
+            if clean_s and clean_s not in unique_strengths:
+                unique_strengths.append(clean_s)
+
+        comp = answers_qs.aggregate(
+            avg_tech=Avg('technical_knowledge'),
+            avg_comm=Avg('communication'),
+            avg_conf=Avg('confidence'),
+            avg_prob=Avg('problem_solving')
+        )
+        competencies = {
+            "technical_knowledge": round(comp['avg_tech'] or 0),
+            "communication": round(comp['avg_comm'] or 0),
+            "confidence": round(comp['avg_conf'] or 0),
+            "problem_solving": round(comp['avg_prob'] or 0),
+        }
+
         # Daily goal: has the user completed at least 1 interview today?
         today = timezone.localdate()
         completed_today = completed.filter(completed_at__date=today).count()
@@ -124,6 +150,8 @@ class DashboardSummaryView(APIView):
             "progress_chart": progress_chart,
             "recent_reports": recent_reports,
             "ai_suggestions": ai_suggestions,
+            "strengths": unique_strengths[:8],
+            "competencies": competencies,
             "leader_stats": leader_stats,
             "daily_goal": {
                 "target": 1,
