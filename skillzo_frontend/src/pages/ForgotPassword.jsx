@@ -114,8 +114,8 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft dark:bg-[#080D1A] font-body transition-colors">
-      <div className="w-full max-w-md bg-white dark:bg-[#0D1527] p-8 sm:p-10 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-craft">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft dark:bg-[#050505] font-body transition-colors">
+      <div className="w-full max-w-md bg-white dark:bg-[#0D0D0D] p-8 sm:p-10 rounded-3xl border border-slate-200/80 dark:border-neutral-800 shadow-craft">
         
         {/* Header */}
         <div className="text-center mb-6">

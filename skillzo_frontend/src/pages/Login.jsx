@@ -57,22 +57,39 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex bg-surface-soft dark:bg-[#080D1A] font-body relative">
+    <div className="min-h-screen flex bg-surface-soft dark:bg-[#050505] font-body relative">
       {/* Floating Theme Toggle (Top Right) */}
       <div className="absolute top-4 right-4 z-20">
         <button
           onClick={toggleTheme}
-          className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-[#0D1527] text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-400 transition-colors"
+          className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-[#121212] text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-neutral-800 shadow-2xs hover:border-neutral-700 transition-colors cursor-pointer flex items-center justify-center"
           aria-label="Toggle theme"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          {theme === 'dark' ? '🌙' : '☀️'}
+          {theme === 'dark' ? (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          )}
         </button>
       </div>
 
       {/* Left: brand panel */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-50 via-indigo-50/70 to-blue-100/60 dark:from-[#0A0F1D] dark:via-[#0D1527] dark:to-[#080D1A] border-r border-blue-200/60 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-200/40 dark:bg-blue-600/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-indigo-200/30 dark:bg-cyan-500/10 blur-3xl pointer-events-none" />
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-50 via-indigo-50/70 to-blue-100/60 dark:from-[#080808] dark:via-[#0A0A0A] dark:to-[#050505] border-r border-blue-200/60 dark:border-neutral-800 text-slate-800 dark:text-slate-100 flex-col justify-between p-12 relative overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-200/40 dark:bg-blue-600/5 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-indigo-200/30 dark:bg-cyan-500/5 blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex items-center gap-3">
           <img src="/logo-icon.png" alt="Skillzo Logo" className="w-11 h-11 object-contain drop-shadow-md" />
@@ -80,7 +97,7 @@ const Login = () => {
         </div>
 
         <div className="relative z-10 my-auto py-12">
-          <span className="inline-block px-3.5 py-1 rounded-full bg-white dark:bg-[#131E38] border border-blue-200 dark:border-slate-800 text-xs font-mono font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-6 shadow-xs">
+          <span className="inline-block px-3.5 py-1 rounded-full bg-white dark:bg-[#121212] border border-blue-200 dark:border-neutral-800 text-xs font-mono font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-6 shadow-xs">
             Readiness Studio
           </span>
           <h1 className="text-4xl sm:text-5xl font-display font-extrabold leading-tight mb-6 tracking-tight text-slate-900 dark:text-white">
@@ -92,7 +109,7 @@ const Login = () => {
           </p>
         </div>
 
-        <div className="relative z-10 text-xs text-slate-500 dark:text-slate-400 font-mono border-t border-blue-200/80 dark:border-slate-800 pt-4 leading-relaxed">
+        <div className="relative z-10 text-xs text-slate-500 dark:text-slate-400 font-mono border-t border-blue-200/80 dark:border-neutral-800 pt-4 leading-relaxed">
           <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">© Skillzo Studio</p>
           <p className="text-[11px] text-slate-600 dark:text-slate-400">
             <strong className="text-slate-800 dark:text-slate-200">Team:</strong> Abhishek Kushwaha • Jaya Maurya
@@ -102,8 +119,8 @@ const Login = () => {
 
 
       {/* Right: form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-surface-soft dark:bg-[#080D1A]">
-        <div className="w-full max-w-md bg-white dark:bg-[#0D1527] p-8 sm:p-10 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-craft">
+      <div className="flex-1 flex items-center justify-center p-8 bg-surface-soft dark:bg-[#050505]">
+        <div className="w-full max-w-md bg-white dark:bg-[#0D0D0D] p-8 sm:p-10 rounded-3xl border border-slate-200/80 dark:border-neutral-800 shadow-craft">
           <div className="flex items-center gap-2.5 mb-6 lg:hidden">
             <img src="/logo-icon.png" alt="Skillzo Logo" className="w-8 h-8 object-contain" />
             <span className="font-display font-bold text-xl text-slate-900 dark:text-white">Skillzo</span>
@@ -154,10 +171,10 @@ const Login = () => {
 
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+              <div className="w-full border-t border-slate-200 dark:border-neutral-800" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white dark:bg-[#0D1527] px-3 text-slate-400 font-mono text-[10px] font-bold">Or Instant Access</span>
+              <span className="bg-white dark:bg-[#0D0D0D] px-3 text-slate-400 font-mono text-[10px] font-bold">Or Instant Access</span>
             </div>
           </div>
 
