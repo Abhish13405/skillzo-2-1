@@ -97,6 +97,19 @@ A secure administrative control center restricted strictly to the Project Leader
 
 ---
 
+## 🎙️ Speech-to-Text (STT) & Real-Time Voice Engine
+
+### 1. Kaun Si Technology Use Hui Hai?
+* **Primary Tech:** Web Speech API (`webkitSpeechRecognition` / `SpeechRecognition`)
+* **Type:** Browser-Native Real-Time Speech-to-Text (STT) Engine
+* **Khaasiyat (Key Advantages):**
+  - **Zero Third-Party Cost:** Iske liye kisi third-party heavy server ya expensive paid API (jaise Whisper ya Google Cloud Speech paid APIs) ki zaroorat nahi padti.
+  - **Direct Hardware Connection:** Yeh browser aur operating system ke native speech recognition engine ke sath direct hardware microphone stream connect karta hai.
+  - **Ultra-Low Latency:** Candidate jaise-jaise bolta hai, bina kisi network lag ya server upload wait ke live transcript real-time answer box me generate hota hai.
+  - **Continuous Resilient Loop:** Browser speech session me natural silence ya pauses ke baad automatic recovery loop chalta hai jo mic ko continuously active rakhta hai.
+
+---
+
 ## 🛠️ Technology Stack
 
 ### Frontend
