@@ -83,6 +83,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
   const baseTextRef = useRef('')
   const currentFinalRef = useRef('')
+  const currentSessionSpokenRef = useRef('')
   const restartTimerRef = useRef(null)
 
   const onTranscriptRef = useRef(onTranscript)
@@ -94,12 +95,18 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     onSpeechActivityRef.current = onSpeechActivity
     const prevLang = languageRef.current
     languageRef.current = language
-    if (recognitionRef.current) {
+
+    if (prevLang !== language && isRunningRef.current && recognitionRef.current) {
+      if (currentSessionSpokenRef.current.trim()) {
+        const base = baseTextRef.current.trim()
+        const add = currentSessionSpokenRef.current.trim()
+        baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
+        currentSessionSpokenRef.current = ''
+        currentFinalRef.current = ''
+      }
       try {
         recognitionRef.current.lang = language
-        if (prevLang !== language && isRunningRef.current) {
-          recognitionRef.current.abort()
-        }
+        recognitionRef.current.abort()
       } catch {}
     }
   }, [onTranscript, onSpeechActivity, language])
@@ -146,6 +153,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     recognition.lang = languageRef.current || 'en-IN'
 
     currentFinalRef.current = ''
+    currentSessionSpokenRef.current = ''
 
     recognition.onstart = () => {
       isRunningRef.current = true
@@ -154,11 +162,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     }
 
     recognition.onspeechstart = () => {
-      // Speech started
-    }
-
-    recognition.onsoundstart = () => {
-      // Background sound ignored for silence timer
+      onSpeechActivityRef.current?.()
     }
 
     recognition.onresult = (event) => {
@@ -177,10 +181,11 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       }
 
       currentFinalRef.current = sessionFinal
+      const sessionSpoken = (sessionFinal + sessionInterim).trim()
+      currentSessionSpokenRef.current = sessionSpoken
 
       const base = baseTextRef.current.trim()
-      const spoken = (sessionFinal + sessionInterim).trim()
-      const combined = (base ? `${base} ${spoken}` : spoken).replace(/\s+/g, ' ').trim()
+      const combined = (base ? `${base} ${sessionSpoken}` : sessionSpoken).replace(/\s+/g, ' ').trim()
 
       if (combined) {
         onTranscriptRef.current?.(combined)
@@ -212,10 +217,11 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
     recognition.onend = () => {
       isRunningRef.current = false
-      if (currentFinalRef.current.trim()) {
+      if (currentSessionSpokenRef.current.trim()) {
         const base = baseTextRef.current.trim()
-        const add = currentFinalRef.current.trim()
+        const add = currentSessionSpokenRef.current.trim()
         baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
+        currentSessionSpokenRef.current = ''
         currentFinalRef.current = ''
       }
 
@@ -227,7 +233,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
           if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
             start()
           }
-        }, 100)
+        }, 80)
       } else {
         setListening(false)
       }
@@ -239,7 +245,6 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       recognition.start()
     } catch (e) {
       if (e.name === 'InvalidStateError') {
-        // Recognition is already active in browser
         isRunningRef.current = true
         setListening(true)
       } else {
@@ -263,10 +268,11 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
     }
-    if (currentFinalRef.current.trim()) {
+    if (currentSessionSpokenRef.current.trim()) {
       const base = baseTextRef.current.trim()
-      const add = currentFinalRef.current.trim()
+      const add = currentSessionSpokenRef.current.trim()
       baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
+      currentSessionSpokenRef.current = ''
       currentFinalRef.current = ''
     }
     if (recognitionRef.current) {
@@ -284,11 +290,23 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   const resetTranscript = useCallback(() => {
     baseTextRef.current = ''
     currentFinalRef.current = ''
+    currentSessionSpokenRef.current = ''
+    if (isRunningRef.current && recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch {}
+    }
   }, [])
 
   const syncTranscript = useCallback((text) => {
     baseTextRef.current = text ? text.trim() : ''
     currentFinalRef.current = ''
+    currentSessionSpokenRef.current = ''
+    if (isRunningRef.current && recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch {}
+    }
   }, [])
 
   return { listening, supported, speechError, start, stop, resetTranscript, syncTranscript }
@@ -592,7 +610,9 @@ const InterviewSession = () => {
   }, [stream])
 
   // ─── Real-time Speech-to-Text Dictation & Synthesis Handlers ───────────
-  const speechLang = 'en-IN' // Strictly locked to English Only
+  const [speechLang, setSpeechLang] = useState('en-IN')
+  const [autoSubmitOnSilence, setAutoSubmitOnSilence] = useState(false) // Safe default: no unexpected premature submit
+  const SILENCE_TIMEOUT_SECONDS = 15
   const [silenceSeconds, setSilenceSeconds] = useState(0)
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
@@ -1036,12 +1056,12 @@ const InterviewSession = () => {
     }
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
-  // Only stop mic when interview is paused, completed, or candidate explicitly turned mic off
+  // Only stop mic when interview is paused, completed, AI is reading question, or candidate turned mic off
   useEffect(() => {
-    if (isPaused || isCompleted || (!isMicActive && !isAiAsking)) {
+    if (isPaused || isCompleted || isAiAsking || !isMicActive) {
       stopMic()
     }
-  }, [isPaused, isCompleted, isMicActive, isAiAsking, stopMic])
+  }, [isPaused, isCompleted, isAiAsking, isMicActive, stopMic])
 
   // Called strictly AFTER AI finishes asking the question (or if candidate clicks Answer Now)
   const handleAiFinishedAsking = useCallback(() => {
@@ -1074,10 +1094,11 @@ const InterviewSession = () => {
     // AI is finished! Turn user's mic ON automatically
     if (!isPaused) {
       setIsMicActive(true)
+      resetTranscript()
       startMic()
       startRecording()
     }
-  }, [isPaused, startMic, startRecording])
+  }, [isPaused, resetTranscript, startMic, startRecording])
 
   // Skip AI voice read-aloud and immediately jump into the candidate's answering turn
   const handleSkipAiVoiceAndAnswerNow = useCallback(() => {
@@ -1128,17 +1149,17 @@ const InterviewSession = () => {
     setAnswerText('')
     setSilenceSeconds(0)
 
-    // Keep candidate's microphone ON and listening so whatever is spoken types immediately!
-    setIsMicActive(true)
+    // Candidate's microphone is kept OFF while AI reads the question to prevent laptop speaker audio loop
+    stopMic()
+    setIsMicActive(false)
     if (streamRef.current) {
       streamRef.current.getAudioTracks().forEach((track) => {
-        track.enabled = true
+        track.enabled = false
       })
     }
-    startMic()
-    startRecording()
 
     setIsAiAsking(true)
+    isAiAskingRef.current = true
     setQuestionSeconds(TOTAL_QUESTION_SECONDS)
     setRecordingSeconds(0)
     lastSpeechTimeRef.current = Date.now()
@@ -1281,10 +1302,9 @@ const InterviewSession = () => {
     }
   }, [questionSeconds, isAiAsking, isCountingDown, submitting, isCompleted, session, question])
 
-  // ─── 6-Second Silence Auto-Advance ──────────────────────────────────────────
-  // Once the candidate provides an answer, detect 6 continuous seconds of silence and auto-submit
+  // ─── 15-Second Silence Auto-Advance (Relaxed & Optional) ────────────────────
   useEffect(() => {
-    if (isAiAsking || isCountingDown || isPaused || isCompleted || submitting) {
+    if (!autoSubmitOnSilence || isAiAsking || isCountingDown || isPaused || isCompleted || submitting) {
       setSilenceSeconds(0)
       return
     }
@@ -1298,8 +1318,8 @@ const InterviewSession = () => {
 
     const interval = setInterval(() => {
       const elapsedSec = Math.floor((Date.now() - lastSpeechTimeRef.current) / 1000)
-      if (elapsedSec >= 6) {
-        setSilenceSeconds(6)
+      if (elapsedSec >= SILENCE_TIMEOUT_SECONDS) {
+        setSilenceSeconds(SILENCE_TIMEOUT_SECONDS)
         clearInterval(interval)
         handleSubmitRef.current(true)
       } else {
@@ -1308,7 +1328,7 @@ const InterviewSession = () => {
     }, 250)
 
     return () => clearInterval(interval)
-  }, [isAiAsking, isCountingDown, isPaused, isCompleted, submitting, answerText])
+  }, [autoSubmitOnSilence, isAiAsking, isCountingDown, isPaused, isCompleted, submitting, answerText])
 
   // Enter key handler inside Textarea (Ctrl+Enter / Cmd+Enter = submit, Enter = natural new line)
   const handleTextareaKeyDown = (e) => {
@@ -2285,15 +2305,54 @@ const InterviewSession = () => {
               {/* Group 2: Your Answer (Main Task) */}
               <div className="bg-slate-50/80 dark:bg-[#121212] border border-transparent dark:border-neutral-800 rounded-2xl p-4 sm:p-5 shadow-xs flex-1 flex flex-col justify-between min-h-0">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                       Your answer
                     </span>
 
-                    {/* Dictation Language: English Only */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-900/60 text-xs font-bold text-blue-700 dark:text-blue-300">
-                      <span>🌐</span>
-                      <span>English Only</span>
+                    <div className="flex items-center gap-2">
+                      {/* Language Selector: English vs Hindi / Hinglish */}
+                      <div className="flex items-center bg-slate-200/70 dark:bg-neutral-800/80 p-0.5 rounded-lg border border-transparent dark:border-neutral-700/50">
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('en-IN')}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                            speechLang === 'en-IN'
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                          title="Transcribe speech in English (en-IN)"
+                        >
+                          🇬🇧 English
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('hi-IN')}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                            speechLang === 'hi-IN'
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                          title="Transcribe speech in Hindi or Hinglish (hi-IN)"
+                        >
+                          🇮🇳 Hindi / Hinglish
+                        </button>
+                      </div>
+
+                      {/* Auto-Advance on Silence Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setAutoSubmitOnSilence((v) => !v)}
+                        className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                          autoSubmitOnSilence
+                            ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300'
+                            : 'bg-slate-100 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-neutral-700'
+                        }`}
+                        title={autoSubmitOnSilence ? 'Auto-submit active (15s pause) · Click to switch to manual submit' : 'Manual submit active · Candidate submits answer when done'}
+                      >
+                        <span>⏱️</span>
+                        <span>{autoSubmitOnSilence ? 'Auto-advance: 15s' : 'Auto-advance: OFF'}</span>
+                      </button>
                     </div>
                   </div>
 
@@ -2340,17 +2399,19 @@ const InterviewSession = () => {
                     <div className="mb-2 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between border border-emerald-200/80 dark:border-emerald-800/60">
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="font-semibold">🟢 Mic Live: Speak in English — words type automatically in real time</span>
+                        <span className="font-semibold">
+                          🟢 Mic Live: Speak in {speechLang === 'hi-IN' ? 'Hindi or Hinglish' : 'English'} — words type automatically in real time
+                        </span>
                       </span>
                       <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md">
-                        English (Live STT)
+                        {speechLang === 'hi-IN' ? 'Hindi/Hinglish (Live STT)' : 'English (Live STT)'}
                       </span>
                     </div>
                   ) : !isAiAsking ? (
                     <div className="mb-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                        <span>Microphone paused. Click to speak in English:</span>
+                        <span>Microphone paused. Click to speak in {speechLang === 'hi-IN' ? 'Hindi/Hinglish' : 'English'}:</span>
                       </span>
                       <button
                         type="button"
@@ -2365,19 +2426,31 @@ const InterviewSession = () => {
                     </div>
                   ) : null}
 
-                  {silenceSeconds >= 2 && answerText.trim().length >= 3 ? (
+                  {autoSubmitOnSilence && silenceSeconds >= 8 && answerText.trim().length >= 3 ? (
                     <div className="mb-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between animate-pulse">
                       <span className="flex items-center gap-1.5">
                         <span>⏱️</span>
-                        <span>Silence detected: advancing in <strong className="font-mono">{6 - silenceSeconds}s</strong>...</span>
+                        <span>Pause detected: auto-submitting in <strong className="font-mono">{SILENCE_TIMEOUT_SECONDS - silenceSeconds}s</strong>...</span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleSubmitRef.current(true)}
-                        className="font-bold underline cursor-pointer hover:opacity-80"
-                      >
-                        Submit now →
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            lastSpeechTimeRef.current = Date.now()
+                            setSilenceSeconds(0)
+                          }}
+                          className="font-bold bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 px-2.5 py-0.5 rounded-md hover:bg-amber-300 cursor-pointer"
+                        >
+                          ✋ Keep speaking
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSubmitRef.current(true)}
+                          className="font-bold underline cursor-pointer hover:opacity-80"
+                        >
+                          Submit now →
+                        </button>
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -2408,8 +2481,12 @@ const InterviewSession = () => {
                     onKeyDown={handleTextareaKeyDown}
                     placeholder={
                       isAiAsking
-                        ? "AI is reading question... Speak in English anytime to start answering!"
-                        : "Listening live... Start speaking in English (your answer will appear here automatically)..."
+                        ? (speechLang === 'hi-IN'
+                            ? "AI is reading question... Click Answer now or speak in Hindi/English anytime to answer!"
+                            : "AI is reading question... Click Answer now or speak in English anytime to answer!")
+                        : (speechLang === 'hi-IN'
+                            ? "Listening live... Start speaking in Hindi or Hinglish (your answer will appear here in real-time)..."
+                            : "Listening live... Start speaking in English (your answer will appear here in real-time)...")
                     }
                     className="w-full flex-1 p-3.5 bg-white dark:bg-[#131E38] rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border border-slate-200/80 dark:border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed transition-all min-h-[120px]"
                   />
