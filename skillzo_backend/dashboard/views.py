@@ -61,6 +61,21 @@ class DashboardSummaryView(APIView):
         else:
             completed = user_completed
 
+        track = (request.query_params.get('track') or '').strip().lower()
+        is_hr_q = (
+            Q(job_role__icontains='hr') |
+            Q(job_role__icontains='behavioral') |
+            Q(job_role__icontains='leadership') |
+            Q(job_role__icontains='fresher') |
+            Q(job_role__icontains='placement') |
+            Q(job_role__icontains='culture') |
+            Q(job_role__icontains='star')
+        )
+        if track == 'technical':
+            completed = completed.exclude(is_hr_q)
+        elif track == 'hr':
+            completed = completed.filter(is_hr_q)
+
         stats = completed.aggregate(
             avg_score=Avg('overall_score'),
             best_score=Max('overall_score'),
