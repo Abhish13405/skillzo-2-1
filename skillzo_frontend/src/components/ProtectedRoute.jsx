@@ -45,8 +45,8 @@ const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader 
 
     if (!isAuthorizedLeader) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft dark:bg-[#080D1A] font-body">
-          <div className="w-full max-w-md bg-white dark:bg-[#0D1527] p-8 rounded-3xl border border-red-200 dark:border-red-900/60 shadow-craft text-center">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft dark:bg-[#050505] font-body">
+          <div className="w-full max-w-md bg-white dark:bg-[#0D0D0D] p-8 rounded-3xl border border-red-200 dark:border-neutral-800 shadow-craft text-center">
             <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
               🔒
             </div>

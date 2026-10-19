@@ -248,10 +248,10 @@ const ResumeAnalysis = () => {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`card border-2 border-dashed transition-all duration-200 text-center py-12 flex flex-col items-center shadow-xs rounded-2xl dark:bg-[#0D1527] ${
+          className={`card border-2 border-dashed transition-all duration-200 text-center py-12 flex flex-col items-center shadow-xs rounded-2xl dark:bg-[#0D0D0D] ${
             isDragging
               ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 scale-[1.01]'
-              : 'border-slate-300 dark:border-slate-700 hover:border-slate-400'
+              : 'border-slate-300 dark:border-neutral-800 hover:border-slate-400'
           }`}
         >
           <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-blue-950/60 border border-brand-100 dark:border-blue-900/60 flex items-center justify-center text-brand-600 dark:text-blue-400 text-2xl mb-3 shadow-sm">
@@ -313,7 +313,7 @@ const ResumeAnalysis = () => {
           {resumes.map((r) => (
             <div
               key={r.id}
-              className="card border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527] shadow-craft relative overflow-hidden p-3.5 sm:p-4 rounded-2xl transition-all"
+              className="card border border-slate-200/80 dark:border-neutral-800 dark:bg-[#0D0D0D] shadow-craft relative overflow-hidden p-3.5 sm:p-4 rounded-2xl transition-all"
             >
               {r.is_analyzed && r.ats_score >= 80 && (
                 <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />

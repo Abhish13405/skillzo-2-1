@@ -1619,9 +1619,9 @@ const InterviewSession = () => {
   }
 
   return (
-    <div className="min-h-screen lg:h-screen lg:max-h-screen w-full bg-[#F4F6FB] dark:bg-[#080D1A] flex flex-col p-2 sm:p-4 lg:p-5 select-none font-sans overflow-y-auto lg:overflow-hidden transition-colors duration-200">
+    <div className="min-h-screen lg:h-screen lg:max-h-screen w-full bg-[#F4F6FB] dark:bg-[#050505] flex flex-col p-2 sm:p-4 lg:p-5 select-none font-sans overflow-y-auto lg:overflow-hidden transition-colors duration-200">
       {/* ─── Outer Card Frame (Fits Exact Viewport Height on Desktop) ─── */}
-      <div className="w-full min-h-full lg:h-full max-w-[1400px] mx-auto bg-white dark:bg-[#0A0F1D] rounded-2xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 shadow-[0_10px_40px_-10px_rgba(30,58,138,0.08)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between overflow-y-auto lg:overflow-hidden transition-colors duration-200">
+      <div className="w-full min-h-full lg:h-full max-w-[1400px] mx-auto bg-white dark:bg-[#0A0A0A] rounded-2xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 shadow-[0_10px_40px_-10px_rgba(30,58,138,0.08)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] border border-slate-100 dark:border-neutral-800 flex flex-col justify-between overflow-y-auto lg:overflow-hidden transition-colors duration-200">
         
         {/* ─── Top Header Bar (Slim & Clean) ─── */}
         <header className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
@@ -2001,7 +2001,7 @@ const InterviewSession = () => {
                 )}
 
                 {/* Top-Left Tag Badge */}
-                <div className="absolute top-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#0D1527]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5">
+                <div className="absolute top-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#121212]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5 border border-transparent dark:border-neutral-800">
                   <span className={`w-2 h-2 rounded-full ${mainView === 'candidate' && isCameraActive ? 'bg-emerald-500 animate-pulse' : 'bg-blue-600 animate-pulse'}`} />
                   <span className="text-[10px] sm:text-[11px] font-semibold text-slate-800 dark:text-slate-200">
                     {session?.mode === 'video'
@@ -2013,7 +2013,7 @@ const InterviewSession = () => {
                 </div>
 
                 {/* Bottom-Left Unified Status Pill */}
-                <div className="absolute bottom-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#0D1527]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5">
+                <div className="absolute bottom-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#121212]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5 border border-transparent dark:border-neutral-800">
                   <span className="text-[10px] sm:text-[11px] font-medium tracking-tight flex items-center gap-1.5">
                     {isAiAsking ? (
                       <>
@@ -2103,7 +2103,7 @@ const InterviewSession = () => {
 
               {/* ─── Compact Controls Bar (Clean 4-Button Meeting Controls) ─── */}
               <div className="shrink-0 flex justify-center w-full">
-                <div className="bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/90 rounded-2xl px-4 sm:px-6 py-2 flex items-center justify-around sm:justify-center gap-3 sm:gap-6 w-full sm:w-auto shadow-xs dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+                <div className="bg-slate-50 dark:bg-[#121212] border border-slate-200/80 dark:border-neutral-800 rounded-2xl px-4 sm:px-6 py-2 flex items-center justify-around sm:justify-center gap-3 sm:gap-6 w-full sm:w-auto shadow-xs dark:shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
                   
                   {/* 1. Camera Toggle (Only in Video mode) */}
                   {session?.mode === 'video' && (
@@ -2216,7 +2216,7 @@ const InterviewSession = () => {
             <div className="flex flex-col h-full justify-between gap-3 min-h-0">
               
               {/* Group 1: Question & Progress */}
-              <div className="bg-slate-50/80 dark:bg-[#0D1527] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col gap-2 shrink-0">
+              <div className="bg-slate-50/80 dark:bg-[#121212] border border-transparent dark:border-neutral-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col gap-2 shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -2283,7 +2283,7 @@ const InterviewSession = () => {
               </div>
 
               {/* Group 2: Your Answer (Main Task) */}
-              <div className="bg-slate-50/80 dark:bg-[#0D1527] rounded-2xl p-4 sm:p-5 shadow-xs flex-1 flex flex-col justify-between min-h-0">
+              <div className="bg-slate-50/80 dark:bg-[#121212] border border-transparent dark:border-neutral-800 rounded-2xl p-4 sm:p-5 shadow-xs flex-1 flex flex-col justify-between min-h-0">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -2441,7 +2441,7 @@ const InterviewSession = () => {
               </div>
 
               {/* Secondary Details: Collapsible Tip */}
-              <div className="bg-slate-50/50 dark:bg-[#0D1527]/50 rounded-xl px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <div className="bg-slate-50/50 dark:bg-[#121212]/50 border border-transparent dark:border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <button
                   type="button"
                   onClick={() => setShowTip((prev) => !prev)}

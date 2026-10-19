@@ -21,6 +21,18 @@ import LiveInterview from './pages/LiveInterview'
 import CandidateLiveRoom from './pages/CandidateLiveRoom'
 import NotFound from './pages/NotFound'
 
+import { useAuth } from './context/AuthContext'
+
+const RootRedirect = () => {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  const isLoggedOut = localStorage.getItem('skillzo_logged_out') === 'true'
+  if (user && !isLoggedOut) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return <Navigate to="/login" replace />
+}
+
 function App() {
   return (
     <Routes>
@@ -49,8 +61,8 @@ function App() {
       <Route path="/live-interview/:roomId" element={<LiveInterview />} />
       <Route path="/live/:roomId" element={<LiveInterview />} />
 
-      {/* Root redirect: First screen is Login */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Root redirect: auto-resume dashboard if logged in, else login */}
+      <Route path="/" element={<RootRedirect />} />
       
       {/* 404 Fallback */}
       <Route path="*" element={<NotFound />} />

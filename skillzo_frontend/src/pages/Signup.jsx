@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -8,9 +8,16 @@ const Signup = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [guestLoading, setGuestLoading] = useState(false)
-  const { signup, loginAsGuest } = useAuth()
+  const { signup, loginAsGuest, user, loading: authLoading } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const isLoggedOut = localStorage.getItem('skillzo_logged_out') === 'true'
+    if (!authLoading && user && !isLoggedOut) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [user, authLoading, navigate])
 
   const handleGuestLogin = async () => {
     setError('')

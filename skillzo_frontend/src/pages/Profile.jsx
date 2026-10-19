@@ -37,8 +37,8 @@ const Profile = () => {
         <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Manage your candidate details and career target roles.</p>
       </div>
 
-      <div className="card border border-slate-200/80 dark:border-slate-800/80 dark:bg-[#0D1527] shadow-craft max-w-xl p-4 sm:p-6 rounded-2xl">
-        <div className="flex items-center gap-3.5 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+      <div className="card border border-slate-200/80 dark:border-neutral-800 dark:bg-[#0D0D0D] shadow-craft max-w-xl p-4 sm:p-6 rounded-2xl">
+        <div className="flex items-center gap-3.5 mb-4 pb-4 border-b border-slate-100 dark:border-neutral-800">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-blue-400 border border-blue-200 dark:border-blue-500/40 flex items-center justify-center font-display font-extrabold text-white text-lg shadow-sm">
             {user?.username?.[0]?.toUpperCase() || 'U'}
           </div>

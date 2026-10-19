@@ -408,57 +408,57 @@ const LeaderPortal = () => {
 
       {/* Top Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
-        <div className="card p-4 sm:p-5 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-craft rounded-2xl flex flex-col justify-between">
+        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Total Registered Users
           </span>
           <p className="text-3xl sm:text-4xl font-display font-extrabold text-blue-600 dark:text-blue-400 mt-2">
             {stats?.total_users ?? allUsersList.length}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
             Accounts In System
           </p>
         </div>
 
-        <div className="card p-4 sm:p-5 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-craft rounded-2xl flex flex-col justify-between">
+        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Total Mock Interviews
           </span>
           <p className="text-3xl sm:text-4xl font-display font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">
             {stats?.total_interviews || 0}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
             Candidate Test Sessions
           </p>
         </div>
 
-        <div className="card p-4 sm:p-5 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-craft rounded-2xl flex flex-col justify-between">
+        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Resumes Analyzed
           </span>
           <p className="text-3xl sm:text-4xl font-display font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">
             {stats?.total_resumes || 0}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
             ATS AI Scans Completed
           </p>
         </div>
 
-        <div className="card p-4 sm:p-5 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-craft rounded-2xl flex flex-col justify-between">
+        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Video & Audio Vault
           </span>
           <p className="text-3xl sm:text-4xl font-display font-extrabold text-purple-600 dark:text-purple-400 mt-2">
             {recordings.length}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
             Clips Stored Locally
           </p>
         </div>
       </div>
 
       {/* Candidates Directory */}
-      <div className="card p-4 sm:p-6 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-craft rounded-2xl mb-6">
+      <div className="card p-4 sm:p-6 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl mb-6">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -687,11 +687,11 @@ const LeaderPortal = () => {
           onClick={() => setSelectedCandidate(null)}
         >
           <div
-            className="bg-white dark:bg-[#0D1527] rounded-2xl max-w-3xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden"
+            className="bg-white dark:bg-[#0D0D0D] rounded-2xl max-w-3xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-neutral-800 flex flex-col max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-neutral-800 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-extrabold text-lg flex items-center justify-center shrink-0 shadow-xs">
                   {selectedCandidate.username[0]?.toUpperCase() || 'U'}
@@ -1182,7 +1182,7 @@ const LeaderPortal = () => {
       )}
 
       {/* Candidate Video & Audio Recordings Vault */}
-      <div className="card p-4 sm:p-6 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-craft rounded-2xl mb-6">
+      <div className="card p-4 sm:p-6 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl mb-6">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -1349,7 +1349,7 @@ const LeaderPortal = () => {
 
       {/* Recent Mock Interviews Activity Feed */}
       {stats?.recent_sessions?.length > 0 && (
-        <div className="card p-4 sm:p-6 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 shadow-craft rounded-2xl mb-6">
+        <div className="card p-4 sm:p-6 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl mb-6">
           <h2 className="font-display font-bold text-lg text-slate-900 dark:text-white mb-1">
             Recent Mock Interview Activity
           </h2>

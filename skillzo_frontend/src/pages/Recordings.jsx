@@ -276,7 +276,7 @@ const Recordings = () => {
             <span className="text-xs font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1.5 px-1.5">
               <span>🛡️ Leader Clearance:</span>
             </span>
-            <div className="flex gap-1 bg-white dark:bg-[#0D1527] p-1 rounded-xl border border-blue-200/60 dark:border-blue-900/40">
+            <div className="flex gap-1 bg-white dark:bg-[#0D0D0D] p-1 rounded-xl border border-blue-200/60 dark:border-neutral-800">
               <button
                 onClick={() => setViewScope('all')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
@@ -316,7 +316,7 @@ const Recordings = () => {
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
             filterTrack === 'all'
               ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-extrabold'
-              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+              : 'bg-white dark:bg-[#0D0D0D] border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
           }`}
         >
           All Clips ({recordings.length})
@@ -326,7 +326,7 @@ const Recordings = () => {
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
             filterTrack === 'hr'
               ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-extrabold'
-              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50/50'
+              : 'bg-white dark:bg-[#0D0D0D] border-slate-200 dark:border-neutral-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50/50'
           }`}
         >
           <span>👔</span>
@@ -337,7 +337,7 @@ const Recordings = () => {
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
             filterTrack === 'technical'
               ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-extrabold'
-              : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50/50'
+              : 'bg-white dark:bg-[#0D0D0D] border-slate-200 dark:border-neutral-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50/50'
           }`}
         >
           <span>💻</span>
@@ -386,7 +386,7 @@ const Recordings = () => {
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 filterMode === tab.id
                   ? 'bg-blue-600 text-white border-blue-600 shadow-2xs dark:shadow-[0_0_15px_rgba(37,99,235,0.35)]'
-                  : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  : 'bg-white dark:bg-[#0D0D0D] border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-neutral-800'
               }`}
             >
               {tab.label}
@@ -579,11 +579,11 @@ const Recordings = () => {
           onClick={() => setActivePlayback(null)}
         >
           <div
-            className="bg-white dark:bg-[#0D1527] rounded-2xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-100 dark:border-slate-800/90 flex flex-col gap-3"
+            className="bg-white dark:bg-[#0D0D0D] rounded-2xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-100 dark:border-neutral-800 flex flex-col gap-3"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-neutral-800">
               <div>
                 <span className="eyebrow mb-0.5">Recording Playback</span>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">

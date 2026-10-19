@@ -153,14 +153,14 @@ const InterviewSetup = () => {
             setRole(nextTrack ? 'HR & Behavioral Round' : 'Python Developer')
             if (nextTrack && mode === 'text') setMode('video')
           }}
-          className="self-start sm:self-center px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0D1527] transition-all cursor-pointer shadow-xs"
+          className="self-start sm:self-center px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-300 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-400 text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0D0D0D] transition-all cursor-pointer shadow-xs"
         >
           {isHRTrack ? 'Switch to Technical Studio ↗' : 'Switch to HR & Behavioral ↗'}
         </button>
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center gap-2 sm:gap-3 mb-5 sm:mb-6 bg-white dark:bg-[#0D1527] p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-craft">
+      <div className="flex items-center gap-2 sm:gap-3 mb-5 sm:mb-6 bg-white dark:bg-[#0D0D0D] p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 dark:border-neutral-800 shadow-craft">
         {steps.map((s, i) => (
           <React.Fragment key={s.n}>
             <button
@@ -399,7 +399,7 @@ const InterviewSetup = () => {
             </div>
 
             {/* Briefing Summary */}
-            <div className="card max-w-2xl mb-5 bg-slate-50/70 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs">
+            <div className="card max-w-2xl mb-5 bg-slate-50/70 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 p-3.5 shadow-2xs">
               <span className="eyebrow mb-1">Briefing Summary</span>
               <div className="space-y-1 mt-1.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                 <p>
