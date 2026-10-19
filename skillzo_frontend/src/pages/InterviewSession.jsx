@@ -205,13 +205,9 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
         return
       }
       if (event.error === 'audio-capture' || event.error === 'network') {
-        if (!isExplicitlyStoppedRef.current) {
-          setTimeout(() => {
-            if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
-              start()
-            }
-          }, 350)
-        }
+        isRunningRef.current = false
+        setListening(false)
+        console.warn('SpeechRecognition audio-capture or network error:', event.error)
       }
     }
 
@@ -225,15 +221,15 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
         currentFinalRef.current = ''
       }
 
+      // Restart speech recognition smoothly if candidate is still in their active answering window
       if (!isExplicitlyStoppedRef.current) {
-        // Keep listening state active so mic stays continuously ON
         setListening(true)
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
         restartTimerRef.current = setTimeout(() => {
           if (!isExplicitlyStoppedRef.current && !isRunningRef.current) {
             start()
           }
-        }, 80)
+        }, isMobileDevice() ? 350 : 150)
       } else {
         setListening(false)
       }
@@ -682,23 +678,9 @@ const InterviewSession = () => {
   const startCamera = useCallback(async () => {
     let combinedStream = null
 
-    // Strategy 1: Combined video + echo cancellation audio
-    try {
-      combinedStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 640 }, // 640x480 gives crisp clarity while keeping storage ultra-compact
-          height: { ideal: 480 },
-        },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      })
-    } catch (err1) {
-      console.warn('Strategy 1 (advanced audio constraints) failed, trying standard mobile audio: true:', err1)
-      // Strategy 2: Combined video + standard audio: true (universal mobile Chrome/Android support)
+    // On mobile devices (Android/iOS): video only!
+    // This strictly prevents the camera from locking the hardware microphone away from Web Speech API!
+    if (isMobileDevice()) {
       try {
         combinedStream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -706,45 +688,40 @@ const InterviewSession = () => {
             width: { ideal: 640 },
             height: { ideal: 480 },
           },
-          audio: true,
+          audio: false,
         })
-      } catch (err2) {
-        console.warn('Strategy 2 (combined audio: true) failed, acquiring video and audio separately:', err2)
-        // Strategy 3: Separate acquisition - Android Chrome sometimes blocks simultaneous camera+mic in one prompt
-        let vStream = null
-        let aStream = null
+      } catch (mErr1) {
         try {
-          vStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: 'user',
-              width: { ideal: 640 },
-              height: { ideal: 480 },
-            },
-            audio: false,
+          combinedStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        } catch (mErr2) {
+          console.warn('Mobile video camera acquisition failed:', mErr2)
+        }
+      }
+    } else {
+      // Desktop PC/Laptop:
+      try {
+        combinedStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        })
+      } catch (err1) {
+        try {
+          combinedStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
           })
-        } catch (vErr) {
+        } catch (err2) {
           try {
-            vStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-          } catch (vErr2) {
-            console.warn('Video acquisition failed:', vErr2)
-          }
-        }
-
-        try {
-          aStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        } catch (aErr) {
-          console.warn('Microphone acquisition failed:', aErr)
-        }
-
-        if (vStream) {
-          combinedStream = vStream
-          if (aStream) {
-            aStream.getAudioTracks().forEach((track) => {
-              combinedStream.addTrack(track)
-            })
-          }
-        } else if (aStream) {
-          combinedStream = aStream
+            combinedStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          } catch {}
         }
       }
     }
@@ -820,8 +797,8 @@ const InterviewSession = () => {
     const mode = session?.mode || 'video'
     if (mode === 'text') return // text mode does not record media
 
-    // Self-healing: If stream has 0 audio tracks, dynamically acquire microphone and merge it into the active stream!
-    if (activeStream.getAudioTracks().length === 0) {
+    // Self-healing for desktop: If stream has 0 audio tracks, dynamically acquire microphone for desktop
+    if (!isMobileDevice() && activeStream.getAudioTracks().length === 0) {
       try {
         console.log('⚠️ Stream has 0 audio tracks! Acquiring microphone dynamically for recording...')
         const aStream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -1060,12 +1037,6 @@ const InterviewSession = () => {
     }
   }, [stream, isAiAsking, isCountingDown, isPaused, isCompleted, session?.mode, startRecording])
 
-  // Only stop mic when interview is paused, completed, AI is reading question, or candidate turned mic off
-  useEffect(() => {
-    if (isPaused || isCompleted || isAiAsking || !isMicActive) {
-      stopMic()
-    }
-  }, [isPaused, isCompleted, isAiAsking, isMicActive, stopMic])
 
   // Called strictly AFTER AI finishes asking the question (or if candidate clicks Answer Now)
   const handleAiFinishedAsking = useCallback(() => {
