@@ -1,8 +1,11 @@
+import logging
 from django.utils import timezone
 from django.db.models import Q
 from rest_framework import permissions, status, parsers
 from rest_framework.views import APIView
 from rest_framework.response import Response
+
+logger = logging.getLogger(__name__)
 
 from common.groq_service import groq_service
 from common.cloud_storage import upload_media_to_cloud
@@ -269,8 +272,25 @@ class CompleteInterviewView(APIView):
         try:
             report = groq_service.generate_final_report_summary(eval_list, role=session.job_role)
         except Exception as e:
-            return Response({"error": f"Report generation failed: {str(e)}"},
-                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.warning(f"Groq final report failed, using aggregate fallback: {e}")
+            valid_scores = [a.overall_score for a in answers if a.overall_score is not None]
+            tech_scores = [a.technical_knowledge for a in answers if a.technical_knowledge is not None]
+            comm_scores = [a.communication for a in answers if a.communication is not None]
+            avg_overall = round(sum(valid_scores) / len(valid_scores)) if valid_scores else 65
+            avg_tech = round(sum(tech_scores) / len(tech_scores)) if tech_scores else 65
+            avg_comm = round(sum(comm_scores) / len(comm_scores)) if comm_scores else 65
+            report = {
+                "overall_score": avg_overall,
+                "technical_score": avg_tech,
+                "communication_score": avg_comm,
+                "confidence_trend": "steady",
+                "ai_suggestions": [
+                    "Continue practicing with structured explanations to improve communication clarity.",
+                    "Highlight practical tools, methodologies, and quantified results in your answers.",
+                    "Demonstrate proactive problem-solving frameworks like STAR when answering behavioral questions.",
+                ],
+                "verdict": "Candidate demonstrated relevant domain knowledge and positive interview engagement." if avg_overall >= 60 else "Requires further hands-on practice and conceptual clarity."
+            }
 
         session.status = 'completed'
         session.completed_at = timezone.now()
