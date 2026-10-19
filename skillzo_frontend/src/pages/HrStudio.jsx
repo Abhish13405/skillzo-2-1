@@ -209,11 +209,11 @@ const HrStudio = () => {
                   className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
                 >
                   <span>←</span>
-                  <span>All Tracks</span>
+                  <span>Main Hub</span>
                 </Link>
                 <span className="text-slate-300 dark:text-slate-700 text-xs">•</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                  Track 1 of 4: HR Workspace
+                  HR & Behavioral Workspace
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -237,13 +237,13 @@ const HrStudio = () => {
           </div>
 
           {/* 3 Scoped Tabs: Dashboard, Interviews, Recordings */}
-          <div className="flex items-center gap-2 mt-5 border-t border-slate-200/50 dark:border-slate-800/60 pt-3">
+          <div className="flex items-center gap-2 mt-5 border-t border-slate-200/50 dark:border-neutral-800/80 pt-3">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'dashboard'
                   ? 'bg-indigo-600 text-white shadow-2xs font-extrabold'
-                  : 'bg-white dark:bg-[#0D1527] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  : 'bg-white dark:bg-[#121212] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800'
               }`}
             >
               <span>📊</span>
@@ -254,7 +254,7 @@ const HrStudio = () => {
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'interviews'
                   ? 'bg-indigo-600 text-white shadow-2xs font-extrabold'
-                  : 'bg-white dark:bg-[#0D1527] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  : 'bg-white dark:bg-[#121212] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800'
               }`}
             >
               <span>📝</span>
@@ -265,7 +265,7 @@ const HrStudio = () => {
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'recordings'
                   ? 'bg-indigo-600 text-white shadow-2xs font-extrabold'
-                  : 'bg-white dark:bg-[#0D1527] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  : 'bg-white dark:bg-[#121212] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800'
               }`}
             >
               <span>🎥</span>
@@ -280,7 +280,7 @@ const HrStudio = () => {
             {/* 4 Metric Cards: Average, High Score, Low Score, Total Mocks */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {/* Card 1: HR Readiness Score */}
-              <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
+              <div className="bg-white dark:bg-[#121212] rounded-2xl p-4 border border-slate-200/80 dark:border-neutral-800 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                     HR Average
@@ -295,7 +295,7 @@ const HrStudio = () => {
                     {avgScore >= 80 ? 'Interview Ready' : 'In Training'}
                   </span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-3">
+                <div className="w-full h-1.5 bg-slate-100 dark:bg-neutral-800 rounded-full overflow-hidden mt-3">
                   <div
                     className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full"
                     style={{ width: `${avgScore}%` }}
@@ -304,7 +304,7 @@ const HrStudio = () => {
               </div>
 
               {/* Card 2: Highest Score */}
-              <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
+              <div className="bg-white dark:bg-[#121212] rounded-2xl p-4 border border-slate-200/80 dark:border-neutral-800 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                     High Score
@@ -323,7 +323,7 @@ const HrStudio = () => {
               </div>
 
               {/* Card 3: Lowest Score */}
-              <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
+              <div className="bg-white dark:bg-[#121212] rounded-2xl p-4 border border-slate-200/80 dark:border-neutral-800 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                     Low Score
@@ -342,7 +342,7 @@ const HrStudio = () => {
               </div>
 
               {/* Card 4: Kitne Interview Diye */}
-              <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs flex flex-col justify-between">
+              <div className="bg-white dark:bg-[#121212] rounded-2xl p-4 border border-slate-200/80 dark:border-neutral-800 shadow-2xs flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                     Kitne Interview Diye
@@ -362,7 +362,7 @@ const HrStudio = () => {
             </div>
 
             {/* HR Performance Growth Journey Chart */}
-            <div className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800/90 shadow-2xs">
+            <div className="bg-white dark:bg-[#121212] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-neutral-800 shadow-2xs">
               <div className="flex justify-between items-center mb-3">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
@@ -372,22 +372,22 @@ const HrStudio = () => {
                     Historical score trajectory across your HR & behavioral rounds
                   </p>
                 </div>
-                <span className="text-[11px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
+                <span className="text-[11px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-neutral-900 px-2.5 py-0.5 rounded-md border border-indigo-200 dark:border-neutral-800">
                   {hrChartData.length} HR Rounds
                 </span>
               </div>
               {hrChartData.length === 0 ? (
-                <div className="h-36 flex items-center justify-center bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                <div className="h-36 flex items-center justify-center bg-slate-50/50 dark:bg-[#121212] rounded-xl border border-dashed border-slate-200 dark:border-neutral-800">
                   <p className="text-xs text-slate-500 dark:text-slate-400">Complete your first HR mock to visualize performance growth.</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={160}>
                   <LineChart data={hrChartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333333" opacity={0.35} />
                     <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} />
                     <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
                     <Tooltip
-                      contentStyle={{ background: '#0D1527', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: '12px', color: '#F8FAFC' }}
+                      contentStyle={{ background: '#121212', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '12px', color: '#F8FAFC' }}
                       labelStyle={{ color: '#A5B4FC', fontWeight: 'bold' }}
                     />
                     <Line
@@ -417,7 +417,7 @@ const HrStudio = () => {
                 {HR_FOCUS_TRACKS.map((track) => (
                   <div
                     key={track.id}
-                    className="bg-white dark:bg-[#0D1527] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800/90 flex flex-col justify-between shadow-2xs hover:border-indigo-400/80 transition-all hover:shadow-md"
+                    className="bg-white dark:bg-[#121212] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-neutral-800 flex flex-col justify-between shadow-2xs hover:border-indigo-400/80 transition-all hover:shadow-md"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-2.5">

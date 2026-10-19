@@ -44,14 +44,14 @@ export default {
           light: '#D1FAE5',
         },
         danger: '#EF4444',
-        // Antigravity Dark Theme Signature Palette
+        // Modern True Black & Obsidian Dark Signature Palette
         agy: {
-          canvas: '#080D1A',          // Deep cosmic obsidian canvas
-          sidebar: '#0A0F1D',         // Refined dark sidebar
-          card: '#0D1527',            // Sculpted obsidian card
-          elevated: '#131E38',        // Hover / modal elevated surface
-          border: 'rgba(59, 130, 246, 0.15)', // Luminous subtle blue border
-          borderMuted: 'rgba(148, 163, 184, 0.12)',
+          canvas: '#050505',          // Pitch black canvas
+          sidebar: '#0A0A0A',         // Deep obsidian black sidebar
+          card: '#121212',            // True charcoal black card
+          elevated: '#1A1A1A',        // Elevated black surface
+          border: 'rgba(255, 255, 255, 0.08)',
+          borderMuted: 'rgba(255, 255, 255, 0.05)',
           glow: '#3B82F6',
           cyan: '#38BDF8',
         },

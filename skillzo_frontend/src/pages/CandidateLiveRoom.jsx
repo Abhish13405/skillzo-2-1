@@ -197,7 +197,7 @@ const CandidateLiveRoom = () => {
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#0D1527] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400/60 shadow-xs transition-all mb-2.5 group"
             >
               <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
-              <span>Back to Dashboard</span>
+              <span>Back to Main Hub</span>
             </Link>
             <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
               Live HR Interview Lobby

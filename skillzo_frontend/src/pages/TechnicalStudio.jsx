@@ -84,7 +84,7 @@ const TechnicalStudio = () => {
                 className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
               >
                 <span>←</span>
-                <span>All Tracks</span>
+                <span>Main Hub</span>
               </Link>
               <span className="text-slate-300 dark:text-slate-700 text-xs">•</span>
               <span className="text-[11px] font-mono uppercase font-semibold text-slate-500 dark:text-slate-400">
@@ -168,22 +168,22 @@ const TechnicalStudio = () => {
                 <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">Score Growth Trend</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Your historical score trajectory across technical rounds</p>
               </div>
-              <span className="text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/80 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900">
+              <span className="text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-neutral-900 px-2 py-0.5 rounded-md border border-blue-200 dark:border-neutral-800">
                 Last {data.progress_chart.length} rounds
               </span>
             </div>
             {data.progress_chart.length === 0 ? (
-              <div className="h-44 flex items-center justify-center bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+              <div className="h-44 flex items-center justify-center bg-slate-50/50 dark:bg-[#121212] rounded-xl border border-dashed border-slate-200 dark:border-neutral-800">
                 <p className="text-xs text-slate-500 dark:text-slate-400">Complete your first technical mock to visualize score trends.</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={data.progress_chart} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333333" opacity={0.35} />
                   <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} />
                   <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
                   <Tooltip
-                    contentStyle={{ background: '#0D1527', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '12px', color: '#F8FAFC' }}
+                    contentStyle={{ background: '#121212', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '12px', color: '#F8FAFC' }}
                     labelStyle={{ color: '#93C5FD', fontWeight: 'bold' }}
                   />
                   <Line type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2.5}
@@ -203,7 +203,7 @@ const TechnicalStudio = () => {
 
             {/* Strengths Pills */}
             {(data.strengths || []).length > 0 && (
-              <div className="mb-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="mb-3 pb-3 border-b border-slate-100 dark:border-neutral-800">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1.5">
                   Verified Strengths
                 </span>
@@ -219,13 +219,13 @@ const TechnicalStudio = () => {
             )}
 
             {data.ai_suggestions.length === 0 ? (
-              <div className="text-center py-6 my-auto bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+              <div className="text-center py-6 my-auto bg-slate-50/50 dark:bg-[#121212] rounded-xl border border-dashed border-slate-200 dark:border-neutral-800">
                 <p className="text-xs text-slate-500 dark:text-slate-400">Suggestions will generate based on your interview answers.</p>
               </div>
             ) : (
               <ul className="space-y-2 my-auto">
                 {data.ai_suggestions.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#131E38] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <li key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#1A1A1A] p-2.5 rounded-xl border border-slate-100 dark:border-neutral-800">
                     <span className="text-blue-600 dark:text-blue-400 font-mono font-bold shrink-0">•</span>
                     <span className="leading-snug font-medium">{s}</span>
                   </li>
@@ -244,13 +244,13 @@ const TechnicalStudio = () => {
             </div>
             <Link 
               to="/history" 
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/70 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-900 transition-colors"
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-neutral-900 hover:bg-blue-100 dark:hover:bg-neutral-800 px-3 py-1 rounded-lg border border-blue-200 dark:border-neutral-800 transition-colors"
             >
               View All History
             </Link>
           </div>
           {data.recent_reports.length === 0 ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400 py-6 text-center bg-slate-50/50 dark:bg-[#131E38]/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400 py-6 text-center bg-slate-50/50 dark:bg-[#121212] rounded-xl border border-dashed border-slate-200 dark:border-neutral-800">
               No technical reports recorded yet — start an interview to receive a full scorecard.
             </p>
           ) : (

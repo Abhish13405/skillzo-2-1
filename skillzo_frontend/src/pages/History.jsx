@@ -170,7 +170,7 @@ const History = () => {
               : 'bg-white dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
           }`}
         >
-          All Tracks ({sessions.length})
+          All Workspaces ({sessions.length})
         </button>
         <button
           onClick={() => setFilterTrack('hr')}
