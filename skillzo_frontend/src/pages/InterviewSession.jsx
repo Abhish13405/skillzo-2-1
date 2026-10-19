@@ -67,6 +67,50 @@ const AudioWaveformBars = ({ isRecording = true, isPaused = false }) => {
   )
 }
 
+// ─── Overlap-Aware Transcript Merger (Prevents duplicate repeated words) ──────
+const mergeTranscripts = (base, newSpoken) => {
+  const b = (base || '').trim()
+  const n = (newSpoken || '').trim()
+
+  if (!b) return n
+  if (!n) return b
+  if (b.toLowerCase() === n.toLowerCase()) return b
+
+  // If base already ends with newSpoken, do not duplicate
+  if (b.toLowerCase().endsWith(n.toLowerCase())) {
+    return b
+  }
+
+  // If newSpoken already begins with base, take newSpoken
+  if (n.toLowerCase().startsWith(b.toLowerCase())) {
+    return n
+  }
+
+  const bWords = b.split(/\s+/)
+  const nWords = n.split(/\s+/)
+
+  // Find longest matching word suffix of base that matches prefix of newSpoken
+  const maxCheck = Math.min(bWords.length, nWords.length, 10)
+  for (let len = maxCheck; len >= 1; len--) {
+    const bSlice = bWords.slice(-len).map(w => w.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '')).join(' ')
+    const nSlice = nWords.slice(0, len).map(w => w.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '')).join(' ')
+
+    if (bSlice && bSlice === nSlice) {
+      const remainingNewWords = nWords.slice(len)
+      if (remainingNewWords.length === 0) return b
+      return `${b} ${remainingNewWords.join(' ')}`.trim()
+    }
+  }
+
+  // Deduplicate single repeating words (e.g. "hello" + "hello")
+  const lastBWord = bWords[bWords.length - 1].toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '')
+  if (nWords.every(w => w.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '') === lastBWord)) {
+    return b
+  }
+
+  return `${b} ${n}`.trim()
+}
+
 // ─── Continuous & Resilient Speech Recognition Hook ───────────────────────────
 const getSpeechRecognitionAPI = () => {
   if (typeof window === 'undefined') return null
@@ -77,6 +121,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   const recognitionRef = useRef(null)
   const isExplicitlyStoppedRef = useRef(false)
   const isRunningRef = useRef(false)
+  const isStartingRef = useRef(false)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
   const [speechError, setSpeechError] = useState('')
@@ -97,13 +142,6 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     languageRef.current = language
 
     if (prevLang !== language && isRunningRef.current && recognitionRef.current) {
-      if (currentSessionSpokenRef.current.trim()) {
-        const base = baseTextRef.current.trim()
-        const add = currentSessionSpokenRef.current.trim()
-        baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
-        currentSessionSpokenRef.current = ''
-        currentFinalRef.current = ''
-      }
       try {
         recognitionRef.current.lang = language
         recognitionRef.current.abort()
@@ -118,7 +156,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     isExplicitlyStoppedRef.current = false
     setSpeechError('')
 
-    if (isRunningRef.current) {
+    if (isRunningRef.current || isStartingRef.current) {
       setListening(true)
       return
     }
@@ -130,6 +168,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onstart = null
         recognitionRef.current.onend = null
         recognitionRef.current.onerror = null
         recognitionRef.current.onresult = null
@@ -138,11 +177,13 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       recognitionRef.current = null
     }
 
+    isStartingRef.current = true
     let recognition
     try {
       recognition = new SpeechAPI()
     } catch (e) {
       console.warn('SpeechAPI instantiation error:', e)
+      isStartingRef.current = false
       isRunningRef.current = false
       return
     }
@@ -156,6 +197,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     currentSessionSpokenRef.current = ''
 
     recognition.onstart = () => {
+      isStartingRef.current = false
       isRunningRef.current = true
       setListening(true)
       setSpeechError('')
@@ -180,12 +222,12 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
         }
       }
 
-      currentFinalRef.current = sessionFinal
+      currentFinalRef.current = sessionFinal.trim()
       const sessionSpoken = (sessionFinal + sessionInterim).trim()
       currentSessionSpokenRef.current = sessionSpoken
 
       const base = baseTextRef.current.trim()
-      const combined = (base ? `${base} ${sessionSpoken}` : sessionSpoken).replace(/\s+/g, ' ').trim()
+      const combined = mergeTranscripts(base, sessionSpoken)
 
       if (combined) {
         onTranscriptRef.current?.(combined)
@@ -193,6 +235,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     }
 
     recognition.onerror = (event) => {
+      isStartingRef.current = false
       console.warn('SpeechRecognition error:', event.error)
       if (event.error === 'no-speech' || event.error === 'aborted') {
         return
@@ -212,11 +255,12 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     }
 
     recognition.onend = () => {
+      isStartingRef.current = false
       isRunningRef.current = false
       if (currentSessionSpokenRef.current.trim()) {
         const base = baseTextRef.current.trim()
         const add = currentSessionSpokenRef.current.trim()
-        baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
+        baseTextRef.current = mergeTranscripts(base, add)
         currentSessionSpokenRef.current = ''
         currentFinalRef.current = ''
       }
@@ -240,6 +284,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     try {
       recognition.start()
     } catch (e) {
+      isStartingRef.current = false
       if (e.name === 'InvalidStateError') {
         isRunningRef.current = true
         setListening(true)
@@ -259,6 +304,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
   const stop = useCallback(() => {
     isExplicitlyStoppedRef.current = true
+    isStartingRef.current = false
     isRunningRef.current = false
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
@@ -267,12 +313,13 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     if (currentSessionSpokenRef.current.trim()) {
       const base = baseTextRef.current.trim()
       const add = currentSessionSpokenRef.current.trim()
-      baseTextRef.current = (base ? `${base} ${add}` : add).replace(/\s+/g, ' ').trim()
+      baseTextRef.current = mergeTranscripts(base, add)
       currentSessionSpokenRef.current = ''
       currentFinalRef.current = ''
     }
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onstart = null
         recognitionRef.current.onend = null
         recognitionRef.current.onerror = null
         recognitionRef.current.onresult = null
@@ -287,22 +334,12 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     baseTextRef.current = ''
     currentFinalRef.current = ''
     currentSessionSpokenRef.current = ''
-    if (isRunningRef.current && recognitionRef.current) {
-      try {
-        recognitionRef.current.abort()
-      } catch {}
-    }
   }, [])
 
   const syncTranscript = useCallback((text) => {
     baseTextRef.current = text ? text.trim() : ''
     currentFinalRef.current = ''
     currentSessionSpokenRef.current = ''
-    if (isRunningRef.current && recognitionRef.current) {
-      try {
-        recognitionRef.current.abort()
-      } catch {}
-    }
   }, [])
 
   return { listening, supported, speechError, start, stop, resetTranscript, syncTranscript }
