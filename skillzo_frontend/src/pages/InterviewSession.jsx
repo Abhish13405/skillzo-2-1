@@ -525,8 +525,8 @@ const TIPS_LIST = [
   'Conclude with the lesson learned or how that experience helped you grow.',
 ]
 
-// ─── Question Duration Limit (90 seconds per question for thoughtful, complete answers) ───
-const TOTAL_QUESTION_SECONDS = 90
+// ─── Question Duration Limit (15 seconds maximum answer time per question) ───
+const TOTAL_QUESTION_SECONDS = 15
 
 // ─── Main 50/50 Split Zero-Scroll Interview Screen ───────────────────────────
 const InterviewSession = () => {
@@ -580,7 +580,11 @@ const InterviewSession = () => {
     isAiAskingRef.current = isAiAsking
   }, [isAiAsking])
 
-  // Timers: 90 seconds per question
+  // 2-second silent delay between AI finishing question and candidate mic turning ON
+  const [micWarmupSeconds, setMicWarmupSeconds] = useState(0)
+  const micWarmupTimerRef = useRef(null)
+
+  // Timers: 15 seconds max per question
   const [questionSeconds, setQuestionSeconds] = useState(TOTAL_QUESTION_SECONDS)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const startTime = useRef(Date.now())
@@ -1076,35 +1080,74 @@ const InterviewSession = () => {
       }
     }
 
-    setIsAiAsking(false)
-    isAiAskingRef.current = false
     setIsCountingDown(false)
     setSpeechCountdown(0)
+    setMicWarmupSeconds(2) // 2-second silent delay before mic starts
+
+    if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
+
+    // Countdown 2s -> 1s
+    setTimeout(() => {
+      setMicWarmupSeconds(1)
+    }, 1000)
+
+    // After exactly 2 seconds, turn candidate mic ON silently without any beep
+    micWarmupTimerRef.current = setTimeout(() => {
+      setMicWarmupSeconds(0)
+      setIsAiAsking(false)
+      isAiAskingRef.current = false
+      setQuestionSeconds(TOTAL_QUESTION_SECONDS)
+      setRecordingSeconds(0)
+      startTime.current = Date.now()
+      lastSpeechTimeRef.current = Date.now()
+      setSilenceSeconds(0)
+
+      // Unmute hardware audio tracks silently
+      if (streamRef.current) {
+        streamRef.current.getAudioTracks().forEach((track) => {
+          track.enabled = true
+        })
+      }
+
+      // Turn user's mic ON silently
+      if (!isPaused) {
+        setIsMicActive(true)
+        resetTranscript()
+        startMic()
+        startRecording()
+      }
+    }, 2000)
+  }, [isPaused, resetTranscript, startMic, startRecording])
+
+  // Skip AI voice read-aloud and immediately jump into the candidate's answering turn
+  const handleSkipAiVoiceAndAnswerNow = useCallback(() => {
+    cancelSpeech()
+    if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
+    setMicWarmupSeconds(0)
+    aiFinishedForQuestionRef.current = true
+    setIsCountingDown(false)
+    setSpeechCountdown(0)
+    setIsAiAsking(false)
+    isAiAskingRef.current = false
+    setQuestionSeconds(TOTAL_QUESTION_SECONDS)
+    setRecordingSeconds(0)
     startTime.current = Date.now()
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
 
-    // Unmute hardware audio tracks for recording
     if (streamRef.current) {
       streamRef.current.getAudioTracks().forEach((track) => {
         track.enabled = true
       })
     }
 
-    // AI is finished! Turn user's mic ON automatically
     if (!isPaused) {
       setIsMicActive(true)
       resetTranscript()
       startMic()
       startRecording()
     }
-  }, [isPaused, resetTranscript, startMic, startRecording])
-
-  // Skip AI voice read-aloud and immediately jump into the candidate's answering turn
-  const handleSkipAiVoiceAndAnswerNow = useCallback(() => {
-    cancelSpeech()
-    handleAiFinishedAsking()
-  }, [cancelSpeech, handleAiFinishedAsking])
+  }, [cancelSpeech, isPaused, resetTranscript, startMic, startRecording])
 
   useEffect(() => {
     handleSkipAiVoiceRef.current = handleSkipAiVoiceAndAnswerNow
@@ -1125,9 +1168,9 @@ const InterviewSession = () => {
     }
   }, [session, current, speak, handleAiFinishedAsking])
 
-  // Timers: Count down question duration AFTER AI finishes asking (90 seconds limit)
+  // Timers: Count down question duration AFTER AI finishes asking and 2s silent warmup completes (15 seconds limit)
   useEffect(() => {
-    if (isPaused || isCompleted || isAiAsking) return
+    if (isPaused || isCompleted || isAiAsking || micWarmupSeconds > 0) return
 
     const interval = setInterval(() => {
       setQuestionSeconds((prev) => (prev > 0 ? prev - 1 : 0))
@@ -1135,7 +1178,7 @@ const InterviewSession = () => {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [isPaused, isCompleted, isAiAsking])
+  }, [isPaused, isCompleted, isAiAsking, micWarmupSeconds])
 
   // When question loads/changes: Mic is strictly OFF while AI asks the question ONCE
   useEffect(() => {
@@ -1143,6 +1186,8 @@ const InterviewSession = () => {
     if (lastAskedQuestionIndexRef.current === current) return
     lastAskedQuestionIndexRef.current = current
 
+    if (micWarmupTimerRef.current) clearTimeout(micWarmupTimerRef.current)
+    setMicWarmupSeconds(0)
     aiFinishedForQuestionRef.current = false
     cancelSpeech()
     resetTranscript()
@@ -1295,12 +1340,12 @@ const InterviewSession = () => {
     handleSubmitRef.current = handleSubmitAnswer
   })
 
-  // Auto-advance to next question when total question time (90s) expires
+  // Auto-advance to next question when total question time (15s) expires
   useEffect(() => {
-    if (questionSeconds === 0 && !isAiAsking && !isCountingDown && !submitting && !isCompleted && session && question) {
+    if (questionSeconds === 0 && !isAiAsking && micWarmupSeconds === 0 && !isCountingDown && !submitting && !isCompleted && session && question) {
       handleSubmitRef.current(true)
     }
-  }, [questionSeconds, isAiAsking, isCountingDown, submitting, isCompleted, session, question])
+  }, [questionSeconds, isAiAsking, micWarmupSeconds, isCountingDown, submitting, isCompleted, session, question])
 
   // ─── 15-Second Silence Auto-Advance (Relaxed & Optional) ────────────────────
   useEffect(() => {
@@ -2035,7 +2080,12 @@ const InterviewSession = () => {
                 {/* Bottom-Left Unified Status Pill */}
                 <div className="absolute bottom-2.5 left-2.5 z-20 bg-white/95 dark:bg-[#121212]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5 border border-transparent dark:border-neutral-800">
                   <span className="text-[10px] sm:text-[11px] font-medium tracking-tight flex items-center gap-1.5">
-                    {isAiAsking ? (
+                    {micWarmupSeconds > 0 ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">Mic in {micWarmupSeconds}s</span>
+                      </>
+                    ) : isAiAsking ? (
                       <>
                         <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                         <span className="text-indigo-600 dark:text-indigo-400">
@@ -2062,7 +2112,7 @@ const InterviewSession = () => {
                 </div>
 
                 {/* Bottom-Right Video Time Duration Badge */}
-                {!isAiAsking && (
+                {!isAiAsking && micWarmupSeconds === 0 && (
                   <div className="absolute bottom-2.5 right-2.5 z-20 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md flex items-center gap-1.5 text-white text-[11px]">
                     <span className="flex items-center gap-1 font-semibold text-slate-100">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
@@ -2071,7 +2121,7 @@ const InterviewSession = () => {
                     <span className="text-slate-500">/</span>
                     <span className="text-slate-400 font-mono">{formatTime(TOTAL_QUESTION_SECONDS)}</span>
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                      questionSeconds <= 10 
+                      questionSeconds <= 5 
                         ? 'bg-rose-600 text-white animate-pulse' 
                         : 'bg-emerald-600 text-white'
                     }`}>
@@ -2081,7 +2131,7 @@ const InterviewSession = () => {
                 )}
 
                 {/* Bottom Video Progress Bar (0 to 100%) */}
-                {!isAiAsking && (
+                {!isAiAsking && micWarmupSeconds === 0 && (
                   <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/50 z-30 overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${
@@ -2260,7 +2310,12 @@ const InterviewSession = () => {
                     </button>
                   </div>
 
-                  {isAiAsking ? (
+                  {micWarmupSeconds > 0 ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                      Mic in {micWarmupSeconds}s
+                    </span>
+                  ) : isAiAsking ? (
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
@@ -2277,12 +2332,12 @@ const InterviewSession = () => {
                     </div>
                   ) : (
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                      questionSeconds <= 10
+                      questionSeconds <= 5
                         ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 font-semibold'
                         : 'text-slate-500 dark:text-slate-400'
                     }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 10 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}`} />
-                      <span className="font-mono">{questionSeconds}s</span> remaining
+                      <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 5 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}`} />
+                      <span className="font-mono">{questionSeconds}s</span> remaining (Max 15s)
                     </span>
                   )}
                 </div>
@@ -2381,11 +2436,25 @@ const InterviewSession = () => {
                   )}
 
                   {/* Single clear status notification strip */}
-                  {isAiAsking ? (
+                  {micWarmupSeconds > 0 ? (
+                    <div className="mb-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between border border-amber-200/80 dark:border-amber-900/60 shadow-2xs">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                        <span className="font-semibold">Question complete · Microphone turning ON silently in {micWarmupSeconds}s...</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSkipAiVoiceAndAnswerNow}
+                        className="font-bold bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-0.5 rounded-lg text-xs cursor-pointer shadow-xs"
+                      >
+                        Speak now →
+                      </button>
+                    </div>
+                  ) : isAiAsking ? (
                     <div className="mb-2 px-3 py-1.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-200 text-xs flex items-center justify-between shadow-2xs">
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                        <span>AI is reading question... Click <strong>Answer now</strong> to speak immediately!</span>
+                        <span>AI reading question... (Mic is OFF)</span>
                       </span>
                       <button
                         type="button"
@@ -2400,11 +2469,11 @@ const InterviewSession = () => {
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="font-semibold">
-                          🟢 Mic Live: Speak in {speechLang === 'hi-IN' ? 'Hindi or Hinglish' : 'English'} — words type automatically in real time
+                          🟢 Mic LIVE: Speak now — words type automatically in real time
                         </span>
                       </span>
                       <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md">
-                        {speechLang === 'hi-IN' ? 'Hindi/Hinglish (Live STT)' : 'English (Live STT)'}
+                        {questionSeconds}s left (Max 15s)
                       </span>
                     </div>
                   ) : !isAiAsking ? (
