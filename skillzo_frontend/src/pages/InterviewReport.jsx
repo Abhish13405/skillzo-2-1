@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
-import { getInterviewDetail, uploadInterviewRecording } from '../api/interview'
+import { getInterviewDetail, uploadInterviewRecording, completeInterview } from '../api/interview'
 import { useAuth } from '../context/AuthContext'
 import { downloadInterviewReportPdf } from '../utils/generatePdfReport'
 import { getAllRecordings, markRecordingUploaded, formatBytes } from '../utils/recordingsDb'
@@ -112,7 +112,8 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
 })
 
 const InterviewReport = () => {
-  const { id: sessionId } = useParams()
+  const params = useParams()
+  const sessionId = params.sessionId || params.id
   const { user } = useAuth()
   const navigate = useNavigate()
   const [session, setSession] = useState(null)
@@ -124,6 +125,7 @@ const InterviewReport = () => {
 
   const loadLocalClips = async () => {
     try {
+      if (!sessionId || sessionId === 'undefined') return
       const allClips = await getAllRecordings(null, true)
       const matching = allClips.filter((c) => String(c.sessionId) === String(sessionId))
       setLocalClips(matching)
@@ -133,6 +135,11 @@ const InterviewReport = () => {
   }
 
   useEffect(() => {
+    if (!sessionId || sessionId === 'undefined') {
+      setError('Invalid interview session ID.')
+      return
+    }
+
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
     }
@@ -142,6 +149,13 @@ const InterviewReport = () => {
     getInterviewDetail(sessionId)
       .then((res) => {
         setSession(res.data)
+        if (res.data && res.data.status !== 'completed') {
+          completeInterview(sessionId)
+            .then((cRes) => {
+              if (cRes?.data) setSession(cRes.data)
+            })
+            .catch((cErr) => console.warn('Auto-complete in report fallback:', cErr))
+        }
       })
       .catch(async (err) => {
         console.warn('Backend session fetch failed, checking local recordings vault:', err)

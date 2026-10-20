@@ -1503,14 +1503,13 @@ const InterviewSession = () => {
       videoRef.current.srcObject = null
     }
 
-    // 2. Fetch fresh session details from backend to ensure latest answers & scores
-    getInterviewDetail(sessionId)
+    // 2. Pre-generate report scores & complete interview session on backend
+    setEvaluationStatus('generating')
+    completeInterview(sessionId)
       .then((res) => {
         if (res?.data) {
           setSession(res.data)
-          if (res.data.overall_score != null) {
-            setEvaluationStatus('completed')
-          }
+          setEvaluationStatus('completed')
           if (res.data.questions) {
             const answered = res.data.questions.filter((q) => q.answer).map((q) => q.id)
             if (answered.length > 0) {
@@ -1520,7 +1519,23 @@ const InterviewSession = () => {
         }
       })
       .catch((err) => {
-        console.warn('Could not refresh session detail on completion:', err)
+        console.warn('Auto-completion warning, fetching existing session detail:', err)
+        getInterviewDetail(sessionId)
+          .then((res) => {
+            if (res?.data) {
+              setSession(res.data)
+              if (res.data.overall_score != null) {
+                setEvaluationStatus('completed')
+              }
+              if (res.data.questions) {
+                const answered = res.data.questions.filter((q) => q.answer).map((q) => q.id)
+                if (answered.length > 0) {
+                  setAnsweredQuestionIds((prev) => new Set([...prev, ...answered]))
+                }
+              }
+            }
+          })
+          .catch((dErr) => console.warn('Could not refresh session detail on completion:', dErr))
       })
 
     // 3. Check if candidate has local recordings for this session in IndexedDB
