@@ -14,10 +14,53 @@ const LeaderPortal = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
 
+  const getCandidateRoomId = (candidate) => `skz_live_${candidate?.id || 'room'}`
+
+  const getCandidateInviteUrl = (candidate) => {
+    const rawRole = candidate?.target_role || 'Software Engineer'
+    const cleanRoomId = getCandidateRoomId(candidate)
+    const origin = window.location.origin
+    return `${origin}/live-interview/${cleanRoomId}?as=candidate&candidate=${candidate?.id || ''}&candidateName=${encodeURIComponent(candidate?.username || 'Candidate')}&role=${encodeURIComponent(rawRole)}&email=${encodeURIComponent(candidate?.email || '')}`
+  }
+
   const handleStartLiveInterview = (candidate) => {
-    const rawRole = candidate.target_role || 'Software Engineer'
-    const cleanRoomId = `skz_live_${candidate.id}_${Date.now().toString(36)}`
-    navigate(`/live-interview/${cleanRoomId}?candidate=${candidate.id}&candidateName=${encodeURIComponent(candidate.username)}&role=${encodeURIComponent(rawRole)}&email=${encodeURIComponent(candidate.email)}`)
+    const rawRole = candidate?.target_role || 'Software Engineer'
+    const cleanRoomId = getCandidateRoomId(candidate)
+    navigate(`/live-interview/${cleanRoomId}?candidate=${candidate?.id || ''}&candidateName=${encodeURIComponent(candidate?.username || 'Candidate')}&role=${encodeURIComponent(rawRole)}&email=${encodeURIComponent(candidate?.email || '')}`)
+  }
+
+  const [copiedCandidateId, setCopiedCandidateId] = useState(null)
+
+  const handleShareWhatsApp = (candidate, e) => {
+    e?.stopPropagation()
+    const inviteUrl = getCandidateInviteUrl(candidate)
+    const role = candidate?.target_role || 'Software Engineer'
+    const name = candidate?.username || 'Candidate'
+    const msg = `Namaste ${name}! Your Live 1:1 Interview with Skillzo is ready.\n\nRole: ${role}\nJoin Video Call: ${inviteUrl}\n\nPlease join using a laptop or mobile with camera and microphone access.`
+    const phone = (candidate?.phone && candidate.phone !== '—') ? candidate.phone.replace(/[^0-9]/g, '') : ''
+    const waUrl = phone 
+      ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`
+    window.open(waUrl, '_blank')
+  }
+
+  const handleShareEmail = (candidate, e) => {
+    e?.stopPropagation()
+    const inviteUrl = getCandidateInviteUrl(candidate)
+    const role = candidate?.target_role || 'Software Engineer'
+    const name = candidate?.username || 'Candidate'
+    const subject = `Skillzo Live 1:1 Interview Invitation - ${name} (${role})`
+    const body = `Dear ${name},\n\nYou are invited to join your Live 1:1 Interview on Skillzo for the role of ${role}.\n\nInterview Room Link:\n${inviteUrl}\n\nPlease click the link above to join. Ensure your webcam and microphone are enabled.\n\nBest regards,\nSkillzo Recruitment Team`
+    const mailtoUrl = `mailto:${candidate?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailtoUrl
+  }
+
+  const handleCopyCandidateLink = (candidate, e) => {
+    e?.stopPropagation()
+    const inviteUrl = getCandidateInviteUrl(candidate)
+    navigator.clipboard.writeText(inviteUrl)
+    setCopiedCandidateId(candidate.id)
+    setTimeout(() => setCopiedCandidateId(null), 2500)
   }
 
   const userEmail = (user?.email || '').toLowerCase().trim()
@@ -651,9 +694,55 @@ const LeaderPortal = () => {
                       {u.date_joined}
                     </td>
 
-                    {/* Action Buttons: Live 1:1 & Inspect */}
+                    {/* Action Buttons: WhatsApp, Email, Copy Link, Live 1:1 & Inspect */}
                     <td className="py-3 px-3 text-right">
                       <div className="inline-flex items-center gap-1.5 justify-end">
+                        {/* WhatsApp Invite Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleShareWhatsApp(u, e)}
+                          className="p-1.5 text-xs rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs cursor-pointer flex items-center justify-center"
+                          title={`Send WhatsApp Invite to ${u.username}`}
+                          aria-label="Send WhatsApp Invite"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.772.84 2.791.84 3.182 0 5.768-2.587 5.768-5.766.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.98-9.969 9.98-1.74 0-3.37-.45-4.795-1.238l-5.236 1.372 1.398-5.105c-.86-1.47-1.336-3.18-1.336-4.999 0-5.503 4.477-9.98 9.969-9.98 5.503 0 9.969 4.477 9.969 9.98z"/>
+                          </svg>
+                        </button>
+
+                        {/* Email Invite Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleShareEmail(u, e)}
+                          className="p-1.5 text-xs rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors shadow-2xs cursor-pointer flex items-center justify-center"
+                          title={`Send Email Invite to ${u.email}`}
+                          aria-label="Send Email Invite"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                          </svg>
+                        </button>
+
+                        {/* Copy Link Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyCandidateLink(u, e)}
+                          className="p-1.5 text-xs rounded-lg bg-slate-100 dark:bg-[#1E293B] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer flex items-center justify-center"
+                          title="Copy Direct Interview Link"
+                          aria-label="Copy Direct Interview Link"
+                        >
+                          {copiedCandidateId === u.id ? (
+                            <span className="text-[11px] font-bold text-emerald-600">✓</span>
+                          ) : (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                          )}
+                        </button>
+
+                        {/* Live 1:1 Button */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -666,6 +755,8 @@ const LeaderPortal = () => {
                           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                           <span>Live 1:1</span>
                         </button>
+
+                        {/* Inspect Button */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -674,6 +765,7 @@ const LeaderPortal = () => {
                             setCandidateTab('interviews')
                           }}
                           className="btn-secondary py-1 px-2 text-[11px] font-bold rounded-lg inline-flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition-colors cursor-pointer"
+                          title="Inspect candidate history and details"
                         >
                           <span>Inspect</span>
                           <span>👁️</span>
@@ -728,6 +820,54 @@ const LeaderPortal = () => {
               </div>
 
               <div className="flex items-center gap-2">
+                {/* WhatsApp Button */}
+                <button
+                  type="button"
+                  onClick={(e) => handleShareWhatsApp(selectedCandidate, e)}
+                  className="py-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+                  title="Share Interview via WhatsApp"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.772.84 2.791.84 3.182 0 5.768-2.587 5.768-5.766.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.98-9.969 9.98-1.74 0-3.37-.45-4.795-1.238l-5.236 1.372 1.398-5.105c-.86-1.47-1.336-3.18-1.336-4.999 0-5.503 4.477-9.98 9.969-9.98 5.503 0 9.969 4.477 9.969 9.98z"/>
+                  </svg>
+                  <span>WhatsApp</span>
+                </button>
+
+                {/* Email Button */}
+                <button
+                  type="button"
+                  onClick={(e) => handleShareEmail(selectedCandidate, e)}
+                  className="py-1.5 px-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+                  title="Send Email Invitation"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                  <span>Email</span>
+                </button>
+
+                {/* Copy Link Button */}
+                <button
+                  type="button"
+                  onClick={(e) => handleCopyCandidateLink(selectedCandidate, e)}
+                  className="py-1.5 px-2.5 rounded-xl bg-slate-100 dark:bg-[#1E293B] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+                  title="Copy Candidate Interview Link"
+                >
+                  {copiedCandidateId === selectedCandidate.id ? (
+                    <span className="text-emerald-600 font-bold text-xs">✓ Copied</span>
+                  ) : (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                      </svg>
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Launch Live 1:1 Button */}
                 <button
                   type="button"
                   onClick={() => handleStartLiveInterview(selectedCandidate)}
@@ -736,6 +876,8 @@ const LeaderPortal = () => {
                   <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                   <span>Launch Live 1:1</span>
                 </button>
+
+                {/* Close Button */}
                 <button
                   type="button"
                   onClick={() => setSelectedCandidate(null)}

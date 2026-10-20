@@ -55,12 +55,33 @@ const LiveInterview = () => {
 
   const overallScore = Math.round((techScore + commScore + fitScore) / 3)
 
+  const getCandidateInviteUrl = () => {
+    return `${window.location.origin}/live-interview/${roomId}?as=candidate&candidate=${candidateId || ''}&candidateName=${encodeURIComponent(candidateName)}&role=${encodeURIComponent(candidateRole)}&email=${encodeURIComponent(candidateEmail || '')}`
+  }
+
   // Copy candidate invite link
   const handleCopyInvite = () => {
-    const inviteUrl = `${window.location.origin}/live-interview/${roomId}?as=candidate&candidateName=${encodeURIComponent(candidateName)}&role=${encodeURIComponent(candidateRole)}`
+    const inviteUrl = getCandidateInviteUrl()
     navigator.clipboard.writeText(inviteUrl)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 3000)
+  }
+
+  // Share via WhatsApp
+  const handleShareWhatsApp = () => {
+    const inviteUrl = getCandidateInviteUrl()
+    const msg = `Namaste ${candidateName}! Your Live 1:1 Interview with Skillzo is ready.\n\nRole: ${candidateRole}\nJoin Video Call: ${inviteUrl}\n\nPlease join using a laptop/mobile with camera and microphone access.`
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`
+    window.open(waUrl, '_blank')
+  }
+
+  // Share via Email
+  const handleShareEmail = () => {
+    const inviteUrl = getCandidateInviteUrl()
+    const subject = `Skillzo Live 1:1 Interview Invitation - ${candidateName} (${candidateRole})`
+    const body = `Dear ${candidateName},\n\nYou are invited to join your Live 1:1 Interview on Skillzo for the role of ${candidateRole}.\n\nInterview Room Link:\n${inviteUrl}\n\nPlease click the link above when ready. Ensure your webcam and microphone are enabled.\n\nBest regards,\nSkillzo Recruitment Team`
+    const mailtoUrl = `mailto:${candidateEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailtoUrl
   }
 
   // Load and mount Jitsi Meet WebRTC Video
@@ -227,12 +248,51 @@ const LiveInterview = () => {
         <div className="flex items-center gap-2.5">
           {isHR && (
             <>
+              {/* WhatsApp Share Button */}
+              <button
+                type="button"
+                onClick={handleShareWhatsApp}
+                className="py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Share room invitation on WhatsApp"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.772.84 2.791.84 3.182 0 5.768-2.587 5.768-5.766.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.98-9.969 9.98-1.74 0-3.37-.45-4.795-1.238l-5.236 1.372 1.398-5.105c-.86-1.47-1.336-3.18-1.336-4.999 0-5.503 4.477-9.98 9.969-9.98 5.503 0 9.969 4.477 9.969 9.98z"/>
+                </svg>
+                <span>WhatsApp</span>
+              </button>
+
+              {/* Email Share Button */}
+              <button
+                type="button"
+                onClick={handleShareEmail}
+                className="py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Send invitation via Email"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+                <span>Email</span>
+              </button>
+
+              {/* Copy Invite Link Button */}
               <button
                 type="button"
                 onClick={handleCopyInvite}
-                className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Copy Direct Interview Link"
               >
-                <span>{copiedLink ? '✓ Copied' : '🔗 Copy Invite Link'}</span>
+                {copiedLink ? (
+                  <span className="text-emerald-400 font-bold">✓ Copied</span>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    <span>Copy Link</span>
+                  </>
+                )}
               </button>
 
               <button
