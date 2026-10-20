@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../context/AuthContext'
 import { getInterviewHistory } from '../api/interview'
@@ -20,13 +20,16 @@ const isHrRole = (role = '') => {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth()
+  const { user, isLeader: authIsLeader } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const isCandidatePreview = searchParams.get('candidate_view') === 'true'
 
   const userEmail = (user?.email || '').toLowerCase().trim()
   const userName = (user?.username || '').toLowerCase().trim()
   const isLeader = Boolean(
-    user && !user.is_guest && (
+    authIsLeader ||
+    (user && !user.is_guest && (
       user.is_leader ||
       user.is_staff ||
       user.is_superuser ||
@@ -38,8 +41,14 @@ const Dashboard = () => {
       userName === 'abhishekkushwaha31387' ||
       userEmail.includes('abhishek') ||
       userName.includes('abhishek')
-    )
+    ))
   )
+
+  useEffect(() => {
+    if (isLeader && !isCandidatePreview) {
+      navigate('/leader', { replace: true })
+    }
+  }, [isLeader, isCandidatePreview, navigate])
 
   const [techCount, setTechCount] = useState(0)
   const [hrCount, setHrCount] = useState(0)
@@ -123,7 +132,7 @@ const Dashboard = () => {
         </svg>
       )
     },
-    isLeader
+    (!isCandidatePreview && isLeader)
       ? {
           id: 'leader',
           title: 'Company Leader Portal',
@@ -188,20 +197,24 @@ const Dashboard = () => {
     }
   ]
 
+  if (isLeader && !isCandidatePreview) {
+    return null
+  }
+
   return (
     <AppShell hideSidebar={true}>
       <div className="w-full max-w-6xl mx-auto h-full flex flex-col justify-between py-1 sm:py-2">
         {/* Top Header */}
         <div className="mb-2 sm:mb-2.5 text-center max-w-2xl mx-auto shrink-0">
-          {isLeader && (
-            <div className="mb-1.5 flex justify-center">
+          {isLeader && isCandidatePreview && (
+            <div className="mb-2 flex justify-center">
               <Link
                 to="/leader"
-                className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300 text-[11px] font-bold shadow-2xs hover:bg-blue-100 transition-colors"
+                className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-xs font-bold shadow-xs hover:bg-amber-100 transition-colors"
               >
-                <span>👑 Leader Portal</span>
+                <span>👑 Student View Preview Mode (Leader ID Active)</span>
                 <span>·</span>
-                <span className="underline">Go to Leader Console →</span>
+                <span className="underline">← Return to Leader Console</span>
               </Link>
             </div>
           )}

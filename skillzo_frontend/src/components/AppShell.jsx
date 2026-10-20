@@ -27,8 +27,10 @@ const MoonIcon = ({ className = 'w-4 h-4' }) => (
 const AppShell = ({ children, hideSidebar = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
-  const { user, logout } = useAuth()
+  const { user, logout, isLeader } = useAuth()
   const navigate = useNavigate()
+
+  const homeRoute = isLeader ? '/leader' : '/dashboard'
 
   const handleSignOut = () => {
     logout()
@@ -43,7 +45,7 @@ const AppShell = ({ children, hideSidebar = false }) => {
         {hideSidebar ? (
           <header className="border-b border-slate-200/80 dark:border-neutral-800 bg-white/80 dark:bg-[#0A0A0A]/85 backdrop-blur-md sticky top-0 z-30 shrink-0">
             <div className="flex items-center justify-between px-4 sm:px-6 py-2 sm:py-2.5 max-w-6xl mx-auto w-full">
-              <div className="flex items-center gap-2.5">
+              <Link to={homeRoute} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
                 <img src="/logo-icon.png" alt="Skillzo Logo" className="w-8 h-8 object-contain shrink-0 drop-shadow-sm" />
                 <div>
                   <span className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight block leading-tight">
@@ -53,7 +55,7 @@ const AppShell = ({ children, hideSidebar = false }) => {
                     AI Interview Platform
                   </span>
                 </div>
-              </div>
+              </Link>
               <div className="flex items-center gap-2 sm:gap-3">
                 {user && (
                   <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#121212] border border-slate-200/80 dark:border-neutral-800 text-xs font-semibold text-slate-700 dark:text-slate-300">

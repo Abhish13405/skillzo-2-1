@@ -417,11 +417,11 @@ const LeaderPortal = () => {
           </button>
 
           <Link
-            to="/dashboard"
+            to="/dashboard?candidate_view=true"
             className="btn-secondary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm text-slate-700 dark:text-slate-200"
-            title="Switch to Candidate Practice View"
+            title="Inspect Candidate Mock Practice Dashboard"
           >
-            <span>🎓 Candidate View</span>
+            <span>🎓 Student Practice View</span>
           </Link>
 
           <Link
