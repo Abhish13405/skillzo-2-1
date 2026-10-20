@@ -190,33 +190,29 @@ const Dashboard = () => {
 
   return (
     <AppShell hideSidebar={true}>
-      <div className="max-w-6xl mx-auto py-4 sm:py-8">
-        {/* Main Hub Top Header */}
-        <div className="mb-6 sm:mb-8 text-center max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-neutral-900 border border-blue-200/70 dark:border-neutral-800 text-blue-700 dark:text-blue-400 text-xs font-mono font-bold mb-3 shadow-2xs">
-            <span>🏠</span>
-            <span>Main Hub · 4 Core Workspaces</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Welcome to Skillzo Hub
+      <div className="w-full max-w-6xl mx-auto h-full flex flex-col justify-between py-1 sm:py-2">
+        {/* Top Header */}
+        <div className="mb-2 sm:mb-2.5 text-center max-w-2xl mx-auto shrink-0">
+          <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-display font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+            Welcome to Skillzo
           </h1>
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-2">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl mx-auto">
             Select a workspace below to enter its specialized dashboard, practice mock interviews, view past scores, and access AI tools.
           </p>
         </div>
 
         {/* Exactly the 4 Workspace Boxes Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5 lg:gap-4 flex-1 min-h-0 items-stretch">
           {workspaces.map((box) => (
             <div
               key={box.id}
               onClick={() => navigate(box.route)}
-              className={`group relative bg-white dark:bg-[#121212] rounded-3xl p-6 sm:p-7 border border-slate-200/80 dark:border-neutral-800 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer hover:-translate-y-1 ${box.borderHover}`}
+              className={`group relative bg-white dark:bg-[#121212] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-neutral-800 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer hover:-translate-y-0.5 ${box.borderHover}`}
             >
               <div>
                 {/* Top Row: Icon & Box Badge */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-2xl ${box.iconBg} border flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform`}>
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${box.iconBg} border flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform`}>
                     {box.icon}
                   </div>
                   <div className="flex items-center gap-2">
@@ -244,7 +240,7 @@ const Dashboard = () => {
               </div>
 
               {/* Bottom CTA Row */}
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-neutral-800 flex items-center justify-between">
+              <div className="mt-2.5 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-neutral-800 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
                   Click to open
                 </span>
@@ -254,7 +250,7 @@ const Dashboard = () => {
                     e.stopPropagation()
                     navigate(box.route)
                   }}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md flex items-center gap-2 transition-all cursor-pointer ${box.buttonBg} group-hover:opacity-95`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer ${box.buttonBg} group-hover:opacity-95`}
                 >
                   <span>{box.cta}</span>
                 </button>
