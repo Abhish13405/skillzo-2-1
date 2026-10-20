@@ -20,22 +20,10 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('skillzo_logged_out')
     }
 
-    const isLoggedOut = localStorage.getItem('skillzo_logged_out') === 'true'
-    if (isLoggedOut) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
-
     const access = localStorage.getItem('skillzo_access')
     if (!access) {
-      // Automatically bootstrap guest candidate session on initial load so anyone can practice immediately without signup
-      try {
-        await loginAsGuest()
-      } catch (err) {
-        console.warn('Auto guest login error:', err)
-        setLoading(false)
-      }
+      setUser(null)
+      setLoading(false)
       return
     }
     try {
@@ -55,12 +43,10 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data)
       }
     } catch {
-      localStorage.clear()
-      try {
-        await loginAsGuest()
-      } catch {
-        setUser(null)
-      }
+      localStorage.removeItem('skillzo_access')
+      localStorage.removeItem('skillzo_refresh')
+      localStorage.removeItem('skillzo_is_guest')
+      setUser(null)
     } finally {
       setLoading(false)
     }
