@@ -19,70 +19,46 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
 
   const [guestLoading, setGuestLoading] = useState(false)
-
-  const { login, loginAsGuest, user, loading: authLoading, isLeader } = useAuth()
-
+  const { login, loginAsGuest, user, loading: authLoading, isLeader, isUserLeader } = useAuth()
   const { theme, toggleTheme } = useTheme()
-
   const navigate = useNavigate()
-
   const location = useLocation()
 
-  const defaultTarget = isLeader ? '/leader' : '/dashboard'
-  const from = location.state?.from?.pathname || defaultTarget
-
-
-
   useEffect(() => {
-
     if (!authLoading && user) {
-
-      navigate(from, { replace: true })
-
+      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/dashboard')
+        ? location.state.from.pathname
+        : (isLeader ? '/leader' : '/dashboard')
+      navigate(target, { replace: true })
     }
-
-  }, [user, authLoading, navigate, from])
-
-
+  }, [user, authLoading, navigate, isLeader, location])
 
   const handleGuestLogin = async () => {
-
     setError('')
-
     setGuestLoading(true)
-
     try {
-
       await loginAsGuest()
-
-      navigate(from, { replace: true })
-
+      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/leader')
+        ? location.state.from.pathname
+        : '/dashboard'
+      navigate(target, { replace: true })
     } catch {
-
       setError('Could not start guest session. Please try again.')
-
       setGuestLoading(false)
-
     }
-
   }
 
-
-
   const handleSubmit = async (e) => {
-
     e.preventDefault()
-
     setError('')
-
     setLoading(true)
-
     try {
-
-      await login(email.trim(), password)
-
-      navigate(from, { replace: true })
-
+      const res = await login(email.trim(), password)
+      const userIsLeader = isUserLeader(res?.user)
+      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/dashboard')
+        ? location.state.from.pathname
+        : (userIsLeader ? '/leader' : '/dashboard')
+      navigate(target, { replace: true })
     } catch (err) {
 
       const data = err.response?.data

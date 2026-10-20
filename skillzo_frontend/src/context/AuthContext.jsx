@@ -6,6 +6,25 @@ const AuthContext = createContext(null)
 
 export const useAuth = () => useContext(AuthContext)
 
+export const isUserLeader = (u) => {
+  if (!u || u.is_guest) return false
+  const userEmail = (u?.email || '').toLowerCase().trim()
+  const userName = (u?.username || '').toLowerCase().trim()
+  return Boolean(
+    u?.is_leader ||
+    u?.is_staff ||
+    u?.is_superuser ||
+    userEmail === 'abhishekkushwaha13405@gmail.com' ||
+    userEmail === 'abhish@gmail.com' ||
+    userEmail === 'abhishekkushwaha31387@bbdu.ac.in' ||
+    userName === 'abhishek13405' ||
+    userName === 'abhish' ||
+    userName === 'abhishekkushwaha31387' ||
+    userEmail.includes('abhishek') ||
+    userName.includes('abhishek')
+  )
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -126,27 +145,12 @@ export const AuthProvider = ({ children }) => {
     return false
   }
 
-  const userEmail = (user?.email || '').toLowerCase().trim()
-  const userName = (user?.username || '').toLowerCase().trim()
-  const isLeader = Boolean(
-    user && !user.is_guest && (
-      user?.is_leader ||
-      user?.is_staff ||
-      user?.is_superuser ||
-      userEmail === 'abhishekkushwaha13405@gmail.com' ||
-      userEmail === 'abhish@gmail.com' ||
-      userEmail === 'abhishekkushwaha31387@bbdu.ac.in' ||
-      userName === 'abhishek13405' ||
-      userName === 'abhish' ||
-      userName === 'abhishekkushwaha31387' ||
-      userEmail.includes('abhishek') ||
-      userName.includes('abhishek')
-    )
-  )
+  const isLeader = isUserLeader(user)
 
   return (
     <AuthContext.Provider value={{
-      isLeader, 
+      isLeader,
+      isUserLeader, 
       user, 
       loading, 
       login, 
