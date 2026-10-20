@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../context/AuthContext'
 import { getInterviewHistory } from '../api/interview'
@@ -193,6 +193,18 @@ const Dashboard = () => {
       <div className="w-full max-w-6xl mx-auto h-full flex flex-col justify-between py-1 sm:py-2">
         {/* Top Header */}
         <div className="mb-2 sm:mb-2.5 text-center max-w-2xl mx-auto shrink-0">
+          {isLeader && (
+            <div className="mb-1.5 flex justify-center">
+              <Link
+                to="/leader"
+                className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300 text-[11px] font-bold shadow-2xs hover:bg-blue-100 transition-colors"
+              >
+                <span>👑 Leader Portal</span>
+                <span>·</span>
+                <span className="underline">Go to Leader Console →</span>
+              </Link>
+            </div>
+          )}
           <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-display font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
             Welcome to Skillzo
           </h1>

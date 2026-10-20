@@ -374,6 +374,14 @@ const LeaderPortal = () => {
           </button>
 
           <Link
+            to="/dashboard"
+            className="btn-secondary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm text-slate-700 dark:text-slate-200"
+            title="Switch to Candidate Practice View"
+          >
+            <span>🎓 Candidate View</span>
+          </Link>
+
+          <Link
             to="/recordings?view=all"
             className="btn-secondary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm"
           >
