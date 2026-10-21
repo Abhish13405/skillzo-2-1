@@ -202,7 +202,7 @@ const Dashboard = () => {
   }
 
   return (
-    <AppShell hideSidebar={true}>
+    <AppShell hideSidebar={true} noScroll={true}>
       <div className="w-full max-w-6xl mx-auto h-full flex flex-col justify-between py-1 sm:py-2">
         {/* Top Header */}
         <div className="mb-2 sm:mb-2.5 text-center max-w-2xl mx-auto shrink-0">

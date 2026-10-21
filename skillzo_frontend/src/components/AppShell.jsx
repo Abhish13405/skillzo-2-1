@@ -24,7 +24,7 @@ const MoonIcon = ({ className = 'w-4 h-4' }) => (
   </svg>
 )
 
-const AppShell = ({ children, hideSidebar = false }) => {
+const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const { user, logout, isLeader } = useAuth()
@@ -38,10 +38,10 @@ const AppShell = ({ children, hideSidebar = false }) => {
   }
 
   return (
-    <div className="flex min-h-screen lg:h-screen lg:max-h-screen bg-surface-soft dark:bg-[#050505] text-slate-900 dark:text-slate-100 font-body transition-colors duration-200 lg:overflow-hidden">
+    <div className={`flex min-h-screen bg-surface-soft dark:bg-[#050505] text-slate-900 dark:text-slate-100 font-body transition-colors duration-200 ${noScroll ? 'lg:h-screen lg:max-h-screen lg:overflow-hidden' : ''}`}>
       {!hideSidebar && <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
 
-      <div className="flex-1 flex flex-col min-w-0 lg:h-full lg:overflow-hidden">
+      <div className={`flex-1 flex flex-col min-w-0 ${noScroll ? 'lg:h-full lg:overflow-hidden' : 'min-h-screen'}`}>
         {hideSidebar ? (
           <header className="border-b border-slate-200/80 dark:border-neutral-800 bg-white/80 dark:bg-[#0A0A0A]/85 backdrop-blur-md sticky top-0 z-30 shrink-0">
             <div className="flex items-center justify-between px-4 sm:px-6 py-2 sm:py-2.5 max-w-6xl mx-auto w-full">
@@ -126,7 +126,7 @@ const AppShell = ({ children, hideSidebar = false }) => {
         )}
 
         {/* Main content viewport */}
-        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-2 sm:py-3 max-w-[1380px] mx-auto w-full flex flex-col min-h-0 overflow-y-auto lg:overflow-hidden">
+        <main className={`flex-1 px-3 sm:px-6 lg:px-8 py-3 sm:py-5 max-w-[1380px] mx-auto w-full flex flex-col ${noScroll ? 'min-h-0 overflow-y-auto lg:overflow-hidden' : 'overflow-y-visible'}`}>
           {children}
         </main>
       </div>
