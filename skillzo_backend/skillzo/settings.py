@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'resume_analysis',
     'interview',
     'dashboard',
+    'company',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -207,4 +208,4 @@ BREVO_API_KEY = (os.environ.get('BREVO_API_KEY') or config('BREVO_API_KEY', defa
 BREVO_SENDER_EMAIL = (os.environ.get('BREVO_SENDER_EMAIL') or config('BREVO_SENDER_EMAIL', default='abhishekkushwaha13405@gmail.com')).strip()
 BREVO_SENDER_NAME = (os.environ.get('BREVO_SENDER_NAME') or config('BREVO_SENDER_NAME', default='Skillzo AI Studio')).strip()
 
-
+

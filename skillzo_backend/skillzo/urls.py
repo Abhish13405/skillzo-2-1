@@ -18,6 +18,9 @@ urlpatterns = [
     # Module 4: AI Interview (Text now, Audio/Video in Phase 2)
     path('api/interview/', include('interview.urls')),
 
+    # Module 5: Company Multi-Tenant Leader Portal
+    path('api/company/', include('company.urls')),
+
     # Media Files Serving
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
 ]

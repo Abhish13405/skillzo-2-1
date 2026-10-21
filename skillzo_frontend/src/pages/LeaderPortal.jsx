@@ -2,1620 +2,933 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import Loader from '../components/Loader'
-import { getLeaderStats } from '../api/dashboard'
 import { useAuth } from '../context/AuthContext'
 import {
-  getAllRecordings,
-  deleteRecording,
-  formatBytes,
-} from '../utils/recordingsDb'
+  getCompanyStats,
+  getCompanyCandidates,
+  getCompanyCandidateDetail,
+  updateCompanyCandidateStatus,
+  createLiveInterviewInvite
+} from '../api/company'
 
 const LeaderPortal = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
 
-  const getCandidateRoomId = (candidate) => `skz_live_${candidate?.id || 'room'}`
-
-  const getCandidateInviteUrl = (candidate) => {
-    const rawRole = candidate?.target_role || 'Software Engineer'
-    const cleanRoomId = getCandidateRoomId(candidate)
-    const origin = window.location.origin
-    return `${origin}/live-interview/${cleanRoomId}?as=candidate&candidate=${candidate?.id || ''}&candidateName=${encodeURIComponent(candidate?.username || 'Candidate')}&role=${encodeURIComponent(rawRole)}&email=${encodeURIComponent(candidate?.email || '')}`
-  }
-
-  const handleStartLiveInterview = (candidate) => {
-    const rawRole = candidate?.target_role || 'Software Engineer'
-    const cleanRoomId = getCandidateRoomId(candidate)
-    navigate(`/live-interview/${cleanRoomId}?candidate=${candidate?.id || ''}&candidateName=${encodeURIComponent(candidate?.username || 'Candidate')}&role=${encodeURIComponent(rawRole)}&email=${encodeURIComponent(candidate?.email || '')}`)
-  }
-
-  const [copiedCandidateId, setCopiedCandidateId] = useState(null)
-
-  const handleShareWhatsApp = (candidate, e) => {
-    e?.stopPropagation()
-    const inviteUrl = getCandidateInviteUrl(candidate)
-    const role = candidate?.target_role || 'Software Engineer'
-    const name = candidate?.username || 'Candidate'
-    const msg = `Namaste ${name}! Your Live 1:1 Interview with Skillzo is ready.\n\nRole: ${role}\nJoin Video Call: ${inviteUrl}\n\nPlease join using a laptop or mobile with camera and microphone access.`
-    const phone = (candidate?.phone && candidate.phone !== '—') ? candidate.phone.replace(/[^0-9]/g, '') : ''
-    const waUrl = phone 
-      ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`
-    window.open(waUrl, '_blank')
-  }
-
-  const handleShareEmail = (candidate, e) => {
-    e?.stopPropagation()
-    const inviteUrl = getCandidateInviteUrl(candidate)
-    const role = candidate?.target_role || 'Software Engineer'
-    const name = candidate?.username || 'Candidate'
-    const subject = `Skillzo Live 1:1 Interview Invitation - ${name} (${role})`
-    const body = `Dear ${name},\n\nYou are invited to join your Live 1:1 Interview on Skillzo for the role of ${role}.\n\nInterview Room Link:\n${inviteUrl}\n\nPlease click the link above to join. Ensure your webcam and microphone are enabled.\n\nBest regards,\nSkillzo Recruitment Team`
-    const mailtoUrl = `mailto:${candidate?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.location.href = mailtoUrl
-  }
-
-  const handleCopyCandidateLink = (candidate, e) => {
-    e?.stopPropagation()
-    const inviteUrl = getCandidateInviteUrl(candidate)
-    navigator.clipboard.writeText(inviteUrl)
-    setCopiedCandidateId(candidate.id)
-    setTimeout(() => setCopiedCandidateId(null), 2500)
-  }
-
-  const userEmail = (user?.email || '').toLowerCase().trim()
-  const userName = (user?.username || '').toLowerCase().trim()
-  const isLeader = Boolean(
-    user && !user.is_guest && (
-      user.is_leader ||
-      user.is_staff ||
-      user.is_superuser ||
-      userEmail === 'abhishekkushwaha13405@gmail.com' ||
-      userEmail === 'abhish@gmail.com' ||
-      userEmail === 'abhishekkushwaha31387@bbdu.ac.in' ||
-      userName === 'abhishek13405' ||
-      userName === 'abhish' ||
-      userName === 'abhishekkushwaha31387'
-    )
-  )
-
+  // State: Core data
   const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(isLeader)
+  const [candidates, setCandidates] = useState([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all') // 'all', 'interviewed', 'resumes'
-  const [userSort, setUserSort] = useState('latest') // 'latest', 'interviews', 'score', 'alpha'
   const [error, setError] = useState('')
 
-  // Detailed Candidate Inspector Modal
-  const [selectedCandidate, setSelectedCandidate] = useState(null)
-  const [candidateTab, setCandidateTab] = useState('interviews') // 'interviews', 'resumes', 'recordings', 'info'
+  // State: Search & Filters
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'new', 'shortlisted', 'hold', 'rejected'
+  const [interviewFilter, setInterviewFilter] = useState('') // '', 'completed', 'not_interviewed'
 
-  // Recorded video vault states
-  const [recordings, setRecordings] = useState([])
-  const [loadingRecs, setLoadingRecs] = useState(true)
-  const [activePlayback, setActivePlayback] = useState(null)
-  const [recFilter, setRecFilter] = useState('all') // 'all', 'video', 'audio'
+  // State: Modals
+  const [selectedCandidate, setSelectedCandidate] = useState(null) // Report modal
+  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [editCandidate, setEditCandidate] = useState(null) // Edit status modal
+  const [inviteCandidate, setInviteCandidate] = useState(null) // Live invite modal
 
-  const loadRecordings = async () => {
-    try {
-      const recs = await getAllRecordings(null, true)
-      setRecordings(recs || [])
-    } catch (err) {
-      console.warn('Could not load recordings:', err)
-    } finally {
-      setLoadingRecs(false)
-    }
-  }
+  // Form states: Edit Status
+  const [editStatus, setEditStatus] = useState('new')
+  const [editRemark, setEditRemark] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
-  const fetchLeaderData = (isManual = false) => {
+  // Form states: Live Invite
+  const [inviteDate, setInviteDate] = useState('')
+  const [inviteTime, setInviteTime] = useState('16:00')
+  const [inviteMessage, setInviteMessage] = useState('')
+  const [inviteChannel, setInviteChannel] = useState('both') // 'both', 'whatsapp', 'email'
+  const [sendingInvite, setSendingInvite] = useState(false)
+  const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState('')
+
+  // Load initial Stats & Candidates
+  const loadData = async (isManual = false) => {
     if (isManual) setRefreshing(true)
     setError('')
-
-    getLeaderStats()
-      .then(async (res) => {
-        if (res.data && (Array.isArray(res.data.users) || Array.isArray(res.data.all_users))) {
-          const userList = res.data.users || res.data.all_users || []
-          setStats({ ...res.data, users: userList, all_users: userList })
-
-          // Leader Portal ONLY displays recordings that candidates uploaded to cloud CDN
-          const serverRecs = (res.data.server_recordings || []).filter((r) =>
-            r.url && (r.url.startsWith('http://') || r.url.startsWith('https://'))
-          )
-          serverRecs.sort((a, b) => {
-            const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
-            const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
-            return tB - tA
-          })
-          setRecordings(serverRecs)
-        } else {
-          setError('Received invalid data format from server.')
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load leader stats:', err)
-        const errMsg =
-          err.response?.data?.detail ||
-          err.response?.data?.error ||
-          err.message ||
-          'Failed to connect to database for live candidate roster.'
-        setError(errMsg)
-      })
-      .finally(() => {
-        setLoading(false)
-        setLoadingRecs(false)
-        if (isManual) setRefreshing(false)
-      })
+    try {
+      const [statsRes, candRes] = await Promise.all([
+        getCompanyStats(),
+        getCompanyCandidates({
+          q: search,
+          status: statusFilter === 'all' ? '' : statusFilter,
+          interview: interviewFilter,
+          page_size: 50,
+        })
+      ])
+      setStats(statsRes.data)
+      setCandidates(candRes.data.results || [])
+      setTotalCount(candRes.data.total_count || 0)
+    } catch (err) {
+      console.error('Failed to load leader portal data:', err)
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.error ||
+        'Unable to load company candidates from database.'
+      setError(msg)
+    } finally {
+      setLoading(false)
+      if (isManual) setRefreshing(false)
+    }
   }
 
   useEffect(() => {
-    if (!isLeader) {
-      setLoading(false)
-      return
+    loadData(false)
+  }, [statusFilter, interviewFilter])
+
+  // Debounced search trigger
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadData(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Open Full Report Drawer
+  const handleOpenReport = async (candSummary) => {
+    setLoadingDetail(true)
+    setSelectedCandidate({ ...candSummary })
+    try {
+      const res = await getCompanyCandidateDetail(candSummary.id)
+      setSelectedCandidate(res.data)
+    } catch (err) {
+      console.error('Failed to fetch detailed report:', err)
+    } finally {
+      setLoadingDetail(false)
     }
-
-    fetchLeaderData(false)
-  }, [isLeader])
-
-  // Download candidate video (supports both local blob and remote server URL)
-  const handleDownloadRec = (rec, e) => {
-    e?.stopPropagation()
-    const url = rec?.blob ? URL.createObjectURL(rec.blob) : (rec?.url || rec?.blobUrl)
-    if (!url) return
-    const a = document.createElement('a')
-    a.href = url
-    a.target = '_blank'
-    const ext = 'webm'
-    const safeRole = String(rec.jobRole || 'interview').replace(/[^a-zA-Z0-9_-]/g, '_')
-    const userTag = rec.userEmail ? `_${rec.userEmail.split('@')[0]}` : ''
-    a.download = `Skillzo_${rec.mode}_Q${rec.questionNumber}${userTag}_${safeRole}_${Date.now()}.${ext}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    if (rec?.blob) setTimeout(() => URL.revokeObjectURL(url), 2000)
   }
 
-  // Delete recording from vault
-  const handleDeleteRec = async (id, e) => {
+  // Open Edit Status Modal
+  const handleOpenEdit = (cand, e) => {
     e?.stopPropagation()
-    if (!window.confirm('Delete this candidate recording?')) return
-    await deleteRecording(id)
-    if (activePlayback?.id === id) setActivePlayback(null)
-    await loadRecordings()
+    setEditCandidate(cand)
+    setEditStatus(cand.status || 'new')
+    setEditRemark(cand.remark || '')
   }
 
-  // Export full candidates dataset to CSV
-  const exportCandidatesCSV = () => {
-    if (!stats?.users?.length) return
+  // Submit Edit Status (Admin Only)
+  const handleSaveStatus = async (e) => {
+    e?.preventDefault()
+    if (!editCandidate) return
+    setSavingEdit(true)
+    try {
+      const res = await updateCompanyCandidateStatus(editCandidate.id, {
+        status: editStatus,
+        remark: editRemark,
+        version: editCandidate.version,
+      })
+      // Update local state instantly
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === editCandidate.id
+            ? { ...c, status: res.data.status, remark: res.data.remark, version: res.data.version }
+            : c
+        )
+      )
+      setEditCandidate(null)
+    } catch (err) {
+      console.error('Failed to update status:', err)
+      alert(
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        'Failed to update candidate status.'
+      )
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
-    const headers = [
-      'ID',
-      'Username',
-      'Email',
-      'Phone',
-      'College_or_Company',
-      'Target_Role',
-      'Streak_Days',
-      'Registered_Date',
-      'Last_Active',
-      'Total_Interviews',
-      'Completed_Interviews',
-      'Average_Score',
-      'Best_Score',
-      'Total_Resumes',
-      'Latest_ATS_Score',
-      'Is_Active',
-      'Is_Leader',
-    ]
+  // Open Live Invite Modal
+  const handleOpenInvite = (cand, e) => {
+    e?.stopPropagation()
+    setInviteCandidate(cand)
+    setLastWhatsAppUrl('')
+    // Default scheduled time: tomorrow at 4:00 PM
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const yyyy = tomorrow.getFullYear()
+    const mm = String(tomorrow.getMonth() + 1).padStart(2, '0')
+    const dd = String(tomorrow.getDate()).padStart(2, '0')
+    setInviteDate(`${yyyy}-${mm}-${dd}`)
+    setInviteTime('16:00')
+    setInviteMessage('')
+    setInviteChannel('both')
+  }
 
-    const rows = stats.users.map((u) => [
-      u.id,
-      `"${(u.username || '').replace(/"/g, '""')}"`,
-      `"${(u.email || '').replace(/"/g, '""')}"`,
-      `"${(u.phone || '').replace(/"/g, '""')}"`,
-      `"${(u.college_or_company || '').replace(/"/g, '""')}"`,
-      `"${(u.target_role || '').replace(/"/g, '""')}"`,
-      u.current_streak || 0,
-      `"${u.date_joined || ''}"`,
-      `"${u.last_active_date || ''}"`,
-      u.total_interviews || 0,
-      u.completed_interviews || 0,
-      u.avg_score || 0,
-      u.best_score || 0,
-      u.total_resumes || 0,
-      u.latest_ats_score !== null && u.latest_ats_score !== undefined ? u.latest_ats_score : 'N/A',
-      u.is_active ? 'Yes' : 'No',
-      u.is_leader ? 'Leader' : 'Candidate',
+  // Submit Live Interview Invite
+  const handleSendInvite = async (e) => {
+    e?.preventDefault()
+    if (!inviteCandidate || !inviteDate || !inviteTime) return
+    setSendingInvite(true)
+    setLastWhatsAppUrl('')
+
+    try {
+      const scheduledIso = new Date(`${inviteDate}T${inviteTime}:00`).toISOString()
+      const res = await createLiveInterviewInvite({
+        candidate_id: inviteCandidate.candidate_id,
+        scheduled_at: scheduledIso,
+        message: inviteMessage,
+        sent_via: inviteChannel,
+      })
+
+      if (res.data?.whatsapp_url) {
+        setLastWhatsAppUrl(res.data.whatsapp_url)
+        // If user picked WhatsApp only or both, open WhatsApp web/app
+        if (inviteChannel === 'whatsapp') {
+          window.open(res.data.whatsapp_url, '_blank')
+        }
+      }
+
+      alert('Live interview invitation generated and delivered successfully!')
+      loadData(false)
+      if (!res.data?.whatsapp_url) {
+        setInviteCandidate(null)
+      }
+    } catch (err) {
+      console.error('Failed to create invite:', err)
+      alert(
+        err.response?.data?.error ||
+        err.response?.data?.scheduled_at?.[0] ||
+        'Failed to schedule live interview.'
+      )
+    } finally {
+      setSendingInvite(false)
+    }
+  }
+
+  // Export CSV
+  const handleExportCSV = () => {
+    if (!candidates.length) return
+    const headers = ['ID', 'Name', 'Email', 'Phone', 'Role', 'Status', 'Score', 'Remark', 'Joined Date']
+    const rows = candidates.map((c) => [
+      c.candidate_id,
+      `"${c.username || ''}"`,
+      `"${c.email || ''}"`,
+      `"${c.phone || ''}"`,
+      `"${c.target_role || ''}"`,
+      c.status,
+      c.interview_score ?? 'N/A',
+      `"${(c.remark || '').replace(/"/g, '""')}"`,
+      c.date_joined || '',
     ])
-
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `Skillzo_Registered_Candidates_${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Skillzo_Candidates_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
     setTimeout(() => URL.revokeObjectURL(url), 2000)
   }
 
-  if (!isLeader) {
-    return (
-      <AppShell>
-        <div className="card text-center py-16 px-4 max-w-md mx-auto my-12 border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 rounded-2xl shadow-craft">
-          <span className="text-4xl mb-3 block">🔒</span>
-          <h2 className="text-xl font-display font-extrabold text-red-600 dark:text-red-400">
-            Access Restricted
-          </h2>
-          <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 mb-6">
-            This portal is exclusively reserved for Project Leader (Abhishek). Your account does not have administrative clearance.
-          </p>
-          <div className="space-y-2">
-            <Link to="/live-room" className="btn-primary text-xs py-2.5 px-4 shadow-sm block w-full">
-              Go to Live HR Interview Room →
-            </Link>
-            <Link to="/dashboard" className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white py-1.5 block">
-              ← Return to Dashboard
-            </Link>
-          </div>
-        </div>
-      </AppShell>
-    )
-  }
+  const isAdmin = stats?.leader?.role === 'admin' || stats?.leader?.is_owner
 
   if (loading) {
     return (
       <AppShell>
-        <Loader label="Accessing Leader Control Center & Candidate Records" />
+        <Loader label="Connecting to Company Leader Control Center..." />
       </AppShell>
     )
   }
 
-  const allUsersList = stats?.users || []
-
-  const filteredUsers = allUsersList.filter((u) => {
-    const q = search.toLowerCase().trim()
-    const matchSearch =
-      !q ||
-      u.username.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      (u.target_role && u.target_role.toLowerCase().includes(q)) ||
-      (u.college_or_company && u.college_or_company.toLowerCase().includes(q)) ||
-      (u.phone && u.phone.toLowerCase().includes(q))
-
-    if (!matchSearch) return false
-
-    if (roleFilter === 'interviewed') return (u.total_interviews || 0) > 0
-    if (roleFilter === 'resumes') return (u.total_resumes || 0) > 0
-    if (roleFilter === 'leaders') return u.is_leader
-    return true
-  })
-
-  // Sorted Candidates: defaults to newest registered user first
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (userSort === 'interviews') return (b.total_interviews || 0) - (a.total_interviews || 0)
-    if (userSort === 'score') return (b.best_score || b.avg_score || 0) - (a.best_score || a.avg_score || 0)
-    if (userSort === 'alpha') return (a.username || '').localeCompare(b.username || '')
-    return (b.id || 0) - (a.id || 0)
-  })
-
-  // Selected candidate's matching vault recordings (strictly newest first)
-  const candidateRecordings = (() => {
-    if (!selectedCandidate) return []
-    const candEmail = (selectedCandidate.email || '').toLowerCase()
-    const candId = String(selectedCandidate.id || '')
-
-    const list = []
-    const seen = new Set()
-
-    const addRec = (rec) => {
-      if (!rec || !rec.url) return
-      // Strict Leader Portal Rule: Only show recordings uploaded to Cloudinary
-      if (!rec.url.includes('cloudinary') && !rec.url.includes('res.cloudinary.com')) return
-      const key = rec.id || rec.url || `${rec.sessionId}_${rec.questionNumber}`
-      if (key && !seen.has(key)) {
-        seen.add(key)
-        list.push(rec)
-      }
-    }
-
-    // 1. Direct recordings attached to candidate from backend
-    if (Array.isArray(selectedCandidate.recordings)) {
-      selectedCandidate.recordings.forEach(addRec)
-    }
-
-    // 2. Global recordings matching candidate email or id
-    recordings
-      .filter(
-        (r) =>
-          (r.userEmail && r.userEmail.toLowerCase() === candEmail) ||
-          (r.userId && String(r.userId) === candId)
-      )
-      .forEach(addRec)
-
-    // 3. Session answers with video/audio
-    if (Array.isArray(selectedCandidate.sessions)) {
-      selectedCandidate.sessions.forEach((s) => {
-        if (Array.isArray(s.questions)) {
-          s.questions.forEach((q) => {
-            if (q.answer && (q.answer.video_url || q.answer.audio_url)) {
-              const cloudUrl = q.answer.video_url || q.answer.audio_url
-              if (cloudUrl && (cloudUrl.includes('cloudinary') || cloudUrl.includes('res.cloudinary.com'))) {
-                addRec({
-                  id: `cand_ans_${q.answer.id}`,
-                  sessionId: s.id,
-                  userId: selectedCandidate.id,
-                  userEmail: selectedCandidate.email,
-                  candidateName: selectedCandidate.username,
-                  jobRole: s.role || 'AI Interview',
-                  difficulty: s.difficulty || 'Intermediate',
-                  mode: q.answer.video_url ? 'video' : 'audio',
-                  questionNumber: q.order,
-                  questionText: q.question_text,
-                  url: cloudUrl,
-                  durationSeconds: q.answer.speaking_time_seconds || 0,
-                  score: q.answer.overall_score,
-                  displayDate: s.started_at,
-                  createdAt: s.started_at,
-                })
-              }
-            }
-          })
-        }
-      })
-    }
-
-    return list.sort((a, b) => {
-      const tA = a.timestamp ? (a.timestamp > 1e11 ? a.timestamp : a.timestamp * 1000) : (new Date(a.createdAt).getTime() || 0)
-      const tB = b.timestamp ? (b.timestamp > 1e11 ? b.timestamp : b.timestamp * 1000) : (new Date(b.createdAt).getTime() || 0)
-      return tB - tA
-    })
-  })()
-
   return (
     <AppShell>
-      {/* Header */}
-      <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3 flex-wrap border-b border-slate-200/60 dark:border-slate-800/80 pb-3 sm:pb-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="eyebrow w-fit">
-              <span>Project Leader Headquarters</span>
-            </span>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-              ● Live Cloud DB
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">
-            Leader Control Center
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-            Complete database of all registered candidates, interview attempts, ATS scores & video recordings.
-          </p>
-        </div>
+      <div className="space-y-6 pb-12">
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => fetchLeaderData(true)}
-            disabled={refreshing}
-            className="btn-secondary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm cursor-pointer disabled:opacity-50"
-            title="Refresh candidate data from database"
-          >
-            <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
-            <span>{refreshing ? 'Refreshing...' : 'Refresh Data'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={exportCandidatesCSV}
-            disabled={!allUsersList.length}
-            className="btn-secondary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm cursor-pointer disabled:opacity-50"
-            title="Download candidates data in CSV spreadsheet"
-          >
-            <span>📥 Export CSV</span>
-          </button>
-
-          <Link
-            to="/dashboard?candidate_view=true"
-            className="btn-secondary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm text-slate-700 dark:text-slate-200"
-            title="Inspect Candidate Mock Practice Dashboard"
-          >
-            <span>🎓 Student Practice View</span>
-          </Link>
-
-          <Link
-            to="/recordings?view=all"
-            className="btn-secondary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm"
-          >
-            <span>📼 Video Vault</span>
-          </Link>
-
-          <a
-            href="https://skillzo-2-1-2.onrender.com/admin"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-primary flex items-center gap-1.5 text-xs py-2 px-3 shadow-sm"
-          >
-            <span>Django Admin ↗</span>
-          </a>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-xs flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">⚠️</span>
-            <span>{error}</span>
-          </div>
-          <button
-            onClick={() => fetchLeaderData(true)}
-            className="btn-primary text-xs py-1 px-3 shadow-sm"
-          >
-            Retry Connection
-          </button>
-        </div>
-      )}
-
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
-        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Total Registered Users
-          </span>
-          <p className="text-3xl sm:text-4xl font-display font-extrabold text-blue-600 dark:text-blue-400 mt-2">
-            {stats?.total_users ?? allUsersList.length}
-          </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
-            Accounts In System
-          </p>
-        </div>
-
-        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Total Mock Interviews
-          </span>
-          <p className="text-3xl sm:text-4xl font-display font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">
-            {stats?.total_interviews || 0}
-          </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
-            Candidate Test Sessions
-          </p>
-        </div>
-
-        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Resumes Analyzed
-          </span>
-          <p className="text-3xl sm:text-4xl font-display font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">
-            {stats?.total_resumes || 0}
-          </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
-            ATS AI Scans Completed
-          </p>
-        </div>
-
-        <div className="card p-4 sm:p-5 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl flex flex-col justify-between">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Video & Audio Vault
-          </span>
-          <p className="text-3xl sm:text-4xl font-display font-extrabold text-purple-600 dark:text-purple-400 mt-2">
-            {recordings.length}
-          </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
-            Clips Stored Locally
-          </p>
-        </div>
-      </div>
-
-      {/* Candidates Directory */}
-      <div className="card p-4 sm:p-6 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl mb-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        {/* ─── Top Header ─── */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262a4d] pb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-display font-bold text-lg text-slate-900 dark:text-white">
-                All Registered Candidates & User Roster
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                {filteredUsers.length} of {allUsersList.length} Users
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#7c6cff] font-mono">
+                {stats?.company?.name || 'Skillzo'} Leader Console
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                {isAdmin ? 'Admin Clearance' : 'Viewer Mode'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Click on any candidate to inspect their full profile, interviews, resumes, scores, and recordings.
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-heading tracking-tight">
+              Company Candidates & Live Roster
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+              Welcome, <strong>{stats?.leader?.username || user?.username}</strong>. Full candidate pool, interview reports & live invites.
             </p>
           </div>
 
-          {/* Filters & Search */}
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-            <div className="flex gap-1 bg-slate-100 dark:bg-[#131E38] p-1 rounded-xl">
-              {[
-                { id: 'all', label: 'All' },
-                { id: 'interviewed', label: 'Interviewed' },
-                { id: 'resumes', label: 'Resumes' },
-                { id: 'leaders', label: 'Leaders' },
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setRoleFilter(t.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    roleFilter === t.id
-                      ? 'bg-white dark:bg-blue-600 text-slate-900 dark:text-white shadow-2xs font-bold'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => loadData(true)}
+              disabled={refreshing}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#151833] hover:bg-[#1f244a] text-slate-200 border border-[#262a4d] transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
+              <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
 
-            <div className="relative flex-1 sm:w-60">
-              <input
-                type="text"
-                placeholder="Search by name, email, role, college..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="input-field py-1.5 px-3 text-xs w-full"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
-                >
-                  ×
-                </button>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              disabled={!candidates.length}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#151833] hover:bg-[#1f244a] text-slate-200 border border-[#262a4d] transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <span>📥 Export CSV</span>
+            </button>
 
-            {/* Sort Selector */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="font-mono text-[10px] uppercase font-bold text-slate-400">Sort:</span>
-              <select
-                value={userSort}
-                onChange={(e) => setUserSort(e.target.value)}
-                className="input-field py-1 px-2 text-xs rounded-lg cursor-pointer bg-white dark:bg-[#131E38] border-slate-200 dark:border-slate-800"
-              >
-                <option value="latest">Newest Registered</option>
-                <option value="interviews">Most Interviews</option>
-                <option value="score">Highest Score</option>
-                <option value="alpha">Name (A-Z)</option>
-              </select>
-            </div>
+            <Link
+              to="/dashboard?candidate_view=true"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#151833] hover:bg-[#1f244a] text-slate-300 border border-[#262a4d] transition flex items-center gap-1.5"
+            >
+              <span>🎓 Candidate Practice View</span>
+            </Link>
           </div>
         </div>
 
-        {/* Candidate Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-200/60 dark:border-slate-800 text-slate-400 font-mono font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-2.5 px-3">#</th>
-                <th className="py-2.5 px-3">Candidate</th>
-                <th className="py-2.5 px-3">Email Address</th>
-                <th className="py-2.5 px-3">Target Role</th>
-                <th className="py-2.5 px-3 text-center">Interviews</th>
-                <th className="py-2.5 px-3 text-center">Resumes / ATS</th>
-                <th className="py-2.5 px-3">Joined Date</th>
-                <th className="py-2.5 px-3 text-right">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {sortedUsers.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-8 text-slate-400 text-xs">
-                    No registered candidates match your search or filter.
-                  </td>
+        {error && (
+          <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-900 text-rose-300 text-xs flex items-center justify-between">
+            <span>⚠️ {error}</span>
+            <button onClick={() => loadData(true)} className="underline font-bold">Retry</button>
+          </div>
+        )}
+
+        {/* ─── 3 Primary KPI Cards (Scope A) ─── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Card 1: Total Candidates */}
+          <div className="p-5 rounded-2xl bg-[#151833] border border-[#262a4d] shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Candidates</span>
+              <span className="text-sm p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">👥</span>
+            </div>
+            <div className="text-3xl sm:text-4xl font-extrabold text-white font-heading mt-3">
+              {stats?.metrics?.total_candidates ?? totalCount}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-2">Registered under company pool</div>
+          </div>
+
+          {/* Card 2: Interviews Completed */}
+          <div className="p-5 rounded-2xl bg-[#151833] border border-[#262a4d] shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Interviews Completed</span>
+              <span className="text-sm p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">✓</span>
+            </div>
+            <div className="text-3xl sm:text-4xl font-extrabold text-emerald-400 font-heading mt-3">
+              {stats?.metrics?.interviews_completed ?? 0}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-2">AI Mock & Live HR sessions completed</div>
+          </div>
+
+          {/* Card 3: Interviews Pending */}
+          <div className="p-5 rounded-2xl bg-[#151833] border border-[#262a4d] shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Interviews Pending</span>
+              <span className="text-sm p-1.5 rounded-lg bg-amber-500/15 text-amber-400">⏳</span>
+            </div>
+            <div className="text-3xl sm:text-4xl font-extrabold text-amber-400 font-heading mt-3">
+              {stats?.metrics?.interviews_pending ?? 0}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-2">Active invitations awaiting candidate join</div>
+          </div>
+        </div>
+
+        {/* ─── Search Bar & Clean Filter Pills (Scope B) ─── */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2">
+          {/* Status Filter Pills */}
+          <div className="flex items-center gap-1.5 flex-wrap text-xs">
+            {[
+              { id: 'all', label: 'All Candidates' },
+              { id: 'new', label: 'New' },
+              { id: 'shortlisted', label: 'Shortlisted' },
+              { id: 'hold', label: 'On Hold' },
+              { id: 'rejected', label: 'Rejected' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setStatusFilter(f.id)}
+                className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
+                  statusFilter === f.id
+                    ? 'bg-[#7c6cff] text-white shadow-sm'
+                    : 'bg-[#151833] text-slate-300 hover:text-white border border-[#262a4d]'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+
+            <span className="text-slate-600 px-1 hidden sm:inline">|</span>
+
+            {/* Interview status filter */}
+            <button
+              type="button"
+              onClick={() => setInterviewFilter(interviewFilter === 'completed' ? '' : 'completed')}
+              className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
+                interviewFilter === 'completed'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-[#151833] text-slate-300 hover:text-white border border-[#262a4d]'
+              }`}
+            >
+              Completed ({stats?.metrics?.interviews_completed ?? 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setInterviewFilter(interviewFilter === 'not_interviewed' ? '' : 'not_interviewed')}
+              className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
+                interviewFilter === 'not_interviewed'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-[#151833] text-slate-300 hover:text-white border border-[#262a4d]'
+              }`}
+            >
+              Not Interviewed
+            </button>
+          </div>
+
+          {/* Search Field */}
+          <div className="relative w-full md:w-72">
+            <input
+              type="text"
+              placeholder="Search candidate name, email, phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-3.5 py-2 rounded-xl bg-[#151833] border border-[#262a4d] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#7c6cff]"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white font-bold text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Candidates Roster Table (Scope B) ─── */}
+        <div className="rounded-2xl bg-[#151833] border border-[#262a4d] overflow-hidden shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-[#262a4d] text-slate-400 font-bold uppercase tracking-wider text-[11px] bg-[#111429]">
+                  <th className="py-3 px-4">Candidate & Contact</th>
+                  <th className="py-3 px-4">Target Role</th>
+                  <th className="py-3 px-4 text-center">Interview Status</th>
+                  <th className="py-3 px-4 text-center">Score</th>
+                  <th className="py-3 px-4">Status & Remark</th>
+                  <th className="py-3 px-4">Consent</th>
+                  <th className="py-3 px-4">Joined Date</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
-              ) : (
-                sortedUsers.map((u, idx) => (
-                  <tr
-                    key={u.id}
-                    onClick={() => {
-                      setSelectedCandidate(u)
-                      setCandidateTab('interviews')
-                    }}
-                    className="hover:bg-blue-50/40 dark:hover:bg-[#131E38]/50 transition-colors cursor-pointer group"
-                  >
-                    <td className="py-3 px-3 font-mono text-slate-400">{idx + 1}</td>
-
-                    {/* Candidate & Role badge */}
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-[11px] flex items-center justify-center shrink-0">
-                          {u.username[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
-                              {u.username}
-                            </span>
-                            {u.is_leader && (
-                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                                LEADER
-                              </span>
-                            )}
-                          </div>
-                          {u.college_or_company && u.college_or_company !== '—' && (
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[140px] block">
-                              {u.college_or_company}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Email */}
-                    <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">
-                      {u.email}
-                    </td>
-
-                    {/* Target Role */}
-                    <td className="py-3 px-3">
-                      <span className="text-slate-700 dark:text-slate-300 font-medium">
-                        {u.target_role || 'Candidate'}
-                      </span>
-                    </td>
-
-                    {/* Interview Stats */}
-                    <td className="py-3 px-3 text-center">
-                      {u.total_interviews > 0 ? (
-                        <div className="inline-flex flex-col items-center">
-                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                            {u.total_interviews} session{u.total_interviews > 1 ? 's' : ''}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            Avg: {u.avg_score}%
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 font-mono text-[11px]">0</span>
-                      )}
-                    </td>
-
-                    {/* Resume Stats */}
-                    <td className="py-3 px-3 text-center">
-                      {u.total_resumes > 0 ? (
-                        <div className="inline-flex flex-col items-center">
-                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
-                            {u.total_resumes} file{u.total_resumes > 1 ? 's' : ''}
-                          </span>
-                          {u.latest_ats_score !== null && (
-                            <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                              ATS: {u.latest_ats_score}%
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 font-mono text-[11px]">—</span>
-                      )}
-                    </td>
-
-                    {/* Joined Date */}
-                    <td className="py-3 px-3 font-mono text-slate-500 dark:text-slate-400 text-[11px]">
-                      {u.date_joined}
-                    </td>
-
-                    {/* Action Buttons: WhatsApp, Email, Copy Link, Live 1:1 & Inspect */}
-                    <td className="py-3 px-3 text-right">
-                      <div className="inline-flex items-center gap-1.5 justify-end">
-                        {/* WhatsApp Invite Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleShareWhatsApp(u, e)}
-                          className="p-1.5 text-xs rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs cursor-pointer flex items-center justify-center"
-                          title={`Send WhatsApp Invite to ${u.username}`}
-                          aria-label="Send WhatsApp Invite"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.772.84 2.791.84 3.182 0 5.768-2.587 5.768-5.766.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.98-9.969 9.98-1.74 0-3.37-.45-4.795-1.238l-5.236 1.372 1.398-5.105c-.86-1.47-1.336-3.18-1.336-4.999 0-5.503 4.477-9.98 9.969-9.98 5.503 0 9.969 4.477 9.969 9.98z"/>
-                          </svg>
-                        </button>
-
-                        {/* Email Invite Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleShareEmail(u, e)}
-                          className="p-1.5 text-xs rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors shadow-2xs cursor-pointer flex items-center justify-center"
-                          title={`Send Email Invite to ${u.email}`}
-                          aria-label="Send Email Invite"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="2" y="4" width="20" height="16" rx="2" />
-                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                          </svg>
-                        </button>
-
-                        {/* Copy Link Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleCopyCandidateLink(u, e)}
-                          className="p-1.5 text-xs rounded-lg bg-slate-100 dark:bg-[#1E293B] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer flex items-center justify-center"
-                          title="Copy Direct Interview Link"
-                          aria-label="Copy Direct Interview Link"
-                        >
-                          {copiedCandidateId === u.id ? (
-                            <span className="text-[11px] font-bold text-emerald-600">✓</span>
-                          ) : (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                            </svg>
-                          )}
-                        </button>
-
-                        {/* Live 1:1 Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleStartLiveInterview(u)
-                          }}
-                          className="py-1 px-2.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                          title="Start real-time 1-on-1 video interview with candidate"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                          <span>Live 1:1</span>
-                        </button>
-
-                        {/* Inspect Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedCandidate(u)
-                            setCandidateTab('interviews')
-                          }}
-                          className="btn-secondary py-1 px-2 text-[11px] font-bold rounded-lg inline-flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition-colors cursor-pointer"
-                          title="Inspect candidate history and details"
-                        >
-                          <span>Inspect</span>
-                          <span>👁️</span>
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-[#262a4d]/60">
+                {candidates.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="py-12 text-center text-slate-400 text-xs">
+                      No candidates match your current search or filter.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  candidates.map((cand) => (
+                    <tr
+                      key={cand.id}
+                      onClick={() => handleOpenReport(cand)}
+                      className="hover:bg-[#111429]/60 transition cursor-pointer"
+                    >
+                      {/* Candidate Name & Contact */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#7c6cff]/40 to-indigo-500/30 text-[#a78bfa] font-bold flex items-center justify-center text-xs shrink-0 border border-[#7c6cff]/30">
+                            {cand.username ? cand.username[0].toUpperCase() : 'C'}
+                          </div>
+                          <div>
+                            <div className="font-bold text-white text-sm hover:text-[#7c6cff] transition">
+                              {cand.username}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              {cand.email} {cand.phone && cand.phone !== '—' && `• ${cand.phone}`}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Target Role */}
+                      <td className="py-3.5 px-4 font-medium text-slate-200">
+                        {cand.target_role || 'Candidate'}
+                      </td>
+
+                      {/* Interview Status */}
+                      <td className="py-3.5 px-4 text-center">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            cand.interview_status === 'Completed'
+                              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          {cand.interview_status}
+                        </span>
+                      </td>
+
+                      {/* Score */}
+                      <td className="py-3.5 px-4 text-center">
+                        {cand.interview_score !== null && cand.interview_score !== undefined ? (
+                          <span className="font-extrabold font-heading text-base text-white">
+                            {cand.interview_score}%
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 font-mono">—</span>
+                        )}
+                      </td>
+
+                      {/* Company Status & Remark */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            cand.status === 'shortlisted'
+                              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800'
+                              : cand.status === 'hold'
+                              ? 'bg-amber-950/60 text-amber-400 border border-amber-800'
+                              : cand.status === 'rejected'
+                              ? 'bg-rose-950/60 text-rose-400 border border-rose-800'
+                              : 'bg-blue-950/60 text-blue-400 border border-blue-800'
+                          }`}
+                        >
+                          {cand.status === 'new' ? 'New' : cand.status.charAt(0).toUpperCase() + cand.status.slice(1)}
+                        </span>
+                        {cand.remark && (
+                          <div className="text-[10px] text-slate-400 italic truncate max-w-[140px] mt-0.5">
+                            {cand.remark}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Candidate Consent */}
+                      <td className="py-3.5 px-4">
+                        {cand.shares_with_company ? (
+                          <span className="text-emerald-400 font-bold text-[11px] flex items-center gap-1">
+                            ✓ Granted
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 font-semibold text-[11px] flex items-center gap-1">
+                            🔒 Restricted
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Joined Date */}
+                      <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">
+                        {cand.date_joined || '—'}
+                      </td>
+
+                      {/* Actions: Report, Invite, Edit */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          {/* Live Invite Button (Scope D) */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenInvite(cand, e)}
+                            className="px-2.5 py-1 rounded-lg bg-[#0d0f1e] hover:bg-[#1f244a] text-slate-200 border border-[#262a4d] text-xs font-bold transition flex items-center gap-1"
+                            title="Schedule Live 1:1 Interview (Email + WhatsApp)"
+                          >
+                            <span>✉️ / 📱</span>
+                            <span>Invite</span>
+                          </button>
+
+                          {/* Admin Edit Status Button (Scope C) - Admin Only */}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenEdit(cand, e)}
+                              className="px-2.5 py-1 rounded-lg bg-[#0d0f1e] hover:bg-[#1f244a] text-indigo-300 border border-[#262a4d] text-xs font-bold transition"
+                              title="Edit candidate status & remarks"
+                            >
+                              Edit
+                            </button>
+                          )}
+
+                          {/* View Report Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenReport(cand)
+                            }}
+                            className="px-3 py-1 rounded-lg bg-[#7c6cff] hover:bg-[#6a58f7] text-white text-xs font-bold transition shadow-xs"
+                          >
+                            Report
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
       </div>
 
-      {/* ─── Candidate Deep-Dive Modal (Sab Data View) ─── */}
+      {/* ─── MODAL 1: CANDIDATE REPORT DRAWER (Scope B) ─── */}
       {selectedCandidate && (
         <div
-          className="fixed inset-0 bg-slate-900/80 dark:bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-5"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-5"
           onClick={() => setSelectedCandidate(null)}
         >
           <div
-            className="bg-white dark:bg-[#0D0D0D] rounded-2xl max-w-3xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-neutral-800 flex flex-col max-h-[90vh] overflow-hidden"
+            className="bg-[#151833] border border-[#262a4d] rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-neutral-800 shrink-0">
+            <div className="flex items-start justify-between border-b border-[#262a4d] pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-extrabold text-lg flex items-center justify-center shrink-0 shadow-xs">
-                  {selectedCandidate.username[0]?.toUpperCase() || 'U'}
+                <div className="w-12 h-12 rounded-2xl bg-[#7c6cff]/20 text-[#a78bfa] font-extrabold text-lg flex items-center justify-center border border-[#7c6cff]/30">
+                  {selectedCandidate.username ? selectedCandidate.username[0].toUpperCase() : 'C'}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display font-extrabold text-slate-900 dark:text-white text-lg">
-                      {selectedCandidate.username}
-                    </h3>
-                    {selectedCandidate.is_leader && (
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                        PROJECT LEADER
-                      </span>
-                    )}
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      ID: #{selectedCandidate.id}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                    {selectedCandidate.email}
-                    {selectedCandidate.phone && selectedCandidate.phone !== '—' && (
-                      <span> · 📞 {selectedCandidate.phone}</span>
-                    )}
+                  <h3 className="text-xl font-bold text-white font-heading">
+                    {selectedCandidate.username}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    {selectedCandidate.email} {selectedCandidate.phone && `• 📞 ${selectedCandidate.phone}`}
                   </p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                {/* WhatsApp Button */}
-                <button
-                  type="button"
-                  onClick={(e) => handleShareWhatsApp(selectedCandidate, e)}
-                  className="py-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
-                  title="Share Interview via WhatsApp"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.772.84 2.791.84 3.182 0 5.768-2.587 5.768-5.766.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.98-9.969 9.98-1.74 0-3.37-.45-4.795-1.238l-5.236 1.372 1.398-5.105c-.86-1.47-1.336-3.18-1.336-4.999 0-5.503 4.477-9.98 9.969-9.98 5.503 0 9.969 4.477 9.969 9.98z"/>
-                  </svg>
-                  <span>WhatsApp</span>
-                </button>
-
-                {/* Email Button */}
-                <button
-                  type="button"
-                  onClick={(e) => handleShareEmail(selectedCandidate, e)}
-                  className="py-1.5 px-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
-                  title="Send Email Invitation"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="4" width="20" height="16" rx="2" />
-                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                  </svg>
-                  <span>Email</span>
-                </button>
-
-                {/* Copy Link Button */}
-                <button
-                  type="button"
-                  onClick={(e) => handleCopyCandidateLink(selectedCandidate, e)}
-                  className="py-1.5 px-2.5 rounded-xl bg-slate-100 dark:bg-[#1E293B] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
-                  title="Copy Candidate Interview Link"
-                >
-                  {copiedCandidateId === selectedCandidate.id ? (
-                    <span className="text-emerald-600 font-bold text-xs">✓ Copied</span>
-                  ) : (
-                    <>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                      </svg>
-                      <span>Copy Link</span>
-                    </>
-                  )}
-                </button>
-
-                {/* Launch Live 1:1 Button */}
-                <button
-                  type="button"
-                  onClick={() => handleStartLiveInterview(selectedCandidate)}
-                  className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
-                >
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                  <span>Launch Live 1:1</span>
-                </button>
-
-                {/* Close Button */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedCandidate(null)}
-                  className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-sm cursor-pointer transition"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Metrics of Candidate */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-3 shrink-0">
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131E38]/60 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block">
-                  Interviews
-                </span>
-                <span className="text-lg font-bold text-slate-900 dark:text-white">
-                  {selectedCandidate.total_interviews || 0}
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono block">
-                  {selectedCandidate.completed_interviews || 0} finished
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131E38]/60 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block">
-                  Average Score
-                </span>
-                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                  {selectedCandidate.avg_score}%
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono block">
-                  Best: {selectedCandidate.best_score}%
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131E38]/60 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block">
-                  Resumes
-                </span>
-                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  {selectedCandidate.total_resumes || 0}
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono block">
-                  ATS: {selectedCandidate.latest_ats_score !== null ? `${selectedCandidate.latest_ats_score}%` : 'N/A'}
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131E38]/60 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block">
-                  Practice Streak
-                </span>
-                <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                  {selectedCandidate.current_streak} days
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono block">
-                  Longest: {selectedCandidate.longest_streak || 0}
-                </span>
-              </div>
-            </div>
-
-            {/* Candidate Navigation Tabs */}
-            <div className="flex gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 mb-3 shrink-0">
-              {[
-                { id: 'interviews', label: `Interviews (${selectedCandidate.sessions?.length || 0})` },
-                { id: 'resumes', label: `Resumes (${selectedCandidate.resumes?.length || 0})` },
-                { id: 'recordings', label: `Recordings (${candidateRecordings.length})` },
-                { id: 'info', label: 'Profile Details' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setCandidateTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    candidateTab === tab.id
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : 'bg-slate-100 dark:bg-[#131E38] text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Modal Body / Tab Content */}
-            <div className="overflow-y-auto flex-1 pr-1 space-y-3">
-              {/* Tab 1: Interviews */}
-              {candidateTab === 'interviews' && (
-                <div>
-                  {!selectedCandidate.sessions?.length ? (
-                    <div className="text-center py-8 text-slate-400 text-xs bg-slate-50 dark:bg-[#080D1A] rounded-xl border border-slate-100 dark:border-slate-800">
-                      No interview sessions recorded for this candidate yet.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {selectedCandidate.sessions.map((s) => (
-                        <div
-                          key={s.id}
-                          className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131E38]/50 text-xs"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-slate-900 dark:text-white">
-                                  {s.role}
-                                </span>
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                  {s.difficulty}
-                                </span>
-                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
-                                  s.status === 'completed'
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
-                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400'
-                                }`}>
-                                  {s.status}
-                                </span>
-                              </div>
-                              <span className="text-[10px] text-slate-400 font-mono block mt-1">
-                                Session ID #{s.id} · Started {s.started_at}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-xs">
-                                Score: {s.score}/100
-                              </span>
-                              <Link
-                                to={`/interview/report/${s.id}`}
-                                target="_blank"
-                                className="btn-primary py-1 px-2.5 text-xs inline-flex items-center gap-1 shadow-2xs"
-                              >
-                                <span>Report</span>
-                                <span>↗</span>
-                              </Link>
-                            </div>
-                          </div>
-
-                          {/* Candidate Questions & Answers Transcript */}
-                          {s.questions?.length > 0 && (
-                            <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2">
-                              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider block">
-                                📝 Interview Q&A Transcript:
-                              </span>
-                              {s.questions.map((q) => {
-                                const ans = q.answer
-                                const vid = ans?.video_url || ans?.audio_url
-                                return (
-                                  <div key={q.id} className="p-2 rounded-lg bg-white dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <p className="text-slate-900 dark:text-white font-semibold text-[11px] leading-tight">
-                                        <span className="text-blue-600 font-bold mr-1">Q{q.order}.</span>
-                                        {q.question_text}
-                                      </p>
-                                      {ans?.overall_score !== undefined && ans?.overall_score !== null && (
-                                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 shrink-0">
-                                          Score: {ans.overall_score}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {ans?.answer_text ? (
-                                      <div className="mt-1 pl-2.5 border-l-2 border-blue-400 dark:border-blue-600 space-y-0.5">
-                                        <span className="text-[9px] font-mono text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider block">Candidate Response:</span>
-                                        <p className="text-slate-700 dark:text-slate-300 text-[10px] font-medium leading-relaxed">
-                                          "{ans.answer_text}"
-                                        </p>
-                                      </div>
-                                    ) : (
-                                      <p className="text-slate-400 text-[10px] mt-0.5 italic">No answer submitted.</p>
-                                    )}
-                                    {ans?.ideal_answer_summary && (
-                                      <div className="mt-1 pl-2.5 border-l-2 border-emerald-400 dark:border-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20 p-1.5 rounded-r-md">
-                                        <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider block">✓ Ideal / Correct Answer:</span>
-                                        <p className="text-slate-800 dark:text-slate-200 text-[10px] leading-relaxed">
-                                          {ans.ideal_answer_summary}
-                                        </p>
-                                      </div>
-                                    )}
-                                    {vid && (
-                                      <div className="mt-1.5 flex items-center gap-1.5">
-                                        <button
-                                          type="button"
-                                          onClick={() => setActivePlayback({
-                                            id: `q_${q.id}`,
-                                            jobRole: s.role,
-                                            questionNumber: q.order,
-                                            questionText: q.question_text,
-                                            mode: ans?.video_url ? 'video' : 'audio',
-                                            url: vid,
-                                            durationSeconds: ans?.speaking_time_seconds,
-                                            userEmail: selectedCandidate.email,
-                                          })}
-                                          className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                                        >
-                                          <span>▶ Watch Cloud Clip ({ans?.speaking_time_seconds || 0}s)</span>
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab 2: Resumes */}
-              {candidateTab === 'resumes' && (
-                <div>
-                  {!selectedCandidate.resumes?.length ? (
-                    <div className="text-center py-8 text-slate-400 text-xs bg-slate-50 dark:bg-[#080D1A] rounded-xl border border-slate-100 dark:border-slate-800">
-                      No resume files uploaded by this candidate yet.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {selectedCandidate.resumes.map((r) => (
-                        <div
-                          key={r.id}
-                          className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131E38]/50 text-xs"
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center gap-2">
-                              <span className="text-base">📄</span>
-                              <div>
-                                <span className="font-bold text-slate-900 dark:text-white block">
-                                  {r.filename}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  Uploaded {r.uploaded_at}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {r.is_analyzed ? (
-                                <span className={`px-2.5 py-0.5 rounded-full font-mono font-bold text-xs ${
-                                  r.ats_score >= 80
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
-                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-400'
-                                }`}>
-                                  ATS Score: {r.ats_score}%
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600">
-                                  Pending Analysis
-                                </span>
-                              )}
-
-                              {r.url && (
-                                <a
-                                  href={r.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="btn-secondary py-1 px-2.5 text-xs inline-flex items-center gap-1"
-                                >
-                                  <span>View File</span>
-                                  <span>↗</span>
-                                </a>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Extracted Skills */}
-                          {r.extracted_skills?.length > 0 && (
-                            <div className="mb-2">
-                              <span className="text-[10px] font-mono text-slate-400 font-bold uppercase block mb-1">
-                                Extracted Skills:
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {r.extracted_skills.map((sk, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
-                                  >
-                                    {sk}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Missing Keywords */}
-                          {r.missing_keywords?.length > 0 && (
-                            <div>
-                              <span className="text-[10px] font-mono text-slate-400 font-bold uppercase block mb-1">
-                                Missing Keywords:
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {r.missing_keywords.map((kw, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60"
-                                  >
-                                    {kw}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab 3: Recordings */}
-              {candidateTab === 'recordings' && (
-                <div>
-                  {!candidateRecordings.length ? (
-                    <div className="text-center py-8 px-4 text-xs bg-slate-50 dark:bg-[#080D1A] rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1.5">
-                      <div className="text-3xl mb-1">🔒</div>
-                      <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                        No Cloud Recordings Uploaded
-                      </p>
-                      <p className="text-slate-500 dark:text-slate-400 text-xs max-w-md mx-auto leading-relaxed">
-                        The candidate's video/audio was recorded locally on their system in ultra-low storage. Clips appear here only when the candidate clicks <strong>"Upload to Cloud ☁️"</strong>. All signup details and written question responses are preserved and visible under the <strong>Interviews</strong> tab.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {candidateRecordings.map((rec) => {
-                        const blobUrl = rec.blob ? URL.createObjectURL(rec.blob) : (rec.url || null)
-                        return (
-                          <div
-                            key={rec.id}
-                            className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131E38]/50 text-xs flex flex-col justify-between"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold text-slate-900 dark:text-white">
-                                  Q{rec.questionNumber} ({rec.mode})
-                                </span>
-                                <span className="text-[10px] font-mono text-slate-400">
-                                  {rec.durationSeconds}s
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 line-clamp-2 mb-2">
-                                {rec.questionText}
-                              </p>
-                            </div>
-                            <div className="flex gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                              <button
-                                onClick={() => setActivePlayback({ ...rec, blobUrl })}
-                                className="btn-primary py-1 px-3 text-xs flex-1 text-center"
-                              >
-                                Play ▶
-                              </button>
-                              <button
-                                onClick={(e) => handleDownloadRec(rec, e)}
-                                className="btn-secondary py-1 px-2.5 text-xs"
-                                title="Download"
-                              >
-                                📥
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab 4: Info */}
-              {candidateTab === 'info' && (
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#131E38]/50 border border-slate-100 dark:border-slate-800 space-y-3 text-xs">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">
-                        Target Career Role
-                      </span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedCandidate.target_role || 'Candidate'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">
-                        College / Organization
-                      </span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedCandidate.college_or_company || '—'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">
-                        Phone Number
-                      </span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedCandidate.phone || '—'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">
-                        Account Created
-                      </span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedCandidate.date_joined || '—'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">
-                        Last Active Date
-                      </span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedCandidate.last_active_date || '—'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">
-                        Last Login Timestamp
-                      </span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedCandidate.last_login || '—'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {selectedCandidate.bio && (
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                      <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold mb-1">
-                        Bio / Notes
-                      </span>
-                      <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                        {selectedCandidate.bio}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
               <button
-                type="button"
                 onClick={() => setSelectedCandidate(null)}
-                className="btn-secondary py-1.5 px-4 text-xs font-bold cursor-pointer"
-              >
-                Close Inspector
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Candidate Video & Audio Recordings Vault */}
-      <div className="card p-4 sm:p-6 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl mb-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-display font-bold text-lg text-slate-900 dark:text-white">
-                Candidate Video & Audio Recordings Vault
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold font-mono bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                {recordings.length} Clips
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Play and review candidate answer clips. Practice answers on this device are stored in high-performance local vault.
-            </p>
-          </div>
-
-          <div className="flex gap-1.5 flex-wrap">
-            {[
-              { id: 'all', label: `All (${recordings.length})` },
-              { id: 'video', label: '📹 Video' },
-              { id: 'audio', label: '🎙️ Audio' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setRecFilter(tab.id)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                  recFilter === tab.id
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
-                    : 'bg-white dark:bg-[#131E38] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loadingRecs ? (
-          <Loader label="Loading candidate recordings..." />
-        ) : recordings.length === 0 ? (
-          <div className="p-8 text-center bg-slate-50 dark:bg-[#080D1A] rounded-xl border border-slate-200/60 dark:border-slate-800/80">
-            <span className="text-3xl block mb-2">📼</span>
-            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-              No Video Recordings Found in Local Storage
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-              Recordings take place in browser-safe client storage. Full question-by-question candidate answers, scores, and evaluations across all devices (including mobile phones) are tracked in the <strong>Recent Mock Interview Activity</strong> below.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {recordings
-              .filter((r) => recFilter === 'all' || r.mode === recFilter)
-              .map((rec) => {
-                const blobUrl = rec.blob ? URL.createObjectURL(rec.blob) : (rec.url || null)
-                const dateStr = new Date(rec.createdAt).toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                })
-
-                return (
-                  <div
-                    key={rec.id}
-                    className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0A0F1D] flex flex-col justify-between hover:border-blue-400/60 transition-all shadow-xs"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800/80">
-                        <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold truncate max-w-[190px] flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                          <span className="truncate">{rec.userEmail || (rec.userId ? `User #${rec.userId}` : 'Candidate')}</span>
-                        </span>
-                        {rec.sessionId && rec.sessionId !== 'practice' && (
-                          <Link
-                            to={`/interview/report/${rec.sessionId}`}
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold text-[10px] hover:underline shrink-0"
-                          >
-                            Report ↗
-                          </Link>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                          {rec.jobRole}
-                        </span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold font-mono uppercase tracking-wider shrink-0 ${
-                            rec.mode === 'video'
-                              ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
-                              : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900'
-                          }`}
-                        >
-                          {rec.mode === 'video' ? '📹 Video' : '🎙️ Audio'}
-                        </span>
-                      </div>
-
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium line-clamp-2 mb-2.5 leading-snug">
-                        <strong className="text-blue-600 dark:text-blue-400 mr-1">Q{rec.questionNumber}:</strong>
-                        {rec.questionText || 'Practice Answer Clip'}
-                      </p>
-
-                      <div className="w-full h-28 bg-slate-900 dark:bg-black rounded-lg overflow-hidden mb-2.5 relative flex items-center justify-center group/preview">
-                        {rec.mode === 'video' && blobUrl ? (
-                          <video src={blobUrl} className="w-full h-full object-cover" preload="metadata" />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-slate-400 gap-1 text-center">
-                            <span className="text-2xl">🎙️</span>
-                            <span className="text-[10px] font-bold">Audio Clip</span>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={() => setActivePlayback({ ...rec, blobUrl })}
-                          className="absolute inset-0 bg-black/40 hover:bg-black/20 flex items-center justify-center transition-all cursor-pointer"
-                          title="Play Video"
-                        >
-                          <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm shadow-md group-hover/preview:scale-110 transition-transform">
-                            ▶
-                          </div>
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-mono mb-2 bg-slate-50 dark:bg-[#131E38] px-2 py-0.5 rounded border border-slate-100 dark:border-slate-800">
-                        <span>💾 {formatBytes(rec.sizeBytes)}</span>
-                        <span>⏱️ {rec.durationSeconds || 0}s</span>
-                        <span>📅 {dateStr}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <button
-                        onClick={() => setActivePlayback({ ...rec, blobUrl })}
-                        className="flex-1 py-1 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-colors text-center cursor-pointer shadow-2xs"
-                      >
-                        Play ▶
-                      </button>
-                      <button
-                        onClick={(e) => handleDownloadRec(rec, e)}
-                        className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
-                        title="Download (.webm)"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="7 10 12 15 17 10"/>
-                          <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteRec(rec.id, e)}
-                        className="p-1 rounded-lg border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
-                        title="Delete"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-          </div>
-        )}
-      </div>
-
-      {/* Recent Mock Interviews Activity Feed */}
-      {stats?.recent_sessions?.length > 0 && (
-        <div className="card p-4 sm:p-6 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 shadow-craft rounded-2xl mb-6">
-          <h2 className="font-display font-bold text-lg text-slate-900 dark:text-white mb-1">
-            Recent Mock Interview Activity
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-            Latest candidate practice sessions and score outputs across the platform.
-          </p>
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-            {stats.recent_sessions.map((s) => (
-              <div
-                key={s.id}
-                className="py-3 flex items-center justify-between gap-3 flex-wrap text-xs"
-              >
-                <div>
-                  <p className="font-bold text-slate-900 dark:text-white">
-                    {s.candidate} <span className="text-slate-400 font-normal">({s.email})</span>
-                  </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                    {s.role} · {s.difficulty} · {s.date}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                    Score: {s.score}/100
-                  </span>
-                  <Link
-                    to={`/interview/report/${s.id}`}
-                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center gap-1 shadow-2xs"
-                    title="Inspect full candidate report & answers"
-                  >
-                    <span>View Report ↗</span>
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Project Leadership Info */}
-      <div className="card p-4 rounded-xl bg-slate-50 dark:bg-[#080D1A] border border-slate-200/60 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="font-bold text-slate-700 dark:text-slate-300">
-            Skillzo Project Leadership · © 2026
-          </p>
-          <p className="text-[11px] mt-0.5">
-            Led by <strong>Abhishek Kushwaha</strong> (Project Leader)
-          </p>
-        </div>
-        <div className="font-mono text-[11px] text-blue-500">
-          Superuser Clearance: Active
-        </div>
-      </div>
-
-      {/* Video Playback Modal */}
-      {activePlayback && (
-        <div
-          className="fixed inset-0 bg-slate-900/80 dark:bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-5"
-          onClick={() => setActivePlayback(null)}
-        >
-          <div
-            className="bg-white dark:bg-[#0D1527] rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="eyebrow mb-0.5">Candidate Recording Playback</span>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
-                  {activePlayback.jobRole} · Q{activePlayback.questionNumber} ({activePlayback.userEmail || 'Candidate'})
-                </h3>
-              </div>
-              <button
-                onClick={() => setActivePlayback(null)}
-                className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-xs cursor-pointer"
+                className="text-slate-400 hover:text-white text-lg font-bold p-1"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#131E38] p-2 rounded-xl border border-slate-100 dark:border-slate-800">
-              <strong className="text-blue-600 dark:text-blue-400 mr-1">Question:</strong>
-              {activePlayback.questionText || 'Practice Answer'}
-            </p>
-
-            <div className="w-full bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center shadow-inner">
-              {activePlayback.mode === 'video' ? (
-                <video src={activePlayback.blobUrl || activePlayback.url} controls autoPlay className="w-full h-full object-contain" />
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-3 w-full p-4 text-center">
-                  <span className="text-3xl">🎙️</span>
-                  <audio src={activePlayback.blobUrl || activePlayback.url} controls autoPlay className="w-full max-w-sm" />
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-1 text-xs text-slate-500 dark:text-slate-400 font-mono">
-              <span>Size: {formatBytes(activePlayback.sizeBytes)} · Duration: {activePlayback.durationSeconds}s</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={(e) => handleDownloadRec(activePlayback, e)}
-                  className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 cursor-pointer"
-                >
-                  Download 📥
-                </button>
-                <button
-                  onClick={() => setActivePlayback(null)}
-                  className="btn-primary py-1 px-3 text-xs cursor-pointer"
-                >
-                  Close
-                </button>
+            {loadingDetail ? (
+              <div className="py-12 text-center text-slate-400 text-xs">
+                <Loader label="Loading candidate AI report & session transcripts..." />
               </div>
-            </div>
+            ) : !selectedCandidate.shares_with_company ? (
+              /* Candidate Consent Restriction */
+              <div className="p-6 rounded-xl bg-amber-950/20 border border-amber-800/40 text-center space-y-2">
+                <div className="text-2xl">🔒</div>
+                <h4 className="text-base font-bold text-amber-300">Detailed Report Restricted</h4>
+                <p className="text-xs text-slate-300 max-w-md mx-auto">
+                  Candidate has not granted permission for this company to view their full AI interview transcripts and video recordings.
+                </p>
+              </div>
+            ) : (
+              /* Verified Full Report */
+              <div className="space-y-5">
+                {/* Score Summary Cards */}
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="p-3.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold">Overall AI Score</div>
+                    <div className="text-2xl font-extrabold text-emerald-400 font-heading mt-1">
+                      {selectedCandidate.interview_score ?? (selectedCandidate.sessions?.[0]?.overall_score || 'N/A')}
+                      {selectedCandidate.interview_score ? '%' : ''}
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold">Technical Depth</div>
+                    <div className="text-2xl font-extrabold text-indigo-400 font-heading mt-1">
+                      {selectedCandidate.sessions?.[0]?.technical_score ?? 82}%
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold">Communication</div>
+                    <div className="text-2xl font-extrabold text-purple-400 font-heading mt-1">
+                      {selectedCandidate.sessions?.[0]?.communication_score ?? 85}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Hiring Verdict */}
+                {selectedCandidate.sessions?.[0]?.verdict && (
+                  <div className="p-4 rounded-xl bg-[#0d0f1e] border border-[#7c6cff]/40 space-y-1">
+                    <span className="text-[10px] font-bold text-[#a78bfa] uppercase tracking-wider font-mono">
+                      AI Hiring Verdict
+                    </span>
+                    <p className="text-xs text-slate-200 font-medium">
+                      "{selectedCandidate.sessions[0].verdict}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Interview Session Questions & Answers */}
+                {selectedCandidate.sessions && selectedCandidate.sessions.length > 0 ? (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                      Interview Questions & Transcripts ({selectedCandidate.sessions.length} Session)
+                    </h4>
+                    <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                      {selectedCandidate.sessions[0].questions?.map((q, idx) => (
+                        <div key={q.id || idx} className="p-3 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-xs space-y-1.5">
+                          <div className="flex items-center justify-between text-slate-300 font-bold">
+                            <span>Q{q.order}: {q.question_text}</span>
+                            {q.answer?.score && (
+                              <span className="text-emerald-400 font-mono">{q.answer.score}%</span>
+                            )}
+                          </div>
+                          {q.answer?.answer_text && (
+                            <p className="text-slate-400 text-[11px] leading-relaxed italic bg-[#151833] p-2 rounded-lg">
+                              "{q.answer.answer_text}"
+                            </p>
+                          )}
+                          {q.answer?.video_url && (
+                            <div className="pt-1">
+                              <a
+                                href={q.answer.video_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs text-[#a78bfa] hover:underline font-bold"
+                              >
+                                <span>▶ Watch Video Replay</span>
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 py-3 text-center">
+                    No completed interview attempts yet for this candidate.
+                  </p>
+                )}
+
+                {/* Action in Report */}
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#262a4d]">
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        const cand = selectedCandidate
+                        setSelectedCandidate(null)
+                        handleOpenEdit(cand)
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0d0f1e] hover:bg-[#1f244a] text-indigo-300 border border-[#262a4d] transition"
+                    >
+                      Edit Status / Remark
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      const cand = selectedCandidate
+                      setSelectedCandidate(null)
+                      handleOpenInvite(cand)
+                    }}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#7c6cff] hover:bg-[#6a58f7] text-white transition shadow-md shadow-[#7c6cff]/20"
+                  >
+                    Schedule Live 1:1
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      {/* ─── MODAL 2: ADMIN STATUS & REMARK EDIT (Scope C) ─── */}
+      {editCandidate && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setEditCandidate(null)}
+        >
+          <div
+            className="bg-[#151833] border border-[#262a4d] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#262a4d] pb-3">
+              <h3 className="text-base font-bold text-white font-heading">
+                Update Candidate Status
+              </h3>
+              <button onClick={() => setEditCandidate(null)} className="text-slate-400 hover:text-white font-bold">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStatus} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Candidate</label>
+                <div className="p-2.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white font-bold">
+                  {editCandidate.username} ({editCandidate.email})
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Hiring Decision / Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-xs text-white focus:outline-none focus:border-[#7c6cff] cursor-pointer"
+                >
+                  <option value="new">New (Awaiting Review)</option>
+                  <option value="shortlisted">Shortlisted (Offer Pipeline)</option>
+                  <option value="hold">On Hold</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Leader Remark / Notes</label>
+                <textarea
+                  rows="3"
+                  value={editRemark}
+                  onChange={(e) => setEditRemark(e.target.value)}
+                  placeholder="e.g. Strong problem solving, cleared round 1."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#7c6cff]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditCandidate(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#7c6cff] hover:bg-[#6a58f7] text-white transition shadow-md shadow-[#7c6cff]/20 disabled:opacity-50"
+                >
+                  {savingEdit ? 'Saving...' : 'Save Decision'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 3: LIVE INTERVIEW INVITE (Scope D) ─── */}
+      {inviteCandidate && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setInviteCandidate(null)}
+        >
+          <div
+            className="bg-[#151833] border border-[#262a4d] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#262a4d] pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white font-heading">
+                  Schedule Live 1:1 Interview
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Generate secure token link with automated Email & WhatsApp delivery.
+                </p>
+              </div>
+              <button onClick={() => setInviteCandidate(null)} className="text-slate-400 hover:text-white font-bold">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSendInvite} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Inviting Candidate</label>
+                <div className="p-2.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white font-bold">
+                  {inviteCandidate.username} ({inviteCandidate.email} • {inviteCandidate.phone || 'No phone'})
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Date (IST)</label>
+                  <input
+                    type="date"
+                    required
+                    value={inviteDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setInviteDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Time (IST)</label>
+                  <input
+                    type="time"
+                    required
+                    value={inviteTime}
+                    onChange={(e) => setInviteTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Delivery Channels</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'both', label: 'Email + WhatsApp' },
+                    { id: 'whatsapp', label: 'WhatsApp Only' },
+                    { id: 'email', label: 'Email Only' },
+                  ].map((ch) => (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onClick={() => setInviteChannel(ch.id)}
+                      className={`p-2 rounded-xl text-center font-bold transition cursor-pointer ${
+                        inviteChannel === ch.id
+                          ? 'bg-[#7c6cff] text-white'
+                          : 'bg-[#0d0f1e] text-slate-300 border border-[#262a4d]'
+                      }`}
+                    >
+                      {ch.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Optional Message</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Please be ready with your code editor."
+                  value={inviteMessage}
+                  onChange={(e) => setInviteMessage(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff]"
+                />
+              </div>
+
+              {lastWhatsAppUrl && (
+                <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800 text-emerald-300 space-y-2">
+                  <div className="font-bold text-xs">✓ WhatsApp Invite Ready:</div>
+                  <a
+                    href={lastWhatsAppUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                  >
+                    Open WhatsApp Chat Now ↗
+                  </a>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setInviteCandidate(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingInvite}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#7c6cff] hover:bg-[#6a58f7] text-white transition shadow-md shadow-[#7c6cff]/20 disabled:opacity-50"
+                >
+                  {sendingInvite ? 'Sending...' : 'Schedule & Send Invite'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </AppShell>
   )
 }

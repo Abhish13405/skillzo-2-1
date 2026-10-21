@@ -19,6 +19,7 @@ import TechnicalStudio from './pages/TechnicalStudio'
 import HrStudio from './pages/HrStudio'
 import LiveInterview from './pages/LiveInterview'
 import CandidateLiveRoom from './pages/CandidateLiveRoom'
+import TokenRoomJoin from './pages/TokenRoomJoin'
 import NotFound from './pages/NotFound'
 
 import { useAuth } from './context/AuthContext'
@@ -59,6 +60,7 @@ function App() {
       <Route path="/interview/report/:sessionId" element={<ProtectedRoute featureName="Interview Report"><InterviewReport /></ProtectedRoute>} />
 
       {/* Live 1:1 HR Interview Room */}
+      <Route path="/live/join/:token" element={<TokenRoomJoin />} />
       <Route path="/live-room" element={<ProtectedRoute featureName="Live HR Room"><CandidateLiveRoom /></ProtectedRoute>} />
       <Route path="/live-interview/:roomId" element={<LiveInterview />} />
       <Route path="/live/:roomId" element={<LiveInterview />} />
