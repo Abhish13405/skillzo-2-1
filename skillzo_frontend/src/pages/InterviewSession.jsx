@@ -334,6 +334,12 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     baseTextRef.current = ''
     currentFinalRef.current = ''
     currentSessionSpokenRef.current = ''
+    // Abort active recognition session to flush browser native result buffer
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch {}
+    }
   }, [])
 
   const syncTranscript = useCallback((text) => {
@@ -1276,7 +1282,8 @@ const InterviewSession = () => {
       setIsCompleted(true)
     } else {
       isSubmittingRef.current = false
-      // Seamless silent transition without aborting speech recognition (avoids Android beep)
+      // Stop mic and flush speech recognition buffer for 100% fresh start on next question
+      stopMic()
       setIsMicActive(false)
       cancelSpeech()
       resetTranscript()
