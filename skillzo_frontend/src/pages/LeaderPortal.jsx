@@ -32,6 +32,16 @@ const MoonIcon = ({ className = 'w-4 h-4' }) => (
   </svg>
 )
 
+const formatTimeDisplay = (timeStr) => {
+  if (!timeStr) return ''
+  const [h, m] = timeStr.split(':').map(Number)
+  if (isNaN(h)) return timeStr
+  const period = h >= 12 ? 'PM' : 'AM'
+  const displayH = h % 12 === 0 ? 12 : h % 12
+  const displayM = String(m || 0).padStart(2, '0')
+  return `${displayH}:${displayM} ${period}`
+}
+
 const LeaderPortal = () => {
   const { user, logout, isLeader } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -69,6 +79,8 @@ const LeaderPortal = () => {
   const [inviteChannel, setInviteChannel] = useState('both')
   const [sendingInvite, setSendingInvite] = useState(false)
   const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState('')
+  const [inviteSuccessMsg, setInviteSuccessMsg] = useState('')
+  const [inviteErrorMsg, setInviteErrorMsg] = useState('')
 
   // Resilient Data Fetcher (with instant fallback to leader-stats)
   const loadData = async (isManual = false) => {
@@ -192,6 +204,8 @@ const LeaderPortal = () => {
     e?.stopPropagation()
     setInviteCandidate(cand)
     setLastWhatsAppUrl('')
+    setInviteSuccessMsg('')
+    setInviteErrorMsg('')
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
     const yyyy = tomorrow.getFullYear()
@@ -207,13 +221,16 @@ const LeaderPortal = () => {
     e?.preventDefault()
     if (!inviteCandidate) return
     setSendingInvite(true)
-    const roomId = `skz_live_${inviteCandidate.candidate_id || inviteCandidate.id}`
+    setInviteSuccessMsg('')
+    setInviteErrorMsg('')
+    const candId = inviteCandidate.candidate_id || inviteCandidate.id
+    const roomId = `skz_live_${candId}`
     const origin = window.location.origin
-    const roomUrl = `${origin}/live-interview/${roomId}?candidate=${inviteCandidate.candidate_id || inviteCandidate.id}&role=${encodeURIComponent(inviteCandidate.target_role || 'Software Engineer')}`
+    const roomUrl = `${origin}/live-interview/${roomId}?candidate=${candId}&role=${encodeURIComponent(inviteCandidate.target_role || 'Software Engineer')}`
 
     try {
       const res = await createLiveInterviewInvite({
-        candidate_id: inviteCandidate.candidate_id || inviteCandidate.id,
+        candidate_id: candId,
         scheduled_at: new Date(`${inviteDate}T${inviteTime}:00`).toISOString(),
         message: inviteMessage,
         sent_via: inviteChannel,
@@ -221,7 +238,11 @@ const LeaderPortal = () => {
       if (res.data?.whatsapp_url) {
         setLastWhatsAppUrl(res.data.whatsapp_url)
       }
-    } catch {
+      setInviteSuccessMsg(`✓ Invite created and email dispatched to ${inviteCandidate.email}!`)
+    } catch (err) {
+      console.warn('Backend invite failed, generating direct fallback link:', err)
+      const errDetail = err.response?.data?.error || err.response?.data?.detail || err.message || 'Server error'
+      setInviteErrorMsg(`Notice: ${errDetail}`)
       // Fallback wa.me link
       const phone = (inviteCandidate.phone || '').replace(/[^0-9]/g, '')
       const waMsg = `Namaste ${inviteCandidate.username}! Your Live 1:1 Interview with Skillzo is confirmed on ${inviteDate} at ${inviteTime} IST.\n\nJoin Video Room: ${roomUrl}`
@@ -229,10 +250,9 @@ const LeaderPortal = () => {
         ? `https://wa.me/91${phone.slice(-10)}?text=${encodeURIComponent(waMsg)}`
         : `https://wa.me/?text=${encodeURIComponent(waMsg)}`
       setLastWhatsAppUrl(waLink)
+    } finally {
+      setSendingInvite(false)
     }
-
-    setSendingInvite(false)
-    alert('Live interview invite generated! Candidate can join directly via video room link.')
   }
 
   const handleSignOut = () => {
@@ -1171,7 +1191,7 @@ const LeaderPortal = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Date (IST)</label>
                   <input
@@ -1180,18 +1200,55 @@ const LeaderPortal = () => {
                     value={inviteDate}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setInviteDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff]"
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff] [color-scheme:dark]"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-semibold mb-1">Time (IST)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 font-semibold">Time (IST)</label>
+                    <span className="text-[11px] font-mono text-[#a78bfa] font-bold">
+                      {inviteTime ? formatTimeDisplay(inviteTime) : '04:00 PM'}
+                    </span>
+                  </div>
                   <input
                     type="time"
                     required
                     value={inviteTime}
                     onChange={(e) => setInviteTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff]"
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff] [color-scheme:dark]"
                   />
+                </div>
+              </div>
+
+              {/* Quick Time Preset Slots */}
+              <div>
+                <label className="block text-slate-400 text-[11px] font-semibold mb-1.5">
+                  Quick Time Presets:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: '10:00 AM', val: '10:00' },
+                    { label: '11:30 AM', val: '11:30' },
+                    { label: '02:00 PM', val: '14:00' },
+                    { label: '04:00 PM', val: '16:00' },
+                    { label: '05:30 PM', val: '17:30' },
+                    { label: '07:00 PM', val: '19:00' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.val}
+                      type="button"
+                      onClick={() => setInviteTime(preset.val)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                        inviteTime === preset.val
+                          ? 'bg-[#7c6cff] text-white ring-2 ring-[#7c6cff]/40 shadow-xs'
+                          : 'bg-[#0d0f1e] text-slate-300 border border-[#262a4d] hover:border-[#7c6cff]/50'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -1229,6 +1286,23 @@ const LeaderPortal = () => {
                   className="w-full px-3 py-2 rounded-xl bg-[#0d0f1e] border border-[#262a4d] text-white focus:outline-none focus:border-[#7c6cff]"
                 />
               </div>
+
+              {inviteSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-700/80 text-emerald-200 text-xs font-semibold flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold shrink-0 text-sm">✓</span>
+                  <div>
+                    <div className="font-bold text-white mb-0.5">Invitation Sent Successfully!</div>
+                    <div>{inviteSuccessMsg}</div>
+                    <div className="text-[11px] text-emerald-300/80 mt-1">Candidate will receive an email with direct 1-click video room link.</div>
+                  </div>
+                </div>
+              )}
+
+              {inviteErrorMsg && (
+                <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-800 text-rose-300 text-xs">
+                  {inviteErrorMsg}
+                </div>
+              )}
 
               {lastWhatsAppUrl && (
                 <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800 text-emerald-300 space-y-2">

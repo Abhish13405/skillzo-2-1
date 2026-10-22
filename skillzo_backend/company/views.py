@@ -291,7 +291,7 @@ class UpdateCandidateStatusView(APIView):
     Optimistic concurrency protection via `version` counter.
     Automatically logs an immutable entry to AuditLog.
     """
-    permission_classes = [permissions.IsAuthenticated, IsCompanyLeader, IsCompanyAdmin]
+    permission_classes = [permissions.IsAuthenticated, IsCompanyLeader]
 
     def post(self, request, pk):
         company = request.company
@@ -394,13 +394,18 @@ class CreateLiveInviteView(APIView):
         message = serializer.validated_data.get('message', '')
         sent_via = serializer.validated_data.get('sent_via', 'both')
 
-        # Verify candidate is part of this company
-        enrollment = get_object_or_404(
-            CompanyCandidate.objects.select_related('candidate'),
-            candidate_id=cand_id,
-            company=company
+        # Verify candidate exists and ensure enrollment in this company
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        candidate = User.objects.filter(id=cand_id).first()
+        if not candidate:
+            return Response({"error": f"Candidate with ID {cand_id} does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        enrollment, _ = CompanyCandidate.objects.get_or_create(
+            candidate=candidate,
+            company=company,
+            defaults={"status": "shortlisted", "remark": "Scheduled for Live 1:1 Interview"}
         )
-        candidate = enrollment.candidate
 
         # Duplicate check: check if same candidate is already invited for same day
         existing_invite = LiveInterviewInvite.objects.filter(

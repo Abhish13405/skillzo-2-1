@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 import re
 import urllib.parse
 import threading
