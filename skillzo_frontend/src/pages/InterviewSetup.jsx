@@ -212,65 +212,111 @@ const InterviewSetup = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
           >
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-3">
-              {isHRTrack ? 'Select HR & Behavioral Focus' : 'Select Target Role'}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mb-5">
-              {activeRoles.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className={`card text-left p-3.5 transition-all ${
-                    role === r
-                      ? 'border-brand-500 dark:border-blue-500 ring-2 ring-brand-500/20 bg-brand-50/40 dark:bg-blue-950/70 text-brand-900 dark:text-white shadow-md dark:shadow-[0_0_15px_rgba(37,99,235,0.25)]'
-                      : 'hover:border-slate-300 dark:hover:border-blue-500/40'
-                  }`}
-                >
-                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200 block">{r}</span>
-                  {isHRTrack && r === 'HR & Behavioral Round' && (
-                    <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold block mt-0.5">
-                      Comprehensive Core HR
-                    </span>
-                  )}
-                  {isHRTrack && r === 'Fresher Campus Placement HR' && (
-                    <span className="text-[10px] text-blue-500 dark:text-blue-400 font-semibold block mt-0.5">
-                      Entry-Level, Projects & Strengths
-                    </span>
-                  )}
-                  {isHRTrack && r === 'Software Engineer HR Round' && (
-                    <span className="text-[10px] text-purple-500 dark:text-purple-400 font-semibold block mt-0.5">
-                      Tech Team Culture & Delivery
-                    </span>
-                  )}
-                  {isHRTrack && r === 'Leadership & Behavioral Round' && (
-                    <span className="text-[10px] text-amber-500 dark:text-amber-400 font-semibold block mt-0.5">
-                      Team Conflicts & Ownership
-                    </span>
-                  )}
-                </button>
-              ))}
+            {/* Left Column (8 cols): Compact Role Selection */}
+            <div className="lg:col-span-8 space-y-3">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-2.5">
+                {isHRTrack ? 'Select HR & Behavioral Focus' : 'Select Target Role'}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {activeRoles.map((r) => {
+                  const isSelected = role === r
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRole(r)}
+                      className={`card text-left p-3 transition-all cursor-pointer relative ${
+                        isSelected
+                          ? 'border-2 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50 dark:bg-blue-950/70 text-blue-900 dark:text-white shadow-md'
+                          : 'hover:border-slate-300 dark:hover:border-blue-500/40'
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-[9px] font-extrabold uppercase tracking-wide">
+                          ✓
+                        </span>
+                      )}
+                      <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 block truncate pr-4">
+                        {r}
+                      </span>
+                      {isHRTrack && r === 'HR & Behavioral Round' && (
+                        <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold block mt-0.5">
+                          Comprehensive Core HR
+                        </span>
+                      )}
+                      {isHRTrack && r === 'Fresher Campus Placement HR' && (
+                        <span className="text-[10px] text-blue-500 dark:text-blue-400 font-semibold block mt-0.5">
+                          Entry-Level & Projects
+                        </span>
+                      )}
+                      {isHRTrack && r === 'Software Engineer HR Round' && (
+                        <span className="text-[10px] text-purple-500 dark:text-purple-400 font-semibold block mt-0.5">
+                          Tech Team Culture
+                        </span>
+                      )}
+                      {isHRTrack && r === 'Leadership & Behavioral Round' && (
+                        <span className="text-[10px] text-amber-500 dark:text-amber-400 font-semibold block mt-0.5">
+                          Team Ownership
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {role === 'Custom Role' && (
+                <input
+                  className="input-field max-w-lg mt-2 text-xs"
+                  placeholder={
+                    isHRTrack
+                      ? 'e.g. Executive HR Round, Managerial Behavioral...'
+                      : 'Type the job role you are preparing for...'
+                  }
+                  value={customRole}
+                  onChange={(e) => setCustomRole(e.target.value)}
+                />
+              )}
             </div>
-            {role === 'Custom Role' && (
-              <input
-                className="input-field mb-6 max-w-lg"
-                placeholder={
-                  isHRTrack
-                    ? 'e.g. Executive HR Round, Managerial Behavioral...'
-                    : 'Type the job role you are preparing for...'
-                }
-                value={customRole}
-                onChange={(e) => setCustomRole(e.target.value)}
-              />
-            )}
-            <button
-              disabled={!role || (role === 'Custom Role' && !customRole.trim())}
-              onClick={() => setStep(2)}
-              className="btn-primary"
-            >
-              Next: Question Difficulty (Step 2/3) →
-            </button>
+
+            {/* Right Column (4 cols): Sticky Summary & Action */}
+            <div className="lg:col-span-4 space-y-3 lg:sticky lg:top-4">
+              <div className="card bg-slate-50/70 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 p-4 shadow-sm rounded-2xl space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-neutral-800 pb-2">
+                  <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-slate-400">
+                    Briefing Summary
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/30">
+                    Step 1 of 3
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-neutral-900">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {isHRTrack ? 'Track:' : 'Selected Role:'}
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white truncate max-w-[150px] text-right">
+                      {finalRole || 'None'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500 dark:text-slate-400">Next:</span>
+                    <span className="text-slate-400">Select Difficulty Tier</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!role || (role === 'Custom Role' && !customRole.trim())}
+                  onClick={() => setStep(2)}
+                  className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+                >
+                  Next: Question Difficulty (Step 2/3) →
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -281,38 +327,99 @@ const InterviewSetup = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
           >
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-3">
-              {isHRTrack ? 'Select Experience Tier & Question Depth' : 'Select Question Difficulty'}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5 max-w-2xl">
-              {DIFFICULTIES.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => setDifficulty(d.id)}
-                  className={`card text-left p-3.5 sm:p-4 transition-all ${
-                    difficulty === d.id
-                      ? 'border-brand-500 dark:border-blue-500 ring-2 ring-brand-500/20 bg-brand-50/40 dark:bg-blue-950/70 text-brand-900 dark:text-white shadow-md dark:shadow-[0_0_15px_rgba(37,99,235,0.25)]'
-                      : 'hover:border-slate-300 dark:hover:border-blue-500/40'
-                  }`}
-                >
-                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200 block">
-                    {d.label}
-                  </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-1 leading-snug">
-                    {isHRTrack ? d.hrSub : d.techSub}
-                  </span>
-                </button>
-              ))}
+            {/* Left Column (8 cols): Compact Difficulty Cards */}
+            <div className="lg:col-span-8 space-y-3">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-2.5">
+                {isHRTrack ? 'Select Experience Tier & Question Depth' : 'Select Question Difficulty'}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {DIFFICULTIES.map((d) => {
+                  const isSelected = difficulty === d.id
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDifficulty(d.id)}
+                      className={`card text-left p-3 transition-all cursor-pointer relative ${
+                        isSelected
+                          ? 'border-2 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50 dark:bg-blue-950/70 shadow-md'
+                          : 'hover:border-slate-300 dark:hover:border-blue-500/40'
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-[9px] font-extrabold uppercase tracking-wide">
+                          ✓ Selected
+                        </span>
+                      )}
+                      <span className="text-xl block mb-1">
+                        {d.id === 'Beginner' ? '🌱' : d.id === 'Intermediate' ? '⚡' : '🚀'}
+                      </span>
+                      <span className="font-bold text-sm text-slate-900 dark:text-white block">
+                        {d.label}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-snug">
+                        {isHRTrack ? d.hrSub : d.techSub}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <div className="flex gap-2.5">
-              <button onClick={() => setStep(1)} className="btn-secondary">
-                ← Back to {isHRTrack ? 'Focus' : 'Role'}
-              </button>
-              <button disabled={!difficulty} onClick={() => setStep(3)} className="btn-primary">
-                Next: Format & Mode (Step 3/3) →
-              </button>
+
+            {/* Right Column (4 cols): Sticky Summary & Action Buttons */}
+            <div className="lg:col-span-4 space-y-3 lg:sticky lg:top-4">
+              <div className="card bg-slate-50/70 dark:bg-[#0D0D0D] border border-slate-200/80 dark:border-neutral-800 p-4 shadow-sm rounded-2xl space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-neutral-800 pb-2">
+                  <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-slate-400">
+                    Briefing Summary
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/30">
+                    Step 2 of 3
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-neutral-900">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {isHRTrack ? 'Track:' : 'Role:'}
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white truncate max-w-[150px] text-right">
+                      {finalRole}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-neutral-900">
+                    <span className="text-slate-500 dark:text-slate-400">Tier:</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      {difficulty || 'Not selected'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500 dark:text-slate-400">Next:</span>
+                    <span className="text-slate-400">Format & Mode Selection</span>
+                  </div>
+                </div>
+
+                {/* Primary Action Button */}
+                <button
+                  type="button"
+                  disabled={!difficulty}
+                  onClick={() => setStep(3)}
+                  className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+                >
+                  Next: Format & Mode (Step 3/3) →
+                </button>
+
+                {/* Back to Role Button */}
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-neutral-800 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-neutral-800 transition cursor-pointer text-center"
+                >
+                  ← Back to {isHRTrack ? 'Focus' : 'Role'}
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
