@@ -106,7 +106,8 @@ const InterviewSetup = () => {
   const steps = [
     { n: 1, label: isHRTrack ? 'HR Focus' : 'Role' },
     { n: 2, label: 'Difficulty' },
-    { n: 3, label: 'Mode' },
+    { n: 3, label: 'Format' },
+    { n: 4, label: 'Launch' },
   ]
 
   return (
@@ -269,7 +270,7 @@ const InterviewSetup = () => {
               onClick={() => setStep(2)}
               className="btn-primary"
             >
-              Next: Question Difficulty (Step 2/3) →
+              Next: Question Difficulty (Step 2/4) →
             </button>
           </motion.div>
         )}
@@ -311,13 +312,13 @@ const InterviewSetup = () => {
                 ← Back to {isHRTrack ? 'Focus' : 'Role'}
               </button>
               <button disabled={!difficulty} onClick={() => setStep(3)} className="btn-primary">
-                Next: Format & Mode (Step 3/3) →
+                Next: Format (Step 3/4) →
               </button>
             </div>
           </motion.div>
         )}
 
-        {/* Step 3: Format & Count Selection */}
+        {/* Step 3: Format Selection Only (Video, Audio, Text) */}
         {step === 3 && (
           <motion.div
             key="s3"
@@ -368,6 +369,31 @@ const InterviewSetup = () => {
               })}
             </div>
 
+            {/* Action Buttons */}
+            <div className="flex gap-2.5">
+              <button type="button" onClick={() => setStep(2)} className="btn-secondary">
+                ← Back to Difficulty
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                disabled={!mode}
+                className="btn-primary shadow-xs"
+              >
+                Next: Questions & Launch (Step 4/4) →
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Step 4: Questions Count, Briefing Summary & Launch */}
+        {step === 4 && (
+          <motion.div
+            key="s4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
             {/* Number of Questions */}
             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-3">
               Number of Questions
@@ -424,8 +450,8 @@ const InterviewSetup = () => {
 
             {/* Action Buttons */}
             <div className="flex gap-2.5">
-              <button type="button" onClick={() => setStep(2)} className="btn-secondary">
-                ← Back to Difficulty
+              <button type="button" onClick={() => setStep(3)} className="btn-secondary">
+                ← Back to Format
               </button>
               <button
                 type="button"
