@@ -5,7 +5,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Create or update default admin superuser for project leader'
+    help = 'Create or update default admin superuser for project leader and company setup'
 
     def handle(self, *args, **options):
         accounts = [
@@ -19,6 +19,7 @@ class Command(BaseCommand):
             {'username': 'b', 'email': 'b@gmail.com', 'is_admin': False, 'role': 'Backend Developer', 'password': 'Skillzo@2026'},
         ]
 
+        created_users = []
         for acc in accounts:
             email = acc['email']
             username = acc['username']
@@ -54,3 +55,41 @@ class Command(BaseCommand):
                     user.target_role = acc['role']
                 user.save()
                 self.stdout.write(self.style.SUCCESS(f"User {email} preserved/updated successfully."))
+            created_users.append(user)
+
+        # Multi-Tenant Company Setup
+        try:
+            from company.models import Company, LeaderProfile, CompanyCandidate
+            company, _ = Company.objects.get_or_create(name='Skillzo', defaults={'slug': 'skillzo'})
+
+            for acc in accounts:
+                if acc['is_admin']:
+                    u = User.objects.filter(email__iexact=acc['email']).first()
+                    if u:
+                        LeaderProfile.objects.update_or_create(
+                            user=u,
+                            defaults={
+                                'company': company,
+                                'role': 'admin',
+                                'is_owner': True,
+                                'is_active': True
+                            }
+                        )
+
+            # Auto enroll candidates into CompanyCandidate
+            all_db_users = User.objects.all()
+            for u in all_db_users:
+                if not LeaderProfile.objects.filter(user=u, is_owner=True).exists():
+                    CompanyCandidate.objects.get_or_create(
+                        company=company,
+                        candidate=u,
+                        defaults={
+                            'target_role': u.target_role or 'Candidate',
+                            'status': 'new',
+                            'shares_with_company': True,
+                            'remark': 'Registered on Skillzo',
+                        }
+                    )
+            self.stdout.write(self.style.SUCCESS("Company and LeaderProfiles initialized successfully."))
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"Company initialization skipped: {e}"))
