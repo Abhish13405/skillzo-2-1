@@ -81,6 +81,8 @@ const LeaderPortal = () => {
   const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState('')
   const [inviteSuccessMsg, setInviteSuccessMsg] = useState('')
   const [inviteErrorMsg, setInviteErrorMsg] = useState('')
+  const [fallbackRoomUrl, setFallbackRoomUrl] = useState('')
+  const [copiedRoomLink, setCopiedRoomLink] = useState(false)
 
   // Resilient Data Fetcher (with instant fallback to leader-stats)
   const loadData = async (isManual = false) => {
@@ -206,6 +208,8 @@ const LeaderPortal = () => {
     setLastWhatsAppUrl('')
     setInviteSuccessMsg('')
     setInviteErrorMsg('')
+    setFallbackRoomUrl('')
+    setCopiedRoomLink(false)
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
     const yyyy = tomorrow.getFullYear()
@@ -243,6 +247,7 @@ const LeaderPortal = () => {
       console.warn('Backend invite failed, generating direct fallback link:', err)
       const errDetail = err.response?.data?.error || err.response?.data?.detail || err.message || 'Server error'
       setInviteErrorMsg(`Notice: ${errDetail}`)
+      setFallbackRoomUrl(roomUrl)
       // Fallback wa.me link
       const phone = (inviteCandidate.phone || '').replace(/[^0-9]/g, '')
       const waMsg = `Namaste ${inviteCandidate.username}! Your Live 1:1 Interview with Skillzo is confirmed on ${inviteDate} at ${inviteTime} IST.\n\nJoin Video Room: ${roomUrl}`
@@ -1299,22 +1304,68 @@ const LeaderPortal = () => {
               )}
 
               {inviteErrorMsg && (
-                <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-800 text-rose-300 text-xs">
-                  {inviteErrorMsg}
+                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/80 text-amber-200 text-xs space-y-1.5">
+                  <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                    <span>⚡</span>
+                    <span>
+                      {inviteErrorMsg.includes('404')
+                        ? 'Backend Deploy In Progress (Render)'
+                        : inviteErrorMsg}
+                    </span>
+                  </div>
+                  {inviteErrorMsg.includes('404') && (
+                    <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                      Render cloud backend par naya update deploy hone tak, aap candidate ko direct room link ya WhatsApp se turant invite kar sakte hain:
+                    </p>
+                  )}
                 </div>
               )}
 
-              {lastWhatsAppUrl && (
-                <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800 text-emerald-300 space-y-2">
-                  <div className="font-bold text-xs">✓ WhatsApp Invite Ready:</div>
-                  <a
-                    href={lastWhatsAppUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                  >
-                    Open WhatsApp Chat Now ↗
-                  </a>
+              {fallbackRoomUrl && (
+                <div className="p-3 rounded-xl bg-[#151833] border border-[#262a4d] space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-white">
+                    <span>Direct Video Room Link:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(fallbackRoomUrl)
+                        setCopiedRoomLink(true)
+                        setTimeout(() => setCopiedRoomLink(false), 2500)
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-[#7c6cff] hover:bg-[#6a58f7] text-white text-[11px] font-bold cursor-pointer"
+                    >
+                      {copiedRoomLink ? '✓ Copied!' : '📋 Copy Link'}
+                    </button>
+                  </div>
+                  <div className="p-2 rounded-lg bg-[#0d0f1e] text-[11px] font-mono text-slate-300 break-all select-all border border-[#262a4d]">
+                    {fallbackRoomUrl}
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    {lastWhatsAppUrl && (
+                      <a
+                        href={lastWhatsAppUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 text-center py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                      >
+                        Send via WhatsApp ↗
+                      </a>
+                    )}
+                    <a
+                      href={`mailto:${inviteCandidate.email}?subject=${encodeURIComponent(`Live 1:1 Interview Invitation with Skillzo`)}&body=${encodeURIComponent(`Hello ${inviteCandidate.username},
+
+You are invited for a Live 1:1 Video Interview on ${inviteDate} at ${inviteTime} IST.
+
+Join Video Room Link:
+${fallbackRoomUrl}
+
+Best regards,
+Skillzo Team`)}`}
+                      className="flex-1 text-center py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs"
+                    >
+                      Send via Email App ↗
+                    </a>
+                  </div>
                 </div>
               )}
 
