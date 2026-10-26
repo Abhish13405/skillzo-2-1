@@ -586,6 +586,12 @@ const InterviewSession = () => {
       session.job_role.toLowerCase().includes('leadership')
     ))
   )
+  const isResumeSession = Boolean(
+    location.search.includes('track=resume') ||
+    location.state?.isResumeTrack ||
+    session?.resume ||
+    (session?.job_role && session.job_role.toLowerCase().includes('resume'))
+  )
   const [loadingSession, setLoadingSession] = useState(true)
   const [current, setCurrent] = useState(0)
   const questions = session?.questions || []
@@ -1690,20 +1696,20 @@ const InterviewSession = () => {
               </button>
               <button
                 type="button"
-                onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
+                onClick={() => navigate(isHrSession ? '/hr' : (isResumeSession ? '/resume' : '/dashboard'))}
                 className="btn-primary py-2 px-4 text-xs font-bold"
               >
-                {isHrSession ? '← Return to HR Workspace' : '← Return to Dashboard'}
+                {isHrSession ? '← Return to HR Workspace' : (isResumeSession ? '← Return to Resume Workspace' : '← Return to Dashboard')}
               </button>
             </div>
           </div>
         ) : (
           <button
             type="button"
-            onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
+            onClick={() => navigate(isHrSession ? '/hr' : (isResumeSession ? '/resume' : '/dashboard'))}
             className="mt-6 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline cursor-pointer"
           >
-            {isHrSession ? 'Cancel & Return to HR Workspace' : 'Cancel & Return to Dashboard'}
+            {isHrSession ? 'Cancel & Return to HR Workspace' : (isResumeSession ? 'Cancel & Return to Resume Workspace' : 'Cancel & Return to Dashboard')}
           </button>
         )}
       </div>
@@ -1722,7 +1728,7 @@ const InterviewSession = () => {
               onClick={() => {
                 if (isCompleted || window.confirm(isHrSession ? 'Leave HR interview session?' : 'Leave interview session?')) {
                   stopAllMedia()
-                  navigate(isHrSession ? '/hr' : '/dashboard')
+                  navigate(isHrSession ? '/hr' : (isResumeSession ? '/resume' : '/dashboard'))
                 }
               }}
               className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#131E38] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-colors border border-transparent dark:border-slate-700/60 cursor-pointer"
@@ -1990,10 +1996,10 @@ const InterviewSession = () => {
               {/* Tertiary / Simple Navigation Action */}
               <button
                 type="button"
-                onClick={() => navigate(isHrSession ? '/hr' : '/dashboard')}
+                onClick={() => navigate(isHrSession ? '/hr' : (isResumeSession ? '/resume' : '/dashboard'))}
                 className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors text-center cursor-pointer pt-1"
               >
-                ← Return to {isHrSession ? 'HR workspace' : 'dashboard'}
+                ← Return to {isHrSession ? 'HR workspace' : (isResumeSession ? 'Resume workspace' : 'dashboard')}
               </button>
             </div>
 

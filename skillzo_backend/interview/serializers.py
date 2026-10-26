@@ -7,6 +7,7 @@ class StartInterviewSerializer(serializers.Serializer):
     difficulty = serializers.ChoiceField(choices=InterviewSession.DIFFICULTY_CHOICES)
     mode = serializers.ChoiceField(choices=InterviewSession.MODE_CHOICES, default='text')
     question_count = serializers.IntegerField(default=10, min_value=1, max_value=25)
+    resume_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class SubmitAnswerSerializer(serializers.Serializer):
@@ -70,5 +71,5 @@ class InterviewSessionSerializer(serializers.ModelSerializer):
             'id', 'job_role', 'difficulty', 'mode', 'status',
             'started_at', 'completed_at', 'overall_score', 'technical_score',
             'communication_score', 'confidence_trend', 'ai_suggestions', 'verdict', 'questions',
-            'candidate_name', 'candidate_email',
+            'candidate_name', 'candidate_email', 'resume',
         ]

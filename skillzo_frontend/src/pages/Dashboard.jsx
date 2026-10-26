@@ -175,17 +175,17 @@ const Dashboard = () => {
         },
     {
       id: 'resume',
-      title: 'Resume ATS Scanner',
-      subtitle: 'ATS Match & Keyword Optimization',
+      title: 'Resume ATS & Project Interview',
+      subtitle: 'ATS Scan & Project AI Mock',
       badge: 'Box 4',
       badgeColor: 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200/70 dark:border-emerald-800',
-      description: 'Upload your PDF or DOCX resume, scan against target job descriptions, discover missing skills, and calculate your real-time ATS match score.',
+      description: 'Upload your PDF or DOCX resume to calculate ATS match scores and take an AI technical mock interview based directly on your projects and technologies.',
       metric: `${resumeCount} Resumes Uploaded`,
       iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-800/80 text-emerald-600 dark:text-emerald-400',
       buttonBg: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20',
       borderHover: 'hover:border-emerald-500 dark:hover:border-emerald-400 hover:shadow-emerald-500/10',
       route: '/resume',
-      cta: 'Open Resume Scanner →',
+      cta: 'Enter Resume Workspace →',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>

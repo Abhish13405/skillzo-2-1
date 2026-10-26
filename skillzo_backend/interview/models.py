@@ -23,6 +23,13 @@ class InterviewSession(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
                               related_name='interview_sessions')
+    resume = models.ForeignKey(
+        'resume_analysis.Resume',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='interview_sessions'
+    )
     job_role = models.CharField(max_length=100)          # Python Developer, HR Interview, Custom Role, etc.
     difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES)
     mode = models.CharField(max_length=10, choices=MODE_CHOICES, default='text')

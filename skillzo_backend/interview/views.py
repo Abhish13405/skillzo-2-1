@@ -30,7 +30,20 @@ class StartInterviewView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        resume_id = data.get('resume_id')
+        resume = None
+        if resume_id:
+            try:
+                from resume_analysis.models import Resume
+                resume = Resume.objects.get(pk=resume_id, user=request.user)
+            except Resume.DoesNotExist:
+                return Response(
+                    {"error": "The specified resume was not found or does not belong to you."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
         session = InterviewSession.objects.create(
+            resume=resume,
             user=request.user,
             job_role=data['job_role'],
             difficulty=data['difficulty'],
@@ -45,19 +58,37 @@ class StartInterviewView(APIView):
         )
 
         try:
-            result = groq_service.generate_questions(
-                role=data['job_role'],
-                difficulty=data['difficulty'],
-                count=data['question_count'],
-                exclude_questions=recent_questions,
-            )
+            if resume:
+                from resume_analysis.services import extract_text_from_resume
+                resume_text = ""
+                try:
+                    resume_text = extract_text_from_resume(resume.file)
+                except Exception as ext_err:
+                    logger.warning(f"Failed to extract resume text for interview: {ext_err}")
+                    resume_text = ", ".join(resume.extracted_skills or [])
+
+                result = groq_service.generate_resume_questions(
+                    resume_text=resume_text,
+                    role=data['job_role'],
+                    difficulty=data['difficulty'],
+                    count=data['question_count'],
+                    skills=resume.extracted_skills or [],
+                    exclude_questions=recent_questions,
+                )
+            else:
+                result = groq_service.generate_questions(
+                    role=data['job_role'],
+                    difficulty=data['difficulty'],
+                    count=data['question_count'],
+                    exclude_questions=recent_questions,
+                )
         except Exception as e:
             session.delete()
             return Response({"error": f"Question generation failed: {str(e)}"},
                              status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         generated_questions = result.get('questions', [])
-        if generated_questions:
+        if not resume and generated_questions:
             role_lower = (data.get('job_role') or '').lower()
             is_hr_role = any(k in role_lower for k in ['hr', 'behavioral', 'placement', 'culture', 'leadership'])
             if is_hr_role:

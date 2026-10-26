@@ -275,6 +275,144 @@ Resume text:
         return self._chat(system_prompt, user_prompt)
 
     # ---------------------------------------------------------------
+    # Module 3B: Resume-Based Project & Tech Question Generation (Box 4)
+    # ---------------------------------------------------------------
+    def generate_resume_questions(self, resume_text: str, role: str = "Software Engineer",
+                                  difficulty: str = "Intermediate", count: int = 5,
+                                  skills: list = None, exclude_questions: list = None) -> dict:
+        """
+        Conducts an in-depth Technical & Project Mock Interview based directly on the candidate's resume.
+        Questions strictly probe:
+        1. Projects mentioned in the resume (architecture, design decisions, challenges, data flow, scaling).
+        2. Technologies and frameworks listed in the resume (how they were implemented, trade-offs, debugging).
+        """
+        diff_key = "Beginner" if difficulty in ["Beginner", "Easy", "Simple"] else (
+            "Advanced" if difficulty in ["Advanced", "Hard"] else "Intermediate"
+        )
+
+        truncated_resume = (resume_text or "").strip()
+        if len(truncated_resume) > 4000:
+            truncated_resume = truncated_resume[:4000]
+
+        skills_str = ", ".join(skills) if skills else "Technical projects and frameworks mentioned in resume"
+
+        if diff_key == "Beginner":
+            diff_instruction = (
+                "DIFFICULTY: BEGINNER\n"
+                "- Focus on foundational project walkthroughs, tech stack rationale, core features built, and basic coding/framework concepts used in their projects."
+            )
+        elif diff_key == "Intermediate":
+            diff_instruction = (
+                "DIFFICULTY: INTERMEDIATE\n"
+                "- Focus on project architecture, database design, API integrations, state management, design patterns, and handling edge cases in their projects."
+            )
+        else:
+            diff_instruction = (
+                "DIFFICULTY: ADVANCED\n"
+                "- Focus on system scalability, performance bottlenecks, concurrency, microservices/caching, security, complex debugging, and production tradeoffs in their projects."
+            )
+
+        exclude_block = ""
+        if exclude_questions:
+            recent_sample = [q.strip() for q in exclude_questions[-10:] if q and q.strip()]
+            if recent_sample:
+                formatted_excludes = "\n".join(f"- {q}" for q in recent_sample)
+                exclude_block = f"\nDo NOT repeat these questions:\n{formatted_excludes}\n"
+
+        system_prompt = (
+            "You are a Principal Engineering Lead and Technical Interviewer at a premier technology company. "
+            "You are conducting a live technical interview based strictly on the candidate's uploaded resume.\n"
+            "MANDATORY RULES:\n"
+            "1. EVERY QUESTION MUST BE EXACTLY ONE SINGLE LINE (12 to 24 words maximum) ending with a question mark.\n"
+            "2. DO NOT ASK GENERIC OR ACADEMIC TRIVIA. You MUST reference the candidate's actual projects (e.g. mention the project by name or its functionality) and their stated technologies.\n"
+            "3. Approximately 60% of questions must focus on their projects (architecture, problem solving, bottlenecks, database/API choices).\n"
+            "4. Approximately 40% of questions must focus on their technical stack (languages, frameworks, tools) and how they applied them in their projects.\n"
+            "5. Respond with strictly valid JSON only."
+        )
+
+        questions_needed = max(1, count - 1)
+        user_prompt = f"""
+Candidate Target Role: {role}
+Difficulty Tier: {diff_key}
+Extracted Skills: {skills_str}
+{diff_instruction}
+{exclude_block}
+
+Candidate Resume Text:
+\"\"\"
+{truncated_resume}
+\"\"\"
+
+Generate {questions_needed} razor-sharp, project-focused and technology-focused interview questions based directly on the projects and tech stack found in the resume text above.
+Every question MUST be a single line ending with a question mark.
+
+Return JSON with EXACTLY this structure:
+{{
+  "questions": [
+    {{"question": "In your project [Project Name], why did you choose [Tech Stack] and what architectural trade-off did you face?", "category": "Project Architecture"}},
+    {{"question": "How did you design the database schema and handle state management in [Project Name]?", "category": "Project Implementation"}},
+    {{"question": "You used [Technology] in your project; how did you handle error boundaries and performance optimization?", "category": "Tech Stack Deep Dive"}}
+  ]
+}}
+"""
+
+        try:
+            raw_res = self._chat(system_prompt, user_prompt, temperature=0.6)
+            q_list = raw_res.get('questions', [])
+
+            intro_q = "Welcome! Please introduce yourself, give a brief walkthrough of the key projects on your resume, and outline your core technical strengths."
+            final_questions = [
+                {"id": 1, "question": intro_q, "category": "Project Overview"}
+            ]
+
+            for idx, item in enumerate(q_list[:questions_needed]):
+                q_text = str(item.get('question', '')).strip()
+                if '\n' in q_text:
+                    q_text = q_text.split('\n')[0].strip()
+                parts = re.split(r'(?<=[.?!])\s+', q_text)
+                if len(parts) > 1 and len(parts[0]) >= 20:
+                    q_text = parts[0].strip()
+                if not q_text.endswith('?'):
+                    q_text = q_text.rstrip('.! ') + '?'
+
+                cat = item.get('category') or ("Project Architecture" if idx % 2 == 0 else "Tech Stack Deep Dive")
+                final_questions.append({
+                    "id": idx + 2,
+                    "question": q_text,
+                    "category": cat
+                })
+
+            if len(final_questions) >= 2:
+                return {"questions": final_questions}
+        except Exception as e:
+            logger.warning(f"Groq resume question generation error: {e}")
+
+        # High quality fallback bank tailored to projects and tech stack
+        primary_skill = (skills[0] if skills else "your chosen technology")
+        secondary_skill = (skills[1] if skills and len(skills) > 1 else "the backend or frontend framework")
+
+        fallback_pool = [
+            ("In your primary project, what architecture did you select and why did you decide on that specific technology stack?", "Project Architecture"),
+            ("What was the most challenging technical roadblock you encountered while developing your project, and how did you resolve it?", "Problem Solving & Challenges"),
+            (f"How did you integrate and structure {primary_skill} within your application, and what trade-offs did you face?", "Tech Stack Deep Dive"),
+            ("How did you design the database schema and manage data flow or API communication between services?", "System Design & Data Flow"),
+            (f"How did you ensure test coverage, security, and error handling across {secondary_skill} in your project?", "Implementation & Quality"),
+            ("If you had to scale your project to support 100,000 daily active users, what architectural bottlenecks would you tackle first?", "Scalability & Performance"),
+            ("Walk me through the deployment pipeline and CI/CD workflow you used for hosting and shipping your project.", "DevOps & Deployment"),
+        ]
+
+        questions = [
+            {"id": 1, "question": "Welcome! Please introduce yourself, walk me through the key projects on your resume, and explain your technical role in them.", "category": "Project Overview"}
+        ]
+        for idx, (fb_q, fb_cat) in enumerate(fallback_pool[:max(1, count - 1)]):
+            questions.append({
+                "id": idx + 2,
+                "question": fb_q,
+                "category": fb_cat
+            })
+        return {"questions": questions}
+
+    # ---------------------------------------------------------------
     # Module 4: AI Interview - Question Generation
     # (shared by Text / Audio / Video modes)
     # ---------------------------------------------------------------
