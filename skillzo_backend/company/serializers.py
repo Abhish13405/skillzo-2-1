@@ -107,8 +107,9 @@ class CreateLiveInviteSerializer(serializers.Serializer):
     sent_via = serializers.ChoiceField(choices=LiveInterviewInvite.SENT_VIA_CHOICES, default='both')
 
     def validate_scheduled_at(self, value):
-        if value <= timezone.now():
-            raise serializers.ValidationError("Scheduled time must be in the future.")
+        from datetime import timedelta
+        if value < timezone.now() - timedelta(minutes=15):
+            raise serializers.ValidationError("Scheduled time cannot be in the past.")
         return value
 
 

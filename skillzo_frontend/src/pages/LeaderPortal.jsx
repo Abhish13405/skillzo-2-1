@@ -83,6 +83,7 @@ const LeaderPortal = () => {
   const [inviteErrorMsg, setInviteErrorMsg] = useState('')
   const [fallbackRoomUrl, setFallbackRoomUrl] = useState('')
   const [copiedRoomLink, setCopiedRoomLink] = useState(false)
+  const [quickEmailId, setQuickEmailId] = useState(null)
 
   // Resilient Data Fetcher (with instant fallback to leader-stats)
   const loadData = async (isManual = false) => {
@@ -218,7 +219,7 @@ const LeaderPortal = () => {
     setInviteDate(`${yyyy}-${mm}-${dd}`)
     setInviteTime('16:00')
     setInviteMessage('')
-    setInviteChannel('both')
+    setInviteChannel('email')
   }
 
   const handleSendInvite = async (e) => {
@@ -257,6 +258,32 @@ const LeaderPortal = () => {
       setLastWhatsAppUrl(waLink)
     } finally {
       setSendingInvite(false)
+    }
+  }
+
+  const handleQuickEmailInvite = async (cand, e) => {
+    e?.stopPropagation()
+    const candId = cand.candidate_id || cand.id
+    if (!cand.email) {
+      alert('This candidate has no registered email address.')
+      return
+    }
+    setQuickEmailId(candId)
+    try {
+      const scheduledIso = new Date(Date.now() + 5 * 60 * 1000).toISOString()
+      await createLiveInterviewInvite({
+        candidate_id: candId,
+        scheduled_at: scheduledIso,
+        message: 'Your live 1:1 video interview is scheduled. Please click the button inside the email to join the room directly.',
+        sent_via: 'email',
+      })
+      alert(`✓ Live interview invitation has been emailed directly to ${cand.email}!\n\nThe candidate can simply click the join button in their email to enter the interview room.`)
+    } catch (err) {
+      console.warn('Quick email invite error:', err)
+      const errDetail = err.response?.data?.error || err.response?.data?.scheduled_at?.[0] || err.message || 'Could not send email'
+      alert(`Email notice: ${errDetail}`)
+    } finally {
+      setQuickEmailId(null)
     }
   }
 
@@ -815,6 +842,25 @@ const LeaderPortal = () => {
 
                           <td className="py-3.5 px-4 text-right">
                             <div className="inline-flex items-center gap-1.5 justify-end">
+                              <button
+                                type="button"
+                                onClick={(e) => handleQuickEmailInvite(cand, e)}
+                                disabled={quickEmailId === (cand.candidate_id || cand.id)}
+                                className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer disabled:opacity-50"
+                                title={`Send instant 1-Click Live Interview Invite to ${cand.email}`}
+                              >
+                                {quickEmailId === (cand.candidate_id || cand.id) ? (
+                                  <>
+                                    <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Sending...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>✉️</span>
+                                    <span>Email Invite</span>
+                                  </>
+                                )}
+                              </button>
                               <button
                                 type="button"
                                 onClick={(e) => handleOpenInvite(cand, e)}

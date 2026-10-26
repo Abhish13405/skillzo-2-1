@@ -48,11 +48,16 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
               <Link to={homeRoute} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
                 <img src="/logo-icon.png" alt="Skillzo Logo" className="w-8 h-8 object-contain shrink-0 drop-shadow-sm" />
                 <div>
-                  <span className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight block leading-tight">
-                    Skillzo AI
-                  </span>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-blue-600 dark:text-blue-400 font-semibold block leading-none">
-                    AI Interview Platform
+                  <div className="flex items-center gap-1.5 leading-tight">
+                    <span className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight">
+                      Skillzo
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 tracking-wider">
+                      AI
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold block leading-none mt-0.5">
+                    Interview Platform
                   </span>
                 </div>
               </Link>
@@ -113,6 +118,9 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
               <div className="flex items-center gap-2">
                 <img src="/logo-icon.png" alt="Skillzo Logo" className="w-7 h-7 object-contain shrink-0" />
                 <span className="font-display font-bold text-lg text-slate-900 dark:text-white">Skillzo</span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 tracking-wider">
+                  AI
+                </span>
               </div>
             </div>
             <button

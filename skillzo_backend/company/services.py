@@ -67,7 +67,9 @@ class EmailNotificationChannel(NotificationChannel):
 
         candidate = invite.candidate
         company = invite.company
-        token_join_url = f"{frontend_url}/live/join/{invite.token}/"
+        cand_id = getattr(candidate, 'id', None)
+        room_id = f"skz_live_{cand_id}" if cand_id else f"skz_live_{invite.token[:8]}"
+        token_join_url = f"{frontend_url}/live-interview/{room_id}?candidate={cand_id}&token={invite.token}"
         formatted_time = format_ist_datetime(invite.scheduled_at)
 
         subject = f"Live 1:1 Interview Invitation with {company.name}"
@@ -153,6 +155,18 @@ Powered by Skillzo AI
 
         def _send_async():
             try:
+                brevo_key = getattr(settings, 'BREVO_API_KEY', '').strip()
+                if brevo_key:
+                    try:
+                        from accounts.emails import send_otp_via_brevo
+                        _ok, _b_msg = send_otp_via_brevo(recipient, getattr(candidate, 'username', '') or 'Candidate', subject, html_content, plain_text)
+                        if _ok:
+                            invite.status = 'Sent'
+                            invite.last_sent_at = timezone.now()
+                            invite.save(update_fields=['status', 'last_sent_at'])
+                            return
+                    except Exception:
+                        pass
                 msg = EmailMultiAlternatives(subject, plain_text, sender, [recipient])
                 msg.attach_alternative(html_content, "text/html")
                 msg.send(fail_silently=False)
@@ -183,7 +197,9 @@ class WhatsAppNotificationChannel(NotificationChannel):
 
         candidate = invite.candidate
         company = invite.company
-        token_join_url = f"{frontend_url}/live/join/{invite.token}/"
+        cand_id = getattr(candidate, 'id', None)
+        room_id = f"skz_live_{cand_id}" if cand_id else f"skz_live_{invite.token[:8]}"
+        token_join_url = f"{frontend_url}/live-interview/{room_id}?candidate={cand_id}&token={invite.token}"
         formatted_time = format_ist_datetime(invite.scheduled_at)
 
         phone = getattr(candidate, 'phone', None)
