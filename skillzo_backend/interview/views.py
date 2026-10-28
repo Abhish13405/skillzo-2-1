@@ -74,6 +74,7 @@ class StartInterviewView(APIView):
                     count=data['question_count'],
                     skills=resume.extracted_skills or [],
                     exclude_questions=recent_questions,
+                    language=data.get('language', 'en'),
                 )
             else:
                 result = groq_service.generate_questions(
@@ -81,6 +82,7 @@ class StartInterviewView(APIView):
                     difficulty=data['difficulty'],
                     count=data['question_count'],
                     exclude_questions=recent_questions,
+                    language=data.get('language', 'en'),
                 )
         except Exception as e:
             session.delete()

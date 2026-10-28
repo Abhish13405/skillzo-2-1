@@ -66,6 +66,7 @@ const ResumeAnalysis = () => {
   const [interviewMode, setInterviewMode] = useState('video')
   const [interviewDifficulty, setInterviewDifficulty] = useState('Intermediate')
   const [interviewQuestionCount, setInterviewQuestionCount] = useState(5)
+  const [interviewLanguage, setInterviewLanguage] = useState('en')
   const [startingInterview, setStartingInterview] = useState(false)
   const [interviewError, setInterviewError] = useState('')
 
@@ -222,6 +223,7 @@ const ResumeAnalysis = () => {
     setInterviewMode('video')
     setInterviewDifficulty('Intermediate')
     setInterviewQuestionCount(5)
+    setInterviewLanguage('en')
     setInterviewError('')
   }
 
@@ -245,13 +247,15 @@ const ResumeAnalysis = () => {
         difficulty: interviewDifficulty,
         mode: interviewMode,
         question_count: interviewQuestionCount,
+        language: interviewLanguage,
       })
 
-      navigate(`/interview/${res.data.id}/session?track=resume`, {
+      navigate(`/interview/${res.data.id}/session?track=resume&lang=${interviewLanguage}`, {
         state: {
           isResumeTrack: true,
           role: finalRole,
           resumeId: selectedResumeForInterview.id,
+          language: interviewLanguage,
         },
       })
     } catch (err) {
@@ -828,6 +832,42 @@ const ResumeAnalysis = () => {
               )}
             </div>
 
+            {/* Interview Language Selector */}
+            <div className="mb-4">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                Interview Language
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'en', label: '🇬🇧 English', tag: 'Global Standard', desc: 'Standard tech English' },
+                  { id: 'hinglish', label: '🇮🇳 Hinglish', tag: 'Conversational', desc: 'Hindi + English mix' },
+                  { id: 'hi', label: '🇮🇳 Hindi', tag: 'हिंदी Mock', desc: 'Hindi questions & speech' },
+                ].map((l) => {
+                  const isSelected = interviewLanguage === l.id
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setInterviewLanguage(l.id)}
+                      disabled={startingInterview}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">{l.label}</span>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
+                          isSelected ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'text-slate-400'
+                        }`}>{l.tag}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">{l.desc}</p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
             {/* Interview Format / Mode Selector */}
             <div className="mb-4">
               <label className="block text-xs font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">

@@ -279,7 +279,8 @@ Resume text:
     # ---------------------------------------------------------------
     def generate_resume_questions(self, resume_text: str, role: str = "Software Engineer",
                                   difficulty: str = "Intermediate", count: int = 5,
-                                  skills: list = None, exclude_questions: list = None) -> dict:
+                                  skills: list = None, exclude_questions: list = None,
+                                  language: str = "en") -> dict:
         """
         Conducts an in-depth Technical & Project Mock Interview based directly on the candidate's resume.
         Questions strictly probe:
@@ -295,6 +296,24 @@ Resume text:
             truncated_resume = truncated_resume[:4000]
 
         skills_str = ", ".join(skills) if skills else "Technical projects and frameworks mentioned in resume"
+
+        lang_lower = (language or "en").lower().strip()
+        if lang_lower in ["hinglish", "hindi_english"]:
+            lang_instruction = (
+                "LANGUAGE: HINGLISH (Natural conversational blend of Hindi and English as commonly spoken in Indian software companies).\n"
+                "- Phrasing MUST be in natural, smooth Hinglish (e.g., 'Aapne apne project [Project] me [Technology] use kiya hai, kya aap bata sakte hain ki architecture me kya decisions liye the?').\n"
+                "- Technical terms, framework names, and architectural words must remain in English."
+            )
+            intro_q = "Welcome! Kripya apna introduction dein, apne resume ke mukhya projects ka walkthrough dein aur apni technical strengths share karein."
+        elif lang_lower in ["hi", "hindi"]:
+            lang_instruction = (
+                "LANGUAGE: HINDI (स्पष्ट और सहज हिंदी).\n"
+                "- प्रश्न हिंदी में पूछे जाएं लेकिन मुख्य तकनीकी शब्दों (जैसे Database, API, State Management, Architecture) को अंग्रेजी/सामान्य तकनीकी रूप में रखें।"
+            )
+            intro_q = "नमस्ते! कृपया अपना परिचय दें, अपने प्रोजेक्ट्स के बारे में बताएं और अपनी तकनीकी दक्षताओं को साझा करें।"
+        else:
+            lang_instruction = "LANGUAGE: ENGLISH (Global Professional Software Engineering English)."
+            intro_q = "Welcome! Please introduce yourself, give a brief walkthrough of the key projects on your resume, and outline your core technical strengths."
 
         if diff_key == "Beginner":
             diff_instruction = (
@@ -327,7 +346,8 @@ Resume text:
             "2. DO NOT ASK GENERIC OR ACADEMIC TRIVIA. You MUST reference the candidate's actual projects (e.g. mention the project by name or its functionality) and their stated technologies.\n"
             "3. Approximately 60% of questions must focus on their projects (architecture, problem solving, bottlenecks, database/API choices).\n"
             "4. Approximately 40% of questions must focus on their technical stack (languages, frameworks, tools) and how they applied them in their projects.\n"
-            "5. Respond with strictly valid JSON only."
+            f"5. {lang_instruction}\n"
+            "6. Respond with strictly valid JSON only."
         )
 
         questions_needed = max(1, count - 1)
@@ -360,7 +380,6 @@ Return JSON with EXACTLY this structure:
             raw_res = self._chat(system_prompt, user_prompt, temperature=0.6)
             q_list = raw_res.get('questions', [])
 
-            intro_q = "Welcome! Please introduce yourself, give a brief walkthrough of the key projects on your resume, and outline your core technical strengths."
             final_questions = [
                 {"id": 1, "question": intro_q, "category": "Project Overview"}
             ]
@@ -391,15 +410,30 @@ Return JSON with EXACTLY this structure:
         primary_skill = (skills[0] if skills else "your chosen technology")
         secondary_skill = (skills[1] if skills and len(skills) > 1 else "the backend or frontend framework")
 
-        fallback_pool = [
-            ("In your primary project, what architecture did you select and why did you decide on that specific technology stack?", "Project Architecture"),
-            ("What was the most challenging technical roadblock you encountered while developing your project, and how did you resolve it?", "Problem Solving & Challenges"),
-            (f"How did you integrate and structure {primary_skill} within your application, and what trade-offs did you face?", "Tech Stack Deep Dive"),
-            ("How did you design the database schema and manage data flow or API communication between services?", "System Design & Data Flow"),
-            (f"How did you ensure test coverage, security, and error handling across {secondary_skill} in your project?", "Implementation & Quality"),
-            ("If you had to scale your project to support 100,000 daily active users, what architectural bottlenecks would you tackle first?", "Scalability & Performance"),
-            ("Walk me through the deployment pipeline and CI/CD workflow you used for hosting and shipping your project.", "DevOps & Deployment"),
-        ]
+        if lang_lower in ["hinglish", "hindi_english"]:
+            fallback_pool = [
+                ("Aapne apne main project me kya architecture choose kiya tha aur us tech stack ko select karne ka kya reason tha?", "Project Architecture"),
+                ("Apne project ko banate waqt aapne sabse challenging technical bottleneck kya face kiya tha aur use kaise debug kiya?", "Problem Solving & Challenges"),
+                (f"Application me aapne {primary_skill} ko kis tarah structure kiya aur kya trade-offs face kiye?", "Tech Stack Deep Dive"),
+                ("Project me database schema design aur APIs ke data flow ko aapne kaise handle kiya?", "System Design & Data Flow"),
+                (f"Aapne project me {secondary_skill} ke sath error handling aur security kaise manage ki?", "Implementation & Quality"),
+            ]
+        elif lang_lower in ["hi", "hindi"]:
+            fallback_pool = [
+                ("अपने मुख्य प्रोजेक्ट में आपने क्या आर्किटेक्चर चुना और उस तकनीक को चुनने का क्या कारण था?", "Project Architecture"),
+                ("प्रोजेक्ट बनाते समय आपने सबसे बड़ी तकनीकी चुनौती का सामना कैसे किया?", "Problem Solving & Challenges"),
+                (f"अपने एप्लिकेशन में आपने {primary_skill} को कैसे लागू किया और क्या चुनौतियां आईं?", "Tech Stack Deep Dive"),
+            ]
+        else:
+            fallback_pool = [
+                ("In your primary project, what architecture did you select and why did you decide on that specific technology stack?", "Project Architecture"),
+                ("What was the most challenging technical roadblock you encountered while developing your project, and how did you resolve it?", "Problem Solving & Challenges"),
+                (f"How did you integrate and structure {primary_skill} within your application, and what trade-offs did you face?", "Tech Stack Deep Dive"),
+                ("How did you design the database schema and manage data flow or API communication between services?", "System Design & Data Flow"),
+                (f"How did you ensure test coverage, security, and error handling across {secondary_skill} in your project?", "Implementation & Quality"),
+                ("If you had to scale your project to support 100,000 daily active users, what architectural bottlenecks would you tackle first?", "Scalability & Performance"),
+                ("Walk me through the deployment pipeline and CI/CD workflow you used for hosting and shipping your project.", "DevOps & Deployment"),
+            ]
 
         questions = [
             {"id": 1, "question": "Welcome! Please introduce yourself, walk me through the key projects on your resume, and explain your technical role in them.", "category": "Project Overview"}
@@ -418,7 +452,8 @@ Return JSON with EXACTLY this structure:
     # ---------------------------------------------------------------
     def generate_questions(self, role: str, difficulty: str, count: int = 10,
                             question_type: str = "technical",
-                            exclude_questions: list = None) -> dict:
+                            exclude_questions: list = None,
+                            language: str = "en") -> dict:
         """
         Generate curated interview questions following the mandatory structure:
         - Question 1 is ALWAYS: Introduce yourself.

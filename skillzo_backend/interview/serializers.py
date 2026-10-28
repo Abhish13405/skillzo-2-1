@@ -8,6 +8,7 @@ class StartInterviewSerializer(serializers.Serializer):
     mode = serializers.ChoiceField(choices=InterviewSession.MODE_CHOICES, default='text')
     question_count = serializers.IntegerField(default=10, min_value=1, max_value=25)
     resume_id = serializers.IntegerField(required=False, allow_null=True)
+    language = serializers.CharField(max_length=20, default='en', required=False)
 
 
 class SubmitAnswerSerializer(serializers.Serializer):

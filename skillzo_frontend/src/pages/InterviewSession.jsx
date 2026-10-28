@@ -352,53 +352,53 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 }
 
 // ─── Speech Synthesis Hook ───────────────────────────────────────────────────
-// ─── Female Voice Selector ───────────────────────────────────────────────────
-const getFemaleVoice = (voices) => {
+// ─── Human & Natural Interviewer Voice Selector (Smooth, Slow & Natural) ───────
+const getHumanInterviewerVoice = (voices, preferredLang = 'en-IN') => {
   if (!voices || voices.length === 0) return null
 
-  // Priority female voice name keywords (covers Windows, Edge, Chrome, macOS, Android, iOS)
-  const preferredFemaleKeywords = [
-    'jenny',      // Microsoft Jenny (Natural female - Edge & Windows 11)
-    'aria',       // Microsoft Aria (Natural female - Edge)
-    'zira',       // Microsoft Zira (Default Windows Desktop Female)
+  const isHindi = preferredLang && (preferredLang.toLowerCase().startsWith('hi') || preferredLang.toLowerCase().includes('hindi'))
+
+  if (isHindi) {
+    // Priority Hindi voices (Natural / Neural)
+    const hiKeywords = ['swara', 'madhur', 'kalpana', 'google हिन्दी', 'hindi', 'hi-in', 'hi_in']
+    for (const kw of hiKeywords) {
+      const match = voices.find(v => (v.lang && v.lang.toLowerCase().startsWith('hi')) || v.name.toLowerCase().includes(kw))
+      if (match) return match
+    }
+  }
+
+  // Priority Natural / Neural English Voices (Edge & Chrome Online Natural Voices)
+  const naturalKeywords = [
+    'natural',    // Microsoft Jenny Online (Natural), Microsoft Aria Online (Natural), Microsoft Neerja Online (Natural)
+    'online',     // Edge online neural voices
+    'neural',
+    'neerja',     // Microsoft Indian English Natural
+    'jenny',      // Microsoft Jenny Natural
+    'aria',       // Microsoft Aria Natural
+    'google us english',
     'google uk english female',
-    'google us english female',
-    'samantha',   // macOS / iOS female
-    'victoria',   // macOS female
-    'karen',      // Australian female
-    'moira',      // Irish female
-    'tessa',      // South African female
-    'serena',     // UK female
-    'neerja',     // Indian English female
-    'veena',      // Indian English female
-    'swara',      // Indian English female
-    'heera',      // Indian English female
-    'stephanie',
-    'eva',
-    'hazel',
-    'susan',
-    'catherine'
+    'samantha',   // macOS smooth natural
+    'karen',      // Apple Australia
+    'victoria',
+    'serena',
+    'zira',
   ]
 
-  // Filter English voices
   const enVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'))
   const pool = enVoices.length > 0 ? enVoices : voices
 
-  // 1. Try matching preferred female keywords
-  for (const kw of preferredFemaleKeywords) {
+  for (const kw of naturalKeywords) {
     const match = pool.find(v => v.name.toLowerCase().includes(kw))
     if (match) return match
   }
 
-  // 2. Any voice that explicitly mentions "female" or "woman"
   const femaleExplicit = pool.find(v => {
     const n = v.name.toLowerCase()
     return n.includes('female') || n.includes('woman')
   })
   if (femaleExplicit) return femaleExplicit
 
-  // 3. Reject known male voices (David, Mark, George, Guy, Christopher, Eric, Male, Ravi)
-  const maleNames = ['david', 'mark', 'george', 'guy', 'christopher', 'eric', 'male', 'ravi', 'prabhat', 'richard', 'sean']
+  const maleNames = ['david', 'mark', 'george', 'christopher', 'eric', 'ravi', 'prabhat', 'richard', 'sean']
   const nonMale = pool.find(v => {
     const n = v.name.toLowerCase()
     return !maleNames.some(m => n.includes(m))
@@ -409,13 +409,17 @@ const getFemaleVoice = (voices) => {
 }
 
 // ─── Speech Synthesis Hook with Guaranteed Female Voice ───────────────────────
-const useSpeechSynthesis = () => {
+const useSpeechSynthesis = (preferredLang = 'en-IN') => {
   const [speaking, setSpeaking] = useState(false)
   const [voices, setVoices] = useState([])
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
   const activeUtteranceRef = useRef(null)
   const resumeIntervalRef = useRef(null)
   const watchdogTimerRef = useRef(null)
+  const activeLangRef = useRef(preferredLang)
+  useEffect(() => {
+    activeLangRef.current = preferredLang
+  }, [preferredLang])
 
   useEffect(() => {
     if (!supported) return
@@ -476,18 +480,19 @@ const useSpeechSynthesis = () => {
         window.speechSynthesis.cancel()
 
         const currentVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices()
-        const femaleVoice = getFemaleVoice(currentVoices)
+        const humanVoice = getHumanInterviewerVoice(currentVoices, activeLangRef.current || 'en-IN')
 
         const utterance = new SpeechSynthesisUtterance(text)
-        if (femaleVoice) {
-          utterance.voice = femaleVoice
-          utterance.lang = femaleVoice.lang || 'en-US'
+        if (humanVoice) {
+          utterance.voice = humanVoice
+          utterance.lang = humanVoice.lang || 'en-US'
         } else {
           utterance.lang = 'en-US'
         }
 
-        utterance.pitch = 1.15
-        utterance.rate = 0.95
+        // Slow, calm, smooth human delivery (rate: 0.86, pitch: 1.0)
+        utterance.pitch = 1.0
+        utterance.rate = 0.86
 
         utterance.onstart = () => {
           setSpeaking(true)
@@ -515,7 +520,7 @@ const useSpeechSynthesis = () => {
         // Adaptive Mobile/Desktop Watchdog: based on question word count (approx 2 words per second + 3s buffer)
         // Prevents mobile browsers (Android Chrome / Safari) from hanging or freezing candidate mic access!
         const wordCount = (text || '').trim().split(/\s+/).length
-        const maxSpeechMs = Math.max(3000, Math.min(10000, Math.round((wordCount / 2) * 1000) + 3000))
+        const maxSpeechMs = Math.max(4500, Math.min(22000, Math.round((wordCount / 1.6) * 1000) + 4500))
         watchdogTimerRef.current = setTimeout(() => {
           if (!ended) {
             try {
@@ -565,7 +570,7 @@ const TIPS_LIST = [
 ]
 
 // ─── Question Duration Limit (15 seconds maximum answer time per question) ───
-const TOTAL_QUESTION_SECONDS = 15
+const TOTAL_QUESTION_SECONDS = 180
 
 // ─── Main 50/50 Split Zero-Scroll Interview Screen ───────────────────────────
 const InterviewSession = () => {
@@ -664,13 +669,16 @@ const InterviewSession = () => {
   }, [stream])
 
   // ─── Real-time Speech-to-Text Dictation & Synthesis Handlers ───────────
-  const [speechLang, setSpeechLang] = useState('en-IN')
+  const initialLangParam = new URLSearchParams(location.search).get('lang')
+  const [speechLang, setSpeechLang] = useState(() => (
+    (initialLangParam === 'hi' || initialLangParam === 'hinglish') ? 'hi-IN' : 'en-IN'
+  ))
   const [silenceSeconds, setSilenceSeconds] = useState(0)
   const lastSpeechTimeRef = useRef(Date.now())
   const aiFinishedForQuestionRef = useRef(false)
   const lastAskedQuestionIndexRef = useRef(-1)
 
-  const { speak, cancel: cancelSpeech, speaking } = useSpeechSynthesis()
+  const { speak, cancel: cancelSpeech, speaking } = useSpeechSynthesis(speechLang)
 
   const handleSkipAiVoiceRef = useRef(null)
 
@@ -1227,7 +1235,7 @@ const InterviewSession = () => {
     lastSpeechTimeRef.current = Date.now()
 
     const q = session.questions?.[current]
-    const effectiveQuestionText = current === 0 ? "Introduce yourself." : (q?.question_text || '')
+    const effectiveQuestionText = q?.question_text || (current === 0 ? "Introduce yourself." : '')
     if (!effectiveQuestionText) {
       handleAiFinishedAsking()
       return
@@ -1366,7 +1374,7 @@ const InterviewSession = () => {
 
   // ─── Automatic Silence Detection & Answer Submission ────────────────────────
   // Automatically detects when user stops speaking after answering, waiting 3.5s of silence
-  const SILENCE_THRESHOLD_SECONDS = 3.5
+  const SILENCE_THRESHOLD_SECONDS = 5.0
   useEffect(() => {
     if (isAiAsking || isWarmup || isCountingDown || isPaused || isCompleted || submitting) {
       setSilenceSeconds(0)
@@ -2103,10 +2111,10 @@ const InterviewSession = () => {
                   <span className={`w-2 h-2 rounded-full ${mainView === 'candidate' && isCameraActive ? 'bg-emerald-500 animate-pulse' : 'bg-blue-600 animate-pulse'}`} />
                   <span className="text-[10px] sm:text-[11px] font-semibold text-slate-800 dark:text-slate-200">
                     {session?.mode === 'video'
-                      ? (mainView === 'candidate' ? (user?.username || 'You') : (isHrSession ? 'Sophia (HR)' : 'Sophia (AI)'))
+                      ? (mainView === 'candidate' ? (user?.username || 'You') : (isResumeSession ? 'Sarah (Senior Tech Lead)' : (isHrSession ? 'Sophia (HR)' : 'Skillzo AI')))
                       : session?.mode === 'audio'
-                      ? (isHrSession ? 'Sophia · Audio' : 'Sophia · Audio')
-                      : (isHrSession ? 'Sophia · Text' : 'Sophia · Text')}
+                      ? (isResumeSession ? 'Sarah · Audio' : (isHrSession ? 'Sophia · Audio' : 'Skillzo · Audio'))
+                      : (isResumeSession ? 'Sarah · Text' : (isHrSession ? 'Sophia · Text' : 'Skillzo · Text'))}
                   </span>
                 </div>
 
@@ -2370,7 +2378,7 @@ const InterviewSession = () => {
                         : 'text-slate-500 dark:text-slate-400'
                     }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${questionSeconds <= 5 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}`} />
-                      <span className="font-mono">{questionSeconds}s</span> remaining (Max 15s)
+                      <span className="font-mono">{questionSeconds}s</span> remaining (Max 180s)
                     </span>
                   )}
                 </div>
@@ -2490,7 +2498,7 @@ const InterviewSession = () => {
                         </span>
                       </span>
                       <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md">
-                        {questionSeconds}s left (Max 15s)
+                        180s remaining (Max 3m)
                       </span>
                     </div>
                   ) : !isAiAsking ? (
