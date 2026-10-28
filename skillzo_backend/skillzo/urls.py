@@ -1,9 +1,25 @@
+import time
 from django.contrib import admin
 from django.views.static import serve
 from django.urls import path, include, re_path
 from django.conf import settings
+from django.http import JsonResponse
+
+
+def health_check(request):
+    """Ultra-lightweight ping endpoint for Render keep-alive (UptimeRobot). Responds in < 1ms."""
+    return JsonResponse({
+        "status": "ok",
+        "app": "skillzo-backend",
+        "timestamp": int(time.time()),
+    })
+
 
 urlpatterns = [
+    # Health checks (for UptimeRobot / pingers to prevent Render cold starts)
+    path('api/health/', health_check, name='health_check'),
+    path('health/', health_check, name='health_root'),
+
     path('admin/', admin.site.urls),
 
     # Module 1: Authentication

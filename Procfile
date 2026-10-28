@@ -1,1 +1,1 @@
-web: cd skillzo_backend && python manage.py migrate && python manage.py setup_admin && gunicorn skillzo.wsgi:application
+web: cd skillzo_backend && python manage.py migrate --noinput && python manage.py setup_admin && gunicorn skillzo.wsgi:application --workers 3 --threads 2 --worker-class gthread --timeout 120 --keep-alive 5
