@@ -46,7 +46,7 @@ const LiveInterview = () => {
   const [submitting, setSubmitting] = useState(false)
   const [evaluatedSessionId, setEvaluatedSessionId] = useState(null)
   const [copiedLink, setCopiedLink] = useState(false)
-  const [evalOpen, setEvalOpen] = useState(true)
+  const [evalOpen, setEvalOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true))
   const [callJoined, setCallJoined] = useState(false)
   const [loadError, setLoadError] = useState(false)
 
@@ -365,17 +365,35 @@ const LiveInterview = () => {
           )}
         </div>
 
+        {/* Backdrop for mobile when HR scorecard is open */}
+        {isHR && evalOpen && (
+          <div
+            className="fixed inset-0 bg-black/60 z-25 md:hidden"
+            onClick={() => setEvalOpen(false)}
+          />
+        )}
+
         {/* Right: HR Private Evaluation Dock (Exclusively for HR) */}
         {isHR && evalOpen && (
-          <aside className="w-80 sm:w-96 border-l border-slate-800 bg-[#0B1021] flex flex-col h-full shrink-0 z-10 shadow-2xl">
+          <aside className="fixed inset-y-0 right-0 z-30 w-full sm:w-96 max-w-[90vw] md:relative md:w-80 lg:w-96 border-l border-slate-800 bg-[#0B1021] flex flex-col h-full shrink-0 shadow-2xl">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#0E152B]">
               <div>
                 <h3 className="font-display font-extrabold text-sm text-white">Live Evaluation Form</h3>
                 <p className="text-[11px] text-slate-400 font-mono">Private interviewer rubric (Candidate cannot see)</p>
               </div>
-              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-950 text-blue-400 border border-blue-800">
-                {overallScore}/100
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-950 text-blue-400 border border-blue-800">
+                  {overallScore}/100
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEvalOpen(false)}
+                  className="p-1 px-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer text-xs font-bold md:hidden"
+                  title="Close Scorecard"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {evaluatedSessionId ? (
