@@ -234,6 +234,7 @@ const LeaderPortal = () => {
     const roomId = `skz_live_${candId}`
     const origin = window.location.origin
     const roomUrl = `${origin}/live-interview/${roomId}?candidate=${candId}&role=${encodeURIComponent(inviteCandidate.target_role || 'Software Engineer')}`
+    setFallbackRoomUrl(roomUrl)
 
     try {
       const res = await createLiveInterviewInvite({
@@ -1689,17 +1690,27 @@ const LeaderPortal = () => {
                 <div className="p-3 rounded-xl bg-[#151833] border border-[#262a4d] space-y-2.5">
                   <div className="flex items-center justify-between text-xs font-bold text-white">
                     <span>Direct Video Room Link:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(fallbackRoomUrl)
-                        setCopiedRoomLink(true)
-                        setTimeout(() => setCopiedRoomLink(false), 2500)
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-[#7c6cff] hover:bg-[#6a58f7] text-white text-[11px] font-bold cursor-pointer"
-                    >
-                      {copiedRoomLink ? '✓ Copied!' : '📋 Copy Link'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={fallbackRoomUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold cursor-pointer transition shadow-sm flex items-center gap-1"
+                      >
+                        <span>🎥</span> Enter Room as HR
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(fallbackRoomUrl)
+                          setCopiedRoomLink(true)
+                          setTimeout(() => setCopiedRoomLink(false), 2500)
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-[#7c6cff] hover:bg-[#6a58f7] text-white text-[11px] font-bold cursor-pointer"
+                      >
+                        {copiedRoomLink ? '✓ Copied!' : '📋 Copy Link'}
+                      </button>
+                    </div>
                   </div>
                   <div className="p-2 rounded-lg bg-[#0d0f1e] text-[11px] font-mono text-slate-300 break-all select-all border border-[#262a4d]">
                     {fallbackRoomUrl}
