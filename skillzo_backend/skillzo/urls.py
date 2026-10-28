@@ -17,6 +17,7 @@ def health_check(request):
 
 urlpatterns = [
     # Health checks (for UptimeRobot / pingers to prevent Render cold starts)
+    path('', health_check, name='home'),
     path('api/health/', health_check, name='health_check'),
     path('health/', health_check, name='health_root'),
 

@@ -1,14 +1,10 @@
-databases:
-  - name: skillzodb
-    plan: free
-
 services:
   - type: web
     name: skillzo-backend
     env: python
-    rootDir: skillzo_backend
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: python manage.py migrate --noinput && python manage.py sync_interview_history && python manage.py setup_admin && gunicorn skillzo.wsgi:application --workers 3 --threads 2 --worker-class gthread --timeout 120 --keep-alive 5
+    rootDir: .
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: python manage.py migrate --noinput && python manage.py setup_admin && gunicorn skillzo.wsgi:application --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -17,9 +13,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: skillzodb
-          property: connectionString
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: EMAIL_BACKEND

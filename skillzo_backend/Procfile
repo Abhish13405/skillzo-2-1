@@ -1,1 +1,1 @@
-web: python manage.py migrate --noinput && python manage.py setup_admin && gunicorn skillzo.wsgi:application --workers 3 --threads 2 --worker-class gthread --timeout 120 --keep-alive 5
+web: python manage.py migrate --noinput && python manage.py setup_admin && gunicorn skillzo.wsgi:application --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5
