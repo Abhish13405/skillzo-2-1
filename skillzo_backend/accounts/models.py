@@ -16,6 +16,12 @@ class User(AbstractUser):
     longest_streak = models.IntegerField(default=0)
     last_active_date = models.DateField(blank=True, null=True)
 
+    # Subscription & Quota System
+    is_subscribed = models.BooleanField(default=False)
+    subscription_plan = models.CharField(max_length=50, default='free')
+    bonus_interviews = models.IntegerField(default=0)
+    earned_badges = models.JSONField(default=list, blank=True)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 

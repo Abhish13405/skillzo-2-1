@@ -315,6 +315,15 @@ const InterviewReport = () => {
   const answersList = questionsList.map((q) => q.answer || (q.answers && q.answers[0]) || null).filter(Boolean)
 
   const overallScore = Number(session.overall_score ?? 0)
+  const hasCloudBackup = Boolean(
+    session?.bonus_credited ||
+    (session?.questions || []).some((q) => {
+      const v = q.answer?.video_url || q.answer?.cloud_video_url
+      const a = q.answer?.audio_url || q.answer?.cloud_audio_url
+      return (v && v.includes('http')) || (a && a.includes('http'))
+    }) ||
+    (localClips && localClips.some(c => c.cloud_url))
+  )
   const technicalScore = Number(session.technical_score ?? 0)
   const communicationScore = Number(session.communication_score ?? 0)
 
@@ -471,6 +480,41 @@ const InterviewReport = () => {
           </div>
         ))}
       </div>
+
+      {/* ─── STAR PERFORMER BONUS CELEBRATION BANNER ─── */}
+      {(session?.bonus_credited || (overallScore >= 80 && (hasCloudBackup || (localClips && localClips.length > 0)))) && (
+        <div className="mb-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-purple-600/15 to-emerald-500/15 border border-amber-500/40 shadow-lg relative overflow-hidden animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-black flex items-center justify-center text-2xl shadow-md font-bold shrink-0 animate-bounce">
+                🌟
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                    Star Performer Badge Unlocked!
+                  </h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-extrabold uppercase bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40">
+                    +1 Free Interview Credited
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                  Outstanding performance! Scoring <strong>{overallScore}%</strong> with cloud-verified video/audio backup earned you the <strong>🌟 Star Performer</strong> badge and extended your quota with <strong>+1 Free Mock Interview</strong>!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white dark:bg-[#0D1527] text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                ☁️ Cloud Verified
+              </span>
+              <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white dark:bg-[#0D1527] text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs">
+                Visible to Leaders
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── 4. TOP METRICS ROW (5 Cards) ──────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-5">

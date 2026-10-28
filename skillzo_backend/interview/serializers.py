@@ -9,6 +9,7 @@ class StartInterviewSerializer(serializers.Serializer):
     question_count = serializers.IntegerField(default=10, min_value=1, max_value=25)
     resume_id = serializers.IntegerField(required=False, allow_null=True)
     language = serializers.CharField(max_length=20, default='en', required=False)
+    guest_count = serializers.IntegerField(required=False, default=0)
 
 
 class SubmitAnswerSerializer(serializers.Serializer):
@@ -65,12 +66,14 @@ class InterviewSessionSerializer(serializers.ModelSerializer):
     questions = InterviewQuestionSerializer(many=True, read_only=True)
     candidate_name = serializers.CharField(source='user.username', read_only=True, default='')
     candidate_email = serializers.CharField(source='user.email', read_only=True, default='')
+    candidate_badges = serializers.JSONField(source='user.earned_badges', read_only=True, default=list)
 
     class Meta:
         model = InterviewSession
         fields = [
             'id', 'job_role', 'difficulty', 'mode', 'status',
             'started_at', 'completed_at', 'overall_score', 'technical_score',
-            'communication_score', 'confidence_trend', 'ai_suggestions', 'verdict', 'questions',
-            'candidate_name', 'candidate_email', 'resume',
+            'communication_score', 'confidence_trend', 'ai_suggestions', 'verdict',
+            'bonus_credited', 'questions', 'candidate_name', 'candidate_email',
+            'candidate_badges', 'resume',
         ]

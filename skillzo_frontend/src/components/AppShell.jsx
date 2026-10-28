@@ -3,6 +3,7 @@ import Sidebar from './Sidebar'
 import { useTheme } from '../context/ThemeContext'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import SubscriptionModal from './SubscriptionModal'
 
 const SunIcon = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -26,6 +27,7 @@ const MoonIcon = ({ className = 'w-4 h-4' }) => (
 
 const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [subModalOpen, setSubModalOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const { user, logout, isLeader } = useAuth()
   const navigate = useNavigate()
@@ -36,6 +38,10 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
     logout()
     navigate('/login')
   }
+
+  const isGuest = user?.is_guest || localStorage.getItem('skillzo_is_guest') === 'true'
+  const guestUsed = parseInt(localStorage.getItem('skillzo_guest_interviews_used') || '0', 10)
+  const quota = user?.interview_quota
 
   return (
     <div className={`flex min-h-screen bg-surface-soft dark:bg-[#050505] text-slate-900 dark:text-slate-100 font-body transition-colors duration-200 ${noScroll ? 'lg:h-screen lg:max-h-screen lg:overflow-hidden' : ''}`}>
@@ -62,6 +68,30 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
                 </div>
               </Link>
               <div className="flex items-center gap-2 sm:gap-3">
+                {/* Quota / Membership Pill */}
+                {user && (
+                  <button
+                    onClick={() => setSubModalOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs cursor-pointer hover:opacity-95"
+                    title="Click to view subscription & quota"
+                  >
+                    {user.is_subscribed || isLeader ? (
+                      <span className="text-amber-500 dark:text-amber-300 flex items-center gap-1 font-mono">
+                        👑 Pro Unlimited
+                      </span>
+                    ) : isGuest ? (
+                      <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 font-mono">
+                        ⚡ Guest: {Math.max(0, 5 - guestUsed)}/5 Left
+                      </span>
+                    ) : (
+                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-mono">
+                        🎯 Free: {quota?.remaining ?? 10}/{quota?.total_limit ?? 10} Left
+                        {user.bonus_interviews > 0 && <span className="text-[10px] text-amber-400 ml-0.5">★</span>}
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 {user && (
                   <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#121212] border border-slate-200/80 dark:border-neutral-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -69,7 +99,7 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
                   </div>
                 )}
 
-                {/* Professional Theme Toggle Switch */}
+                {/* Theme Toggle */}
                 <button
                   onClick={toggleTheme}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#121212] text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-neutral-800 hover:border-neutral-700 transition-all cursor-pointer flex items-center gap-2 shadow-2xs group"
@@ -102,7 +132,7 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
           </header>
         ) : (
           /* Mobile top header bar when sidebar is enabled */
-          <div className="lg:hidden flex items-center justify-between px-4 py-3.5 border-b border-slate-200 dark:border-neutral-800 bg-white/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md sticky top-0 z-30 shadow-xs">
+          <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-neutral-800 bg-white/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md sticky top-0 z-30 shadow-xs">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -123,12 +153,55 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
                 </span>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              {user && (
+                <button
+                  onClick={() => setSubModalOpen(true)}
+                  className="px-2 py-1 rounded-lg text-[10px] font-mono font-bold border border-emerald-500/30 text-emerald-500 bg-emerald-500/10"
+                >
+                  {user.is_subscribed ? '👑 PRO' : isGuest ? `⚡ ${Math.max(0, 5 - guestUsed)}/5` : `🎯 ${quota?.remaining ?? 10}/10`}
+                </button>
+              )}
+              <button
+                onClick={toggleTheme}
+                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#121212] border border-slate-200 dark:border-neutral-800 hover:border-neutral-700 flex items-center justify-center text-amber-500 dark:text-blue-400 transition-colors"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Top utility banner when sidebar is enabled */}
+        {!hideSidebar && user && (
+          <div className="hidden lg:flex items-center justify-end px-6 py-2 border-b border-slate-200/60 dark:border-neutral-800/60 bg-white/40 dark:bg-[#0A0A0A]/40 backdrop-blur-sm gap-3">
             <button
-              onClick={toggleTheme}
-              className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-[#121212] border border-slate-200 dark:border-neutral-800 hover:border-neutral-700 flex items-center justify-center text-amber-500 dark:text-blue-400 transition-colors"
-              aria-label="Toggle theme"
+              onClick={() => setSubModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl border border-slate-200/80 dark:border-neutral-800 text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-[#121212] cursor-pointer shadow-2xs"
             >
-              {theme === 'dark' ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
+              {user.is_subscribed || isLeader ? (
+                <span className="text-amber-500 dark:text-amber-300 flex items-center gap-1 font-mono">
+                  👑 Pro Unlimited
+                </span>
+              ) : isGuest ? (
+                <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1.5 font-mono">
+                  <span>⚡ Guest Quota:</span>
+                  <span className="font-bold">{Math.max(0, 5 - guestUsed)} / 5 Left</span>
+                  <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.2 rounded font-sans ml-1">Upgrade</span>
+                </span>
+              ) : (
+                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 font-mono">
+                  <span>🎯 Free Quota:</span>
+                  <span className="font-bold">{quota?.remaining ?? 10} / {quota?.total_limit ?? 10} Left</span>
+                  {user.bonus_interviews > 0 && (
+                    <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded font-sans">
+                      +{user.bonus_interviews} bonus
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-sans ml-1">Upgrade</span>
+                </span>
+              )}
             </button>
           </div>
         )}
@@ -138,6 +211,12 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
           {children}
         </main>
       </div>
+
+      <SubscriptionModal
+        isOpen={subModalOpen}
+        onClose={() => setSubModalOpen(false)}
+        quota={quota}
+      />
     </div>
   )
 }

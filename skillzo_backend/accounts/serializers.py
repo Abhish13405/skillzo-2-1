@@ -47,6 +47,7 @@ class LoginSerializer(serializers.Serializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     is_leader = serializers.SerializerMethodField()
+    interview_quota = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -55,15 +56,62 @@ class ProfileSerializer(serializers.ModelSerializer):
             'college_or_company', 'target_role', 'bio',
             'current_streak', 'longest_streak',
             'is_staff', 'is_superuser', 'is_leader',
+            'is_subscribed', 'subscription_plan',
+            'bonus_interviews', 'earned_badges',
+            'interview_quota',
         ]
-        read_only_fields = ['id', 'email', 'current_streak', 'longest_streak', 'is_staff', 'is_superuser', 'is_leader']
+        read_only_fields = [
+            'id', 'email', 'current_streak', 'longest_streak',
+            'is_staff', 'is_superuser', 'is_leader',
+            'bonus_interviews', 'earned_badges', 'interview_quota',
+        ]
 
     def get_is_leader(self, obj):
         return bool(
             obj.is_superuser or
             obj.is_staff or
-            (obj.email and obj.email.lower() in ['abhishekkushwaha13405@gmail.com', 'abhish@gmail.com'])
+            (obj.email and obj.email.lower() in [
+                'abhishekkushwaha13405@gmail.com',
+                'abhish@gmail.com',
+                'abhishekkushwaha31387@bbdu.ac.in',
+            ])
         )
+
+    def get_interview_quota(self, obj):
+        is_leader = self.get_is_leader(obj)
+        # Count non-abandoned completed interviews
+        completed_count = getattr(obj, 'interview_sessions', None)
+        if completed_count is not None:
+            completed_count = obj.interview_sessions.filter(status='completed').count()
+        else:
+            completed_count = 0
+
+        if is_leader or obj.is_subscribed:
+            return {
+                "is_unlimited": True,
+                "base_limit": 9999,
+                "bonus_interviews": obj.bonus_interviews or 0,
+                "total_limit": 9999,
+                "completed": completed_count,
+                "remaining": "Unlimited",
+                "can_interview": True,
+                "plan": "Pro Unlimited" if obj.is_subscribed else "Leader Unlimited",
+            }
+
+        base_limit = 10
+        bonus = obj.bonus_interviews or 0
+        total_limit = base_limit + bonus
+        remaining = max(0, total_limit - completed_count)
+        return {
+            "is_unlimited": False,
+            "base_limit": base_limit,
+            "bonus_interviews": bonus,
+            "total_limit": total_limit,
+            "completed": completed_count,
+            "remaining": remaining,
+            "can_interview": (remaining > 0),
+            "plan": obj.subscription_plan or 'free',
+        }
 
 
 class ForgotPasswordRequestSerializer(serializers.Serializer):

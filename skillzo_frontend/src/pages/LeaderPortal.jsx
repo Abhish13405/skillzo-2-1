@@ -63,6 +63,7 @@ const LeaderPortal = () => {
 
   // Modals
   const [selectedCandidate, setSelectedCandidate] = useState(null)
+  const [activeSessionIndex, setActiveSessionIndex] = useState(0)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [editCandidate, setEditCandidate] = useState(null)
   const [inviteCandidate, setInviteCandidate] = useState(null)
@@ -158,6 +159,7 @@ const LeaderPortal = () => {
 
   // Candidate Report Drawer
   const handleOpenReport = async (cand) => {
+    setActiveSessionIndex(0)
     setLoadingDetail(true)
     setSelectedCandidate({ ...cand })
     try {
@@ -1052,71 +1054,386 @@ const LeaderPortal = () => {
           onClick={() => setSelectedCandidate(null)}
         >
           <div
-            className="bg-[#151833] border border-[#262a4d] rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-[#151833] border border-[#262a4d] rounded-3xl max-w-4xl w-full p-5 sm:p-7 space-y-6 shadow-2xl max-h-[92vh] overflow-y-auto text-white"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="flex items-start justify-between border-b border-[#262a4d] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-[#7c6cff]/20 text-[#a78bfa] font-extrabold text-lg flex items-center justify-center border border-[#7c6cff]/30">
+              <div className="flex items-center gap-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#7c6cff]/30 to-purple-600/30 text-[#a78bfa] font-extrabold text-2xl flex items-center justify-center border border-[#7c6cff]/40 shadow-inner">
                   {selectedCandidate.username ? selectedCandidate.username[0].toUpperCase() : 'C'}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">
-                    {selectedCandidate.username}
-                  </h3>
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">
-                    {selectedCandidate.email} {selectedCandidate.phone && `• 📞 ${selectedCandidate.phone}`}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white">
+                      {selectedCandidate.username}
+                    </h3>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-full uppercase font-bold bg-[#0d0f1e] text-indigo-300 border border-[#262a4d]">
+                      {selectedCandidate.status || 'new'}
+                    </span>
+                    {selectedCandidate.is_subscribed && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        ⭐ PRO
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-300 font-mono mt-1 flex items-center gap-2 flex-wrap">
+                    <span>📧 {selectedCandidate.email}</span>
+                    {selectedCandidate.phone && selectedCandidate.phone !== '—' && <span>• 📞 {selectedCandidate.phone}</span>}
+                    {selectedCandidate.college_or_company && selectedCandidate.college_or_company !== '—' && (
+                      <span>• 🏛️ {selectedCandidate.college_or_company}</span>
+                    )}
+                    {selectedCandidate.target_role && (
+                      <span>• 🎯 {selectedCandidate.target_role}</span>
+                    )}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedCandidate(null)}
-                className="text-slate-400 hover:text-white text-lg font-bold p-1 cursor-pointer"
+                className="text-slate-400 hover:text-white text-xl font-bold p-1.5 rounded-xl hover:bg-[#0d0f1e] transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
+            {/* Badges Bar */}
+            {selectedCandidate.earned_badges && selectedCandidate.earned_badges.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap p-3 rounded-2xl bg-[#0d0f1e] border border-amber-500/30">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
+                  Candidate Badges:
+                </span>
+                {selectedCandidate.earned_badges.map((b, idx) => (
+                  <span
+                    key={idx}
+                    className="text-xs font-bold px-3 py-1 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/40 shadow-xs flex items-center gap-1"
+                  >
+                    {b}
+                  </span>
+                ))}
+                {selectedCandidate.bonus_interviews > 0 && (
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/40 font-mono">
+                    +{selectedCandidate.bonus_interviews} Free Credit Earned
+                  </span>
+                )}
+              </div>
+            )}
+
             {loadingDetail ? (
-              <div className="py-12 text-center text-slate-400 text-xs">
-                <Loader label="Loading AI score breakdown..." />
+              <div className="py-16 text-center text-slate-400 text-xs">
+                <Loader label="Loading candidate cloud recordings & AI score breakdown..." />
               </div>
             ) : (
-              <div className="space-y-5">
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="p-3.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d]">
-                    <div className="text-[10px] text-slate-400 uppercase font-bold">Overall AI Score</div>
-                    <div className="text-2xl font-extrabold text-emerald-400 mt-1">
-                      {selectedCandidate.interview_score ?? 84}%
+              <div className="space-y-6">
+                {/* Executive Score Summary */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Overall AI Score</div>
+                    <div className="text-2xl font-black text-emerald-400 mt-1">
+                      {selectedCandidate.avg_score || selectedCandidate.interview_score || 0}%
                     </div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d]">
-                    <div className="text-[10px] text-slate-400 uppercase font-bold">Technical Depth</div>
-                    <div className="text-2xl font-extrabold text-indigo-400 mt-1">82%</div>
+                  <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Interviews Taken</div>
+                    <div className="text-2xl font-black text-indigo-400 mt-1">
+                      {selectedCandidate.completed_interviews ?? selectedCandidate.sessions?.length ?? 0}
+                    </div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-[#0d0f1e] border border-[#262a4d]">
-                    <div className="text-[10px] text-slate-400 uppercase font-bold">Communication</div>
-                    <div className="text-2xl font-extrabold text-purple-400 mt-1">86%</div>
+                  <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Joined Platform</div>
+                    <div className="text-sm font-bold text-slate-200 mt-2 font-mono">
+                      {selectedCandidate.date_joined || '—'}
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Leader Remark</div>
+                    <div className="text-xs font-semibold text-purple-300 mt-2 truncate">
+                      {selectedCandidate.remark || 'No remark set'}
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-[#0d0f1e] border border-[#7c6cff]/40 space-y-1">
-                  <span className="text-[10px] font-bold text-[#a78bfa] uppercase tracking-wider font-mono">
-                    AI Recommendation
-                  </span>
-                  <p className="text-xs text-slate-200">
-                    Candidate shows strong technical understanding and structured articulation. Suitable for live round.
-                  </p>
+                {/* Candidate Resume Section */}
+                {selectedCandidate.resumes && selectedCandidate.resumes.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-[#0d0f1e] border border-[#262a4d] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                        <span>📄 Uploaded Resume & ATS Analysis</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          ATS Score: {selectedCandidate.resumes[0].ats_score || 85}%
+                        </span>
+                      </div>
+                      {selectedCandidate.resumes[0].url && (
+                        <a
+                          href={selectedCandidate.resumes[0].url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-[#a78bfa] hover:text-white font-bold hover:underline flex items-center gap-1"
+                        >
+                          View Resume File ↗
+                        </a>
+                      )}
+                    </div>
+                    {selectedCandidate.resumes[0].extracted_skills && selectedCandidate.resumes[0].extracted_skills.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-slate-400 font-mono">Detected Skills:</span>
+                        {selectedCandidate.resumes[0].extracted_skills.slice(0, 10).map((sk, i) => (
+                          <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-[#151833] text-slate-300 border border-[#262a4d]">
+                            {sk}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Candidate Mock Sessions with Cloud Video / Audio Playback */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-bold text-white flex items-center gap-2">
+                      <span>🎬 Mock Interview Sessions & Cloud Playback</span>
+                      <span className="text-xs font-mono text-slate-400">
+                        ({selectedCandidate.sessions?.length || 0} recorded)
+                      </span>
+                    </h4>
+                  </div>
+
+                  {(!selectedCandidate.sessions || selectedCandidate.sessions.length === 0) ? (
+                    <div className="p-8 text-center rounded-2xl bg-[#0d0f1e] border border-[#262a4d] text-slate-400 text-xs">
+                      Candidate has not completed any mock interview sessions yet.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Session Selector Pills */}
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                        {selectedCandidate.sessions.map((sess, idx) => (
+                          <button
+                            key={sess.id}
+                            onClick={() => setActiveSessionIndex(idx)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
+                              activeSessionIndex === idx
+                                ? 'bg-[#7c6cff] text-white shadow-md shadow-[#7c6cff]/30'
+                                : 'bg-[#0d0f1e] hover:bg-[#1a1c35] text-slate-300 border border-[#262a4d]'
+                            }`}
+                          >
+                            <span>Round {idx + 1}: {sess.role}</span>
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                              (sess.overall_score || 0) >= 80 ? 'bg-emerald-500/30 text-emerald-200' : 'bg-black/30 text-slate-200'
+                            }`}>
+                              {sess.overall_score ?? 0}%
+                            </span>
+                            {sess.has_cloud_upload && <span title="Cloud Verified">☁️</span>}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Active Session Detail */}
+                      {selectedCandidate.sessions[activeSessionIndex] && (() => {
+                        const sess = selectedCandidate.sessions[activeSessionIndex]
+                        return (
+                          <div className="space-y-4">
+                            {/* Session Header Card */}
+                            <div className="p-4 rounded-2xl bg-[#0d0f1e] border border-[#262a4d] space-y-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                  <div className="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>{sess.role}</span>
+                                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                      {sess.difficulty} • {sess.mode?.toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                    Started: {sess.started_at}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {sess.has_cloud_upload ? (
+                                    <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                      ☁️ Cloud Upload Verified
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-[#151833] text-slate-400 border border-[#262a4d]">
+                                      📝 Transcript Only
+                                    </span>
+                                  )}
+                                  {sess.bonus_credited && (
+                                    <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                      🌟 Bonus Credited
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Scores row */}
+                              <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[#1a1c35]">
+                                <div className="p-2 rounded-xl bg-[#151833]">
+                                  <div className="text-[9px] uppercase font-mono text-slate-400">Overall Score</div>
+                                  <div className="text-lg font-black text-emerald-400">{sess.overall_score ?? 0}%</div>
+                                </div>
+                                <div className="p-2 rounded-xl bg-[#151833]">
+                                  <div className="text-[9px] uppercase font-mono text-slate-400">Technical Depth</div>
+                                  <div className="text-lg font-black text-indigo-400">{sess.technical_score ?? 0}%</div>
+                                </div>
+                                <div className="p-2 rounded-xl bg-[#151833]">
+                                  <div className="text-[9px] uppercase font-mono text-slate-400">Communication</div>
+                                  <div className="text-lg font-black text-purple-400">{sess.communication_score ?? 0}%</div>
+                                </div>
+                              </div>
+
+                              {/* Groq Verdict */}
+                              {sess.verdict && (
+                                <div className="p-3 rounded-xl bg-[#151833] border border-[#7c6cff]/30 text-xs">
+                                  <span className="text-[10px] font-mono font-bold text-[#a78bfa] uppercase block mb-1">
+                                    AI Hiring Verdict
+                                  </span>
+                                  <p className="text-slate-200">{sess.verdict}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Questions & Cloud Video / Audio Playback Accordion */}
+                            <div className="space-y-3">
+                              <h5 className="text-xs font-bold text-slate-300 font-mono uppercase tracking-wider">
+                                Questions & Answer Recordings ({sess.questions?.length || 0})
+                              </h5>
+
+                              {sess.questions?.map((q, qIdx) => (
+                                <div
+                                  key={q.id || qIdx}
+                                  className="p-4 rounded-2xl bg-[#0d0f1e] border border-[#262a4d] space-y-3"
+                                >
+                                  {/* Question Header */}
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">
+                                        Question {q.order || qIdx + 1}
+                                      </span>
+                                      <h6 className="text-sm font-bold text-white mt-1.5">
+                                        {q.question_text}
+                                      </h6>
+                                    </div>
+                                    {q.answer?.score !== undefined && q.answer?.score !== null && (
+                                      <div className="shrink-0 text-right">
+                                        <span className={`text-xs font-mono font-black px-2.5 py-1 rounded-xl border ${
+                                          q.answer.score >= 80 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                                        }`}>
+                                          Score: {q.answer.score}%
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Cloud Video Recording Playback */}
+                                  {q.answer?.video_url && (
+                                    <div className="rounded-2xl overflow-hidden border border-[#7c6cff]/40 bg-black">
+                                      <div className="flex items-center justify-between px-3.5 py-2 bg-[#151833] text-[11px] text-indigo-300 font-mono">
+                                        <span className="flex items-center gap-2 font-bold">
+                                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                          ☁️ Cloud Video Playback
+                                        </span>
+                                        <a
+                                          href={q.answer.video_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-xs text-[#a78bfa] hover:text-white hover:underline font-bold"
+                                        >
+                                          Open Fullscreen ↗
+                                        </a>
+                                      </div>
+                                      <video
+                                        controls
+                                        playsInline
+                                        preload="metadata"
+                                        className="w-full max-h-80 object-contain bg-black"
+                                        src={q.answer.video_url}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Cloud Audio Recording Playback */}
+                                  {q.answer?.audio_url && !q.answer?.video_url && (
+                                    <div className="p-3.5 rounded-2xl bg-[#151833] border border-[#7c6cff]/40">
+                                      <div className="flex items-center justify-between text-[11px] text-indigo-300 font-mono mb-2">
+                                        <span className="flex items-center gap-2 font-bold">
+                                          <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                                          ☁️ Cloud Audio Playback
+                                        </span>
+                                        <a
+                                          href={q.answer.audio_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-xs text-[#a78bfa] hover:text-white hover:underline font-bold"
+                                        >
+                                          Audio Link ↗
+                                        </a>
+                                      </div>
+                                      <audio controls className="w-full" src={q.answer.audio_url} />
+                                    </div>
+                                  )}
+
+                                  {/* Verbal Transcript */}
+                                  <div className="p-3 rounded-xl bg-[#151833] border border-[#262a4d] text-xs text-slate-200">
+                                    <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block mb-1">
+                                      Candidate Verbal Answer Transcript:
+                                    </span>
+                                    <p className="leading-relaxed">
+                                      {q.answer?.answer_text || 'No transcript recorded.'}
+                                    </p>
+                                  </div>
+
+                                  {/* Detailed Score Breakdown */}
+                                  {q.answer && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                                      <div className="p-2 rounded-lg bg-[#151833] border border-[#262a4d]">
+                                        <span className="text-[9px] text-slate-400 font-mono block">Technical Depth</span>
+                                        <strong className="text-indigo-300 font-bold">{q.answer.technical_knowledge ?? 0}%</strong>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-[#151833] border border-[#262a4d]">
+                                        <span className="text-[9px] text-slate-400 font-mono block">Communication</span>
+                                        <strong className="text-purple-300 font-bold">{q.answer.communication ?? 0}%</strong>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-[#151833] border border-[#262a4d]">
+                                        <span className="text-[9px] text-slate-400 font-mono block">Confidence</span>
+                                        <strong className="text-emerald-300 font-bold">{q.answer.confidence ?? 0}%</strong>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-[#151833] border border-[#262a4d]">
+                                        <span className="text-[9px] text-slate-400 font-mono block">Speaking Time</span>
+                                        <strong className="text-amber-300 font-bold font-mono">{q.answer.speaking_time_seconds ? `${q.answer.speaking_time_seconds}s` : '—'}</strong>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Strengths & Improvements */}
+                                  {q.answer?.strengths && q.answer.strengths.length > 0 && (
+                                    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                                      <span className="text-[10px] text-emerald-400 font-bold font-mono">Strengths:</span>
+                                      {q.answer.strengths.map((st, i) => (
+                                        <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                          ✓ {st}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#262a4d]">
+                {/* Bottom Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#262a4d]">
                   <button
                     onClick={() => {
                       const cand = selectedCandidate
                       setSelectedCandidate(null)
                       handleOpenEdit(cand)
                     }}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0d0f1e] hover:bg-[#1f244a] text-indigo-300 border border-[#262a4d] transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#0d0f1e] hover:bg-[#1f244a] text-indigo-300 border border-[#262a4d] transition cursor-pointer"
                   >
                     Edit Status / Remark
                   </button>
@@ -1126,9 +1443,10 @@ const LeaderPortal = () => {
                       setSelectedCandidate(null)
                       handleOpenInvite(cand)
                     }}
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#7c6cff] hover:bg-[#6a58f7] text-white transition shadow-md shadow-[#7c6cff]/20 cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#7c6cff] hover:bg-[#6a58f7] text-white transition shadow-md shadow-[#7c6cff]/20 cursor-pointer flex items-center gap-2"
                   >
-                    Schedule Live 1:1
+                    <span>Schedule Live 1:1</span>
+                    <span>→</span>
                   </button>
                 </div>
               </div>

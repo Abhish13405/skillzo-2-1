@@ -45,6 +45,7 @@ class InterviewSession(models.Model):
     confidence_trend = models.CharField(max_length=20, blank=True, null=True)
     ai_suggestions = models.JSONField(default=list, blank=True)
     verdict = models.CharField(max_length=500, blank=True, null=True)  # Groq's one-line hiring verdict
+    bonus_credited = models.BooleanField(default=False)  # True once +1 bonus free interview credited for score >= 80 + cloud backup
 
     class Meta:
         ordering = ['-started_at']

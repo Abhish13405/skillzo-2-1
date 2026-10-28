@@ -2,6 +2,10 @@ import api from './axios'
 
 export const startInterview = (data) => api.post('/interview/start/', data)
 
+export const getInterviewQuota = (params = {}) => api.get('/interview/quota/', { params })
+
+export const subscribePlan = (plan = 'monthly_pro') => api.post('/interview/subscribe/', { plan })
+
 export const submitAnswer = (sessionId, data) => {
   if (data instanceof FormData) {
     return api.post(`/interview/${sessionId}/answer/`, data, {

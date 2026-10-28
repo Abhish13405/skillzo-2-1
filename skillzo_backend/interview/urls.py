@@ -2,11 +2,13 @@ from django.urls import path
 from .views import (
     StartInterviewView, SubmitAnswerView, UploadRecordingView,
     CompleteInterviewView, InterviewHistoryView, InterviewDetailView,
-    SubmitLiveEvaluationView,
+    SubmitLiveEvaluationView, InterviewQuotaView, SubscribePlanView,
 )
 
 urlpatterns = [
     path('start/', StartInterviewView.as_view(), name='interview-start'),
+    path('quota/', InterviewQuotaView.as_view(), name='interview-quota'),
+    path('subscribe/', SubscribePlanView.as_view(), name='interview-subscribe'),
     path('history/', InterviewHistoryView.as_view(), name='interview-history'),
     path('live-evaluation/', SubmitLiveEvaluationView.as_view(), name='interview-live-evaluation'),
     path('<int:session_id>/', InterviewDetailView.as_view(), name='interview-detail'),

@@ -3,6 +3,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppShell from '../components/AppShell'
 import { startInterview } from '../api/interview'
+import { useAuth } from '../context/AuthContext'
+import SubscriptionModal from '../components/SubscriptionModal'
 
 const TECH_ROLES = [
   'Python Developer',
@@ -79,11 +81,20 @@ const InterviewSetup = () => {
   const [questionCount, setQuestionCount] = useState(5)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const { user } = useAuth()
+  const [showSubModal, setShowSubModal] = useState(false)
 
   const activeRoles = isHRTrack ? HR_ROLES : TECH_ROLES
   const finalRole = role === 'Custom Role' ? customRole : role
 
   const handleStart = async () => {
+    const isGuest = user?.is_guest || localStorage.getItem('skillzo_is_guest') === 'true'
+    const guestCount = parseInt(localStorage.getItem('skillzo_guest_interviews_used') || '0', 10)
+    if (isGuest && guestCount >= 5) {
+      setShowSubModal(true)
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
@@ -92,12 +103,21 @@ const InterviewSetup = () => {
         difficulty: difficulty || 'Intermediate',
         mode: mode || 'text',
         question_count: questionCount || 5,
+        guest_count: guestCount,
+        is_guest: isGuest,
       })
+      if (isGuest) {
+        localStorage.setItem('skillzo_guest_interviews_used', String(guestCount + 1))
+      }
       navigate(`/interview/${res.data.id}/session${isHRTrack ? '?track=hr' : ''}`, {
         state: { isHRTrack, role: finalRole }
       })
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not start interview. Check backend server and API key.')
+      if (err.response?.status === 403 && (err.response?.data?.requires_subscription || err.response?.data?.error === 'LIMIT_REACHED' || err.response?.data?.error === 'GUEST_LIMIT_REACHED')) {
+        setShowSubModal(true)
+      } else {
+        setError(err.response?.data?.message || err.response?.data?.error || 'Could not start interview. Check backend server and API key.')
+      }
     } finally {
       setLoading(false)
     }
@@ -469,6 +489,11 @@ const InterviewSetup = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <SubscriptionModal
+        isOpen={showSubModal}
+        onClose={() => setShowSubModal(false)}
+        quota={user?.interview_quota}
+      />
     </AppShell>
   )
 }

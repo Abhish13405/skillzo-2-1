@@ -204,13 +204,25 @@ class CompanyCandidateDetailView(APIView):
                 ans_data = None
                 if hasattr(q, 'answer') and q.answer:
                     ans = q.answer
+                    v_url = ans.cloud_video_url or (ans.video_file.url if ans.video_file else None)
+                    a_url = ans.cloud_audio_url or (ans.audio_file.url if ans.audio_file else None)
                     ans_data = {
                         "id": ans.id,
                         "answer_text": ans.answer_text,
                         "score": ans.overall_score,
+                        "technical_knowledge": ans.technical_knowledge,
+                        "communication": ans.communication,
+                        "confidence": ans.confidence,
+                        "problem_solving": ans.problem_solving,
+                        "grammar": ans.grammar,
+                        "strengths": ans.strengths or [],
+                        "improvements": ans.improvements or [],
+                        "ideal_answer_summary": ans.ideal_answer_summary or "",
                         "speaking_time_seconds": ans.speaking_time_seconds,
-                        "video_url": ans.cloud_video_url or None,
-                        "audio_url": ans.cloud_audio_url or None,
+                        "video_url": v_url,
+                        "audio_url": a_url,
+                        "is_cloud_video": bool(ans.cloud_video_url),
+                        "is_cloud_audio": bool(ans.cloud_audio_url),
                     }
                 q_list.append({
                     "id": q.id,
@@ -219,6 +231,7 @@ class CompanyCandidateDetailView(APIView):
                     "answer": ans_data,
                 })
 
+            has_cloud = any(bool(item.get('answer') and (item['answer'].get('is_cloud_video') or item['answer'].get('is_cloud_audio'))) for item in q_list)
             sessions_data.append({
                 "id": s.id,
                 "role": s.job_role,
@@ -231,7 +244,9 @@ class CompanyCandidateDetailView(APIView):
                 "communication_score": s.communication_score,
                 "confidence_trend": s.confidence_trend,
                 "verdict": s.verdict,
+                "bonus_credited": getattr(s, 'bonus_credited', False),
                 "ai_suggestions": s.ai_suggestions or [],
+                "has_cloud_upload": has_cloud,
                 "questions": q_list,
             })
 
@@ -265,6 +280,11 @@ class CompanyCandidateDetailView(APIView):
             for l in logs
         ]
 
+        total_sessions = len(sessions_data)
+        completed_sessions = [s for s in sessions_data if s.get('status') == 'completed' and s.get('overall_score') is not None]
+        avg_score = round(sum(s['overall_score'] for s in completed_sessions) / len(completed_sessions)) if completed_sessions else 0
+        earned_badges = getattr(cand, 'earned_badges', []) or []
+
         return Response({
             "id": enrollment.id,
             "candidate_id": cand.id,
@@ -278,6 +298,12 @@ class CompanyCandidateDetailView(APIView):
             "remark": enrollment.remark,
             "shares_with_company": True,
             "version": enrollment.version,
+            "earned_badges": earned_badges,
+            "bonus_interviews": getattr(cand, 'bonus_interviews', 0) or 0,
+            "is_subscribed": getattr(cand, 'is_subscribed', False),
+            "total_interviews": total_sessions,
+            "completed_interviews": len(completed_sessions),
+            "avg_score": avg_score,
             "sessions": sessions_data,
             "resumes": resumes_data,
             "audit_logs": logs_data,

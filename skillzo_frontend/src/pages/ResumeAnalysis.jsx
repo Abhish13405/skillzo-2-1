@@ -5,6 +5,8 @@ import Loader from '../components/Loader'
 import ReadinessDial from '../components/ReadinessDial'
 import { listResumes, uploadResume, analyzeResume, deleteResume } from '../api/resume'
 import { startInterview } from '../api/interview'
+import { useAuth } from '../context/AuthContext'
+import SubscriptionModal from '../components/SubscriptionModal'
 
 const MODES = [
   {
@@ -67,6 +69,8 @@ const ResumeAnalysis = () => {
   const [interviewDifficulty, setInterviewDifficulty] = useState('Intermediate')
   const [interviewQuestionCount, setInterviewQuestionCount] = useState(5)
   const [interviewLanguage, setInterviewLanguage] = useState('en')
+  const { user } = useAuth()
+  const [showSubModal, setShowSubModal] = useState(false)
   const [startingInterview, setStartingInterview] = useState(false)
   const [interviewError, setInterviewError] = useState('')
 
@@ -235,6 +239,13 @@ const ResumeAnalysis = () => {
 
   const handleStartResumeInterview = async () => {
     if (!selectedResumeForInterview) return
+    const isGuest = user?.is_guest || localStorage.getItem('skillzo_is_guest') === 'true'
+    const guestCount = parseInt(localStorage.getItem('skillzo_guest_interviews_used') || '0', 10)
+    if (isGuest && guestCount >= 5) {
+      setShowSubModal(true)
+      return
+    }
+
     setStartingInterview(true)
     setInterviewError('')
 
@@ -248,7 +259,13 @@ const ResumeAnalysis = () => {
         mode: interviewMode,
         question_count: interviewQuestionCount,
         language: interviewLanguage,
+        guest_count: guestCount,
+        is_guest: isGuest,
       })
+
+      if (isGuest) {
+        localStorage.setItem('skillzo_guest_interviews_used', String(guestCount + 1))
+      }
 
       navigate(`/interview/${res.data.id}/session?track=resume&lang=${interviewLanguage}`, {
         state: {
@@ -260,12 +277,17 @@ const ResumeAnalysis = () => {
       })
     } catch (err) {
       console.error('Failed to start resume interview:', err)
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.detail ||
-        err.message ||
-        'Could not generate interview questions. Please verify Groq API key and try again.'
-      setInterviewError(msg)
+      if (err.response?.status === 403 && (err.response?.data?.requires_subscription || err.response?.data?.error === 'LIMIT_REACHED' || err.response?.data?.error === 'GUEST_LIMIT_REACHED')) {
+        setShowSubModal(true)
+      } else {
+        const msg =
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.response?.data?.detail ||
+          err.message ||
+          'Could not generate interview questions. Please verify Groq API key and try again.'
+        setInterviewError(msg)
+      }
       setStartingInterview(false)
     }
   }
@@ -1013,6 +1035,11 @@ const ResumeAnalysis = () => {
           </div>
         </div>
       )}
+      <SubscriptionModal
+        isOpen={showSubModal}
+        onClose={() => setShowSubModal(false)}
+        quota={user?.interview_quota}
+      />
     </AppShell>
   )
 }

@@ -15,6 +15,58 @@ from .serializers import (
     InterviewSessionSerializer, InterviewAnswerSerializer,
 )
 
+def evaluate_and_reward_session(session, user):
+    """
+    Candidate Reward System:
+    If session.overall_score >= 80 AND at least one answer in this session has
+    cloud_video_url or cloud_audio_url:
+    - Awards '🌟 Star Performer' and '☁️ Cloud Verified' badges to user.earned_badges.
+    - If session.bonus_credited is False, awards +1 free interview credit (bonus_interviews += 1)
+      and marks session.bonus_credited = True.
+    """
+    if not session or not user or not user.is_authenticated:
+        return None
+
+    # Check for cloud recording in any answer of this session
+    has_cloud_recording = InterviewAnswer.objects.filter(
+        question__session=session
+    ).filter(
+        (Q(cloud_video_url__isnull=False) & ~Q(cloud_video_url='')) |
+        (Q(cloud_audio_url__isnull=False) & ~Q(cloud_audio_url=''))
+    ).exists()
+
+    overall_score = session.overall_score or 0
+    if overall_score >= 80 and has_cloud_recording:
+        badges = list(getattr(user, 'earned_badges', []) or [])
+        badge_added = False
+        if '🌟 Star Performer' not in badges:
+            badges.append('🌟 Star Performer')
+            badge_added = True
+        if '☁️ Cloud Verified' not in badges:
+            badges.append('☁️ Cloud Verified')
+            badge_added = True
+
+        bonus_awarded = False
+        if not getattr(session, 'bonus_credited', False):
+            user.bonus_interviews = (getattr(user, 'bonus_interviews', 0) or 0) + 1
+            session.bonus_credited = True
+            session.save(update_fields=['bonus_credited'])
+            bonus_awarded = True
+
+        if badge_added or bonus_awarded:
+            user.earned_badges = badges
+            user.save(update_fields=['bonus_interviews', 'earned_badges'])
+
+        return {
+            'reward_unlocked': True,
+            'bonus_awarded': bonus_awarded,
+            'total_bonus_interviews': user.bonus_interviews,
+            'earned_badges': badges,
+            'message': '🎉 Star Performer Badge Unlocked! +1 Free Interview Credited to your account.'
+        }
+    return None
+
+
 
 class StartInterviewView(APIView):
     """
@@ -41,6 +93,57 @@ class StartInterviewView(APIView):
                     {"error": "The specified resume was not found or does not belong to you."},
                     status=status.HTTP_404_NOT_FOUND
                 )
+
+        # ─── QUOTA & SUBSCRIPTION ENFORCEMENT ───
+        is_guest = (
+            request.user.email == 'guest@skillzo.ai' or
+            request.data.get('is_guest') is True or
+            request.headers.get('X-Is-Guest') == 'true' or
+            getattr(request.user, 'is_guest', False)
+        )
+        guest_count = int(request.data.get('guest_count') or request.headers.get('X-Guest-Count') or 0)
+
+        if is_guest:
+            if guest_count >= 5:
+                return Response(
+                    {
+                        'error': 'GUEST_LIMIT_REACHED',
+                        'message': 'Guest interview limit reached (5/5). Sign up with your personal email to get 10 free interviews + earn bonus credits, or purchase a Pro subscription!',
+                        'requires_auth': True,
+                        'requires_subscription': True,
+                        'limit': 5,
+                        'completed': guest_count,
+                        'is_guest': True,
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            is_leader = (
+                request.user.is_staff or
+                request.user.is_superuser or
+                (request.user.email and request.user.email.lower() in [
+                    'abhishekkushwaha13405@gmail.com', 'abhish@gmail.com', 'abhishekkushwaha31387@bbdu.ac.in'
+                ])
+            )
+            is_subscribed = bool(getattr(request.user, 'is_subscribed', False))
+
+            if not is_leader and not is_subscribed:
+                completed_count = InterviewSession.objects.filter(user=request.user, status='completed').count()
+                bonus = getattr(request.user, 'bonus_interviews', 0) or 0
+                total_allowed = 10 + bonus
+                if completed_count >= total_allowed:
+                    return Response(
+                        {
+                            'error': 'LIMIT_REACHED',
+                            'message': f'Free interview limit reached ({completed_count}/{total_allowed}). Upgrade to Skillzo Pro for unlimited practice, or score >= 80% on cloud verified interviews to earn bonus credits!',
+                            'requires_subscription': True,
+                            'limit': total_allowed,
+                            'completed': completed_count,
+                            'bonus_interviews': bonus,
+                            'is_subscribed': False,
+                        },
+                        status=status.HTTP_403_FORBIDDEN
+                    )
 
         session = InterviewSession.objects.create(
             resume=resume,
@@ -260,8 +363,11 @@ class UploadRecordingView(APIView):
                 pass
 
         answer.save()
+        reward_info = evaluate_and_reward_session(session, request.user)
         resp_data = InterviewAnswerSerializer(answer, context={'request': request}).data
         resp_data['cloud_url'] = uploaded_cloud_url or answer.cloud_video_url or answer.cloud_audio_url
+        if reward_info:
+            resp_data['reward_info'] = reward_info
         return Response(resp_data)
 
 
@@ -335,7 +441,11 @@ class CompleteInterviewView(APIView):
         session.verdict = report.get('verdict', '')
         session.save()
 
-        return Response(InterviewSessionSerializer(session, context={'request': request}).data)
+        reward_info = evaluate_and_reward_session(session, request.user)
+        resp_data = InterviewSessionSerializer(session, context={'request': request}).data
+        if reward_info:
+            resp_data['reward_info'] = reward_info
+        return Response(resp_data)
 
 
 class InterviewHistoryView(APIView):
@@ -478,3 +588,95 @@ class SubmitLiveEvaluationView(APIView):
             ]
         )
         return Response({"success": True, "session_id": session.id, "overall_score": overall})
+
+
+class InterviewQuotaView(APIView):
+    """
+    GET /api/interview/quota/
+    Returns quota details for current user or guest.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        is_guest = (
+            user.email == 'guest@skillzo.ai' or
+            request.query_params.get('is_guest') == 'true' or
+            request.headers.get('X-Is-Guest') == 'true'
+        )
+        if is_guest:
+            guest_count = int(request.query_params.get('guest_count') or 0)
+            return Response({
+                'is_guest': True,
+                'is_unlimited': False,
+                'limit': 5,
+                'completed': guest_count,
+                'remaining': max(0, 5 - guest_count),
+                'can_interview': guest_count < 5,
+                'bonus_interviews': 0,
+                'earned_badges': [],
+                'is_subscribed': False,
+                'plan': 'guest',
+            })
+
+        is_leader = (
+            user.is_staff or
+            user.is_superuser or
+            (user.email and user.email.lower() in [
+                'abhishekkushwaha13405@gmail.com', 'abhish@gmail.com', 'abhishekkushwaha31387@bbdu.ac.in'
+            ])
+        )
+        completed_count = InterviewSession.objects.filter(user=user, status='completed').count()
+
+        if is_leader or getattr(user, 'is_subscribed', False):
+            return Response({
+                'is_guest': False,
+                'is_unlimited': True,
+                'limit': 9999,
+                'completed': completed_count,
+                'remaining': 'Unlimited',
+                'can_interview': True,
+                'bonus_interviews': getattr(user, 'bonus_interviews', 0) or 0,
+                'earned_badges': getattr(user, 'earned_badges', []) or [],
+                'is_subscribed': bool(getattr(user, 'is_subscribed', False)),
+                'plan': 'Pro Unlimited' if getattr(user, 'is_subscribed', False) else 'Leader Unlimited',
+            })
+
+        bonus = getattr(user, 'bonus_interviews', 0) or 0
+        total_limit = 10 + bonus
+        remaining = max(0, total_limit - completed_count)
+        return Response({
+            'is_guest': False,
+            'is_unlimited': False,
+            'base_limit': 10,
+            'bonus_interviews': bonus,
+            'limit': total_limit,
+            'completed': completed_count,
+            'remaining': remaining,
+            'can_interview': (remaining > 0),
+            'earned_badges': getattr(user, 'earned_badges', []) or [],
+            'is_subscribed': False,
+            'plan': getattr(user, 'subscription_plan', 'free') or 'free',
+        })
+
+
+class SubscribePlanView(APIView):
+    """
+    POST /api/interview/subscribe/
+    Upgrades user account to Skillzo Pro subscription.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        plan = request.data.get('plan', 'monthly_pro')
+        user.is_subscribed = True
+        user.subscription_plan = plan
+        user.save(update_fields=['is_subscribed', 'subscription_plan'])
+
+        return Response({
+            'success': True,
+            'message': 'Subscription activated successfully! You now have unlimited mock interviews.',
+            'is_subscribed': True,
+            'subscription_plan': plan,
+        })
