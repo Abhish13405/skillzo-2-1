@@ -58,11 +58,11 @@ class NotificationChannel:
 class EmailNotificationChannel(NotificationChannel):
     """
     Sends responsive HTML + plain text email invitations via background worker thread
-    to prevent blocking HTTP response cycles.
+    to prevent blocking HTTP response cycles. Uses Brevo REST API primarily.
     """
     def send(self, invite, frontend_url: str = None):
-        if not frontend_url:
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        if not frontend_url or 'onrender.com' in frontend_url:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://skillzo-2-1.vercel.app')
         frontend_url = frontend_url.rstrip('/')
 
         candidate = invite.candidate
@@ -164,22 +164,28 @@ Powered by Skillzo AI
                             invite.status = 'Sent'
                             invite.last_sent_at = timezone.now()
                             invite.save(update_fields=['status', 'last_sent_at'])
+                            logger.info(f"[EmailNotificationChannel] Invite email sent to {recipient}")
                             return
-                    except Exception:
-                        pass
+                        else:
+                            logger.warning(f"[EmailNotificationChannel] Brevo returned false: {_b_msg}")
+                    except Exception as b_err:
+                        logger.warning(f"[EmailNotificationChannel] Brevo exception: {b_err}")
+                
+                # Secondary fallback: standard SMTP
                 msg = EmailMultiAlternatives(subject, plain_text, sender, [recipient])
                 msg.attach_alternative(html_content, "text/html")
                 msg.send(fail_silently=False)
                 invite.status = 'Sent'
                 invite.last_sent_at = timezone.now()
                 invite.save(update_fields=['status', 'last_sent_at'])
+                logger.info(f"[EmailNotificationChannel] Invite email sent via SMTP to {recipient}")
             except Exception as e:
                 import traceback
-                print(f"[EmailNotificationChannel ERROR] Failed sending to {recipient}: {e}")
+                logger.error(f"[EmailNotificationChannel ERROR] Failed sending to {recipient}: {e}\n{traceback.format_exc()}")
                 invite.status = 'Failed'
                 invite.save(update_fields=['status'])
 
-        # Execute delivery asynchronously in a background daemon thread
+        # Execute delivery in background thread
         thread = threading.Thread(target=_send_async, daemon=True)
         thread.start()
         return True
@@ -191,8 +197,8 @@ class WhatsAppNotificationChannel(NotificationChannel):
     and pre-filled personalized invite messages.
     """
     def send(self, invite, frontend_url: str = None) -> str:
-        if not frontend_url:
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        if not frontend_url or 'onrender.com' in frontend_url:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://skillzo-2-1.vercel.app')
         frontend_url = frontend_url.rstrip('/')
 
         candidate = invite.candidate
@@ -202,21 +208,33 @@ class WhatsAppNotificationChannel(NotificationChannel):
         token_join_url = f"{frontend_url}/live-interview/{room_id}?candidate={cand_id}&token={invite.token}"
         formatted_time = format_ist_datetime(invite.scheduled_at)
 
-        phone = getattr(candidate, 'phone', None)
-        if not phone or phone == '—':
-            raise ValueError(f"Candidate {candidate.username} does not have a valid registered phone number.")
+        phone = candidate.phone
+        if not phone or phone == "—":
+            normalized_phone = ""
+        else:
+            try:
+                normalized_phone = normalize_phone_e164(phone)
+            except ValueError:
+                normalized_phone = ""
 
-        normalized_e164 = normalize_phone_e164(phone)
-        digits_only = normalized_e164.lstrip('+')
-
-        msg = (
-            f"Namaste {candidate.username or 'Candidate'}! 👋\n\n"
-            f"You have been invited for a Live 1:1 Interview with *{company.name}*.\n\n"
-            f"📅 Date & Time: *{formatted_time}*\n"
-            f"🔗 Join Room Link: {token_join_url}\n\n"
-            f"Please join using a laptop with camera and microphone enabled. Best of luck!"
+        # Personalized invitation message
+        body_text = (
+            f"Namaste {candidate.username or 'Candidate'}! 🚀\n\n"
+            f"You have been invited for a Live 1:1 Video Interview with *{company.name}*.\n\n"
+            f"📅 *Scheduled:* {formatted_time}\n"
+            f"🎥 *Join Video Room:* {token_join_url}\n\n"
+            f"Please join 5 minutes before scheduled time with camera & mic ready.\n\n"
+            f"— {company.name} Talent Team (Skillzo AI)"
         )
+        encoded_text = urllib.parse.quote(body_text)
 
-        encoded_text = urllib.parse.quote(msg)
-        wa_link = f"https://wa.me/{digits_only}?text={encoded_text}"
+        if normalized_phone:
+            wa_number = normalized_phone.lstrip('+')
+            wa_link = f"https://wa.me/{wa_number}?text={encoded_text}"
+        else:
+            wa_link = f"https://wa.me/?text={encoded_text}"
+
+        invite.status = 'Sent'
+        invite.last_sent_at = timezone.now()
+        invite.save(update_fields=['status', 'last_sent_at'])
         return wa_link

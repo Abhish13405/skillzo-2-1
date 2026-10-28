@@ -425,7 +425,11 @@ class CreateLiveInviteView(APIView):
         User = get_user_model()
         candidate = User.objects.filter(id=cand_id).first()
         if not candidate:
-            return Response({"error": f"Candidate with ID {cand_id} does not exist."}, status=status.HTTP_404_NOT_FOUND)
+            cc = CompanyCandidate.objects.filter(id=cand_id, company=company).first()
+            if cc:
+                candidate = cc.candidate
+            else:
+                return Response({"error": f"Candidate with ID {cand_id} does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
         enrollment, _ = CompanyCandidate.objects.get_or_create(
             candidate=candidate,
@@ -457,7 +461,12 @@ class CreateLiveInviteView(APIView):
         )
 
         # Trigger notification channels
-        frontend_url = request.build_absolute_uri('/')
+        origin = request.headers.get('Origin') or request.headers.get('Referer') or ''
+        if origin and 'onrender.com' not in origin:
+            frontend_url = origin.rstrip('/')
+        else:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://skillzo-2-1.vercel.app').rstrip('/')
+
         whatsapp_url = None
 
         if sent_via in ['whatsapp', 'both']:

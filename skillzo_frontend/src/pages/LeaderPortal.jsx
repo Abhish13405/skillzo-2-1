@@ -237,16 +237,29 @@ const LeaderPortal = () => {
     setFallbackRoomUrl(roomUrl)
 
     try {
+      let scheduledDate
+      if (inviteTime && inviteTime.includes(':')) {
+        const parts = inviteTime.split(':')
+        const hh = String(parseInt(parts[0], 10) || 0).padStart(2, '0')
+        const mm = String(parseInt(parts[1], 10) || 0).padStart(2, '0')
+        scheduledDate = new Date(`${inviteDate}T${hh}:${mm}:00`)
+      } else {
+        scheduledDate = new Date(Date.now() + 60 * 60 * 1000)
+      }
+      if (isNaN(scheduledDate.getTime())) {
+        scheduledDate = new Date(Date.now() + 60 * 60 * 1000)
+      }
+
       const res = await createLiveInterviewInvite({
         candidate_id: candId,
-        scheduled_at: new Date(`${inviteDate}T${inviteTime}:00`).toISOString(),
+        scheduled_at: scheduledDate.toISOString(),
         message: inviteMessage,
         sent_via: inviteChannel,
       })
       if (res.data?.whatsapp_url) {
         setLastWhatsAppUrl(res.data.whatsapp_url)
       }
-      setInviteSuccessMsg(`✓ Invite created and email dispatched to ${inviteCandidate.email}!`)
+      setInviteSuccessMsg(`✓ Invitation email dispatched to ${inviteCandidate.email}! Candidate ko email check karne bole (Spam / Updates folder bhi check karein).`)
     } catch (err) {
       console.warn('Backend invite failed, generating direct fallback link:', err)
       const errDetail = err.response?.data?.error || err.response?.data?.detail || err.message || 'Server error'
