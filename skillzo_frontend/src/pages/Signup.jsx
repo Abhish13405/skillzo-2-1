@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
 const Signup = () => {
-  const [form, setForm] = useState({ username: '', email: '', password: '', confirm_password: '' })
+  const [form, setForm] = useState({ username: '', email: '', phone: '', password: '', confirm_password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [guestLoading, setGuestLoading] = useState(false)
@@ -15,21 +15,17 @@ const Signup = () => {
 
   useEffect(() => {
     if (!authLoading && user) {
-      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/dashboard')
-        ? location.state.from.pathname
-        : (isLeader ? '/leader' : '/dashboard')
+      const target = location.state?.from?.pathname || '/dashboard'
       navigate(target, { replace: true })
     }
-  }, [user, authLoading, navigate, isLeader, location])
+  }, [user, authLoading, navigate, location])
 
   const handleGuestLogin = async () => {
     setError('')
     setGuestLoading(true)
     try {
       await loginAsGuest()
-      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/leader')
-        ? location.state.from.pathname
-        : '/dashboard'
+      const target = location.state?.from?.pathname || '/dashboard'
       navigate(target, { replace: true })
     } catch {
       setError('Could not start guest session. Please try again.')
@@ -52,15 +48,13 @@ const Signup = () => {
     }
     setLoading(true)
     try {
-      const res = await signup({
+      await signup({
         ...form,
         username: form.username.trim(),
         email: form.email.trim().toLowerCase(),
+        phone: form.phone ? form.phone.trim() : '',
       })
-      const userIsLeader = isUserLeader(res?.user)
-      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/dashboard')
-        ? location.state.from.pathname
-        : (userIsLeader ? '/leader' : '/dashboard')
+      const target = location.state?.from?.pathname || '/dashboard'
       navigate(target, { replace: true })
     } catch (err) {
       const data = err.response?.data
@@ -198,6 +192,23 @@ const Signup = () => {
                 value={form.email}
                 onChange={handleChange}
                 placeholder="you@example.com"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="label">Mobile Number</label>
+                <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500 font-semibold">Optional</span>
+              </div>
+              <input
+                type="tel"
+                name="phone"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
+                className="input-field"
+                value={form.phone}
+                onChange={handleChange}
+                placeholder="+91 9876543210 (Optional)"
               />
             </div>
             <div>

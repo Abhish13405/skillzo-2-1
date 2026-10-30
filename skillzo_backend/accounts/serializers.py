@@ -8,10 +8,11 @@ User = get_user_model()
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     confirm_password = serializers.CharField(write_only=True)
+    phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'confirm_password']
+        fields = ['username', 'email', 'phone', 'password', 'confirm_password']
 
     def validate_email(self, value):
         norm = value.strip().lower()
@@ -32,11 +33,15 @@ class SignupSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('confirm_password')
+        phone = validated_data.pop('phone', None)
         user = User.objects.create_user(
             username=validated_data['username'].strip(),
             email=validated_data['email'].strip().lower(),
             password=validated_data['password'],
         )
+        if phone:
+            user.phone = phone.strip()
+            user.save(update_fields=['phone'])
         return user
 
 
