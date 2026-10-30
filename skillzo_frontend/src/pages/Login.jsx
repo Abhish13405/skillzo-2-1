@@ -26,21 +26,17 @@ const Login = () => {
 
   useEffect(() => {
     if (!authLoading && user) {
-      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/dashboard')
-        ? location.state.from.pathname
-        : (isLeader ? '/leader' : '/dashboard')
+      const target = location.state?.from?.pathname || '/dashboard'
       navigate(target, { replace: true })
     }
-  }, [user, authLoading, navigate, isLeader, location])
+  }, [user, authLoading, navigate, location])
 
   const handleGuestLogin = async () => {
     setError('')
     setGuestLoading(true)
     try {
       await loginAsGuest()
-      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/leader')
-        ? location.state.from.pathname
-        : '/dashboard'
+      const target = location.state?.from?.pathname || '/dashboard'
       navigate(target, { replace: true })
     } catch {
       setError('Could not start guest session. Please try again.')
@@ -53,11 +49,8 @@ const Login = () => {
     setError('')
     setLoading(true)
     try {
-      const res = await login(email.trim(), password)
-      const userIsLeader = isUserLeader(res?.user)
-      const target = (location.state?.from?.pathname && location.state.from.pathname !== '/dashboard')
-        ? location.state.from.pathname
-        : (userIsLeader ? '/leader' : '/dashboard')
+      await login(email.trim(), password)
+      const target = location.state?.from?.pathname || '/dashboard'
       navigate(target, { replace: true })
     } catch (err) {
 

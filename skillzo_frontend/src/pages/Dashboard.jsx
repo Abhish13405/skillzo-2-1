@@ -45,11 +45,8 @@ const Dashboard = () => {
     ))
   )
 
-  useEffect(() => {
-    if (isLeader && !isCandidatePreview) {
-      navigate('/leader', { replace: true })
-    }
-  }, [isLeader, isCandidatePreview, navigate])
+  // If leader, keep candidate access open and show leader banner rather than force-redirecting away
+  // useEffect removed so Dashboard always opens for Abhishek and all candidates!
 
   const [techCount, setTechCount] = useState(0)
   const [hrCount, setHrCount] = useState(0)
@@ -236,10 +233,6 @@ const Dashboard = () => {
     }
   ]
 
-  if (isLeader && !isCandidatePreview) {
-    return null
-  }
-
   const totalRounds = techCount + hrCount
   const practiceHours = (totalRounds * 0.25).toFixed(1)
   const earnedBadges = Array.isArray(user?.earned_badges) && user.earned_badges.length > 0
@@ -250,16 +243,16 @@ const Dashboard = () => {
     <AppShell hideSidebar={true}>
       <div className="w-full max-w-6xl mx-auto py-4 sm:py-6 px-4 space-y-6">
 
-        {/* Leader Preview Mode Alert */}
-        {isLeader && isCandidatePreview && (
+        {/* Leader Quick Link Banner */}
+        {isLeader && (
           <div className="flex justify-center">
             <Link
               to="/leader"
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-xs font-bold shadow-xs hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 dark:text-amber-300 text-xs font-bold shadow-xs hover:bg-amber-500/20 transition-colors"
             >
-              <span>👑 Student View Preview Mode (Leader ID Active)</span>
+              <span>👑 Leader Console Active ({user?.username || 'Abhishek'})</span>
               <span>·</span>
-              <span className="underline">← Return to Leader Console</span>
+              <span className="underline">Open Company Leader Console →</span>
             </Link>
           </div>
         )}

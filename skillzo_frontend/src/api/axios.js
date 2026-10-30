@@ -3,20 +3,16 @@ import axios from 'axios'
 export const PRODUCTION_API_URL = 'https://skillzo-2-1-2.onrender.com/api'
 
 const getApiBaseUrl = () => {
-  if (typeof window === 'undefined') return 'http://127.0.0.1:8000/api'
+  if (typeof window === 'undefined') return PRODUCTION_API_URL
   const hostname = window.location.hostname
-  const isLocal =
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname.startsWith('192.168.') ||
-    hostname.startsWith('10.') ||
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
 
-  if (isLocal) {
+  // Check if explicit local backend query is passed (e.g. ?backend=local)
+  const isLocalBackend = typeof window !== 'undefined' && window.location.search.includes('backend=local')
+  if (isLocalBackend && (hostname === 'localhost' || hostname === '127.0.0.1')) {
     return `http://${hostname}:8001/api`
   }
 
-  // Active verified production backend on Render (ignores dead skillzo-2-1-5 or localhost in production)
+  // Active verified production backend on Render
   let envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
   if (envUrl && !envUrl.includes('skillzo-2-1-5') && !envUrl.includes('127.0.0.1') && !envUrl.includes('localhost')) {
     envUrl = envUrl.replace(/\/+$/, '')
