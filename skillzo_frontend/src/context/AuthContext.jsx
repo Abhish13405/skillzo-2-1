@@ -26,10 +26,39 @@ export const isUserLeader = (u) => {
 }
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Synchronous cache read for 0ms instant first render
+  const getInitialUser = () => {
+    try {
+      const raw = localStorage.getItem('skillzo_user')
+      if (raw) return JSON.parse(raw)
+    } catch {
+      // ignore JSON parse error
+    }
+    return null
+  }
+
+  const initialUser = getInitialUser()
+  const [user, setUser] = useState(initialUser)
+  // If cached user exists, loading is FALSE immediately for instant page render
+  const [loading, setLoading] = useState(() => {
+    if (initialUser) return false
+    return Boolean(localStorage.getItem('skillzo_access'))
+  })
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authModalFeature, setAuthModalFeature] = useState('this feature')
+
+  const updateStoredUser = (userData) => {
+    setUser(userData)
+    try {
+      if (userData) {
+        localStorage.setItem('skillzo_user', JSON.stringify(userData))
+      } else {
+        localStorage.removeItem('skillzo_user')
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }
 
   const loadUser = async () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -41,15 +70,22 @@ export const AuthProvider = ({ children }) => {
 
     const access = localStorage.getItem('skillzo_access')
     if (!access) {
-      setUser(null)
+      updateStoredUser(null)
       setLoading(false)
       return
     }
+
+    // Safety timeout: Never let a cold server block the browser indefinitely
+    const fetchPromise = authApi.getProfile()
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Profile fetch timed out')), 5000)
+    )
+
     try {
-      const res = await authApi.getProfile()
+      const res = await Promise.race([fetchPromise, timeoutPromise])
       const isGuestStorage = localStorage.getItem('skillzo_is_guest') === 'true'
       if (isGuestStorage) {
-        setUser({
+        const guestData = {
           ...res.data,
           username: 'Guest Candidate',
           email: 'guest@skillzo.ai',
@@ -57,15 +93,20 @@ export const AuthProvider = ({ children }) => {
           is_staff: false,
           is_superuser: false,
           is_leader: false,
-        })
+        }
+        updateStoredUser(guestData)
       } else {
-        setUser(res.data)
+        updateStoredUser(res.data)
       }
-    } catch {
-      localStorage.removeItem('skillzo_access')
-      localStorage.removeItem('skillzo_refresh')
-      localStorage.removeItem('skillzo_is_guest')
-      setUser(null)
+    } catch (err) {
+      // If server explicitly returned 401 Unauthorized, token is expired: clear session
+      if (err.response?.status === 401) {
+        localStorage.removeItem('skillzo_access')
+        localStorage.removeItem('skillzo_refresh')
+        localStorage.removeItem('skillzo_is_guest')
+        updateStoredUser(null)
+      }
+      // Otherwise, keep cached user intact so user is never blocked by a slow network
     } finally {
       setLoading(false)
     }
@@ -82,7 +123,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
     localStorage.removeItem('skillzo_is_guest')
-    setUser(res.data.user)
+    updateStoredUser(res.data.user)
     return res.data
   }
 
@@ -92,7 +133,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('skillzo_access', res.data.tokens.access)
     localStorage.setItem('skillzo_refresh', res.data.tokens.refresh)
     localStorage.removeItem('skillzo_is_guest')
-    setUser(res.data.user)
+    updateStoredUser(res.data.user)
     return res.data
   }
 
@@ -112,19 +153,23 @@ export const AuthProvider = ({ children }) => {
       is_superuser: false,
       is_leader: false,
     }
-    setUser(guestUser)
+    updateStoredUser(guestUser)
     return { ...res.data, user: guestUser }
   }
 
   const logout = () => {
     localStorage.clear()
     localStorage.setItem('skillzo_logged_out', 'true')
-    setUser(null)
+    updateStoredUser(null)
   }
 
   const refreshUser = async () => {
-    const res = await authApi.getProfile()
-    setUser(res.data)
+    try {
+      const res = await authApi.getProfile()
+      updateStoredUser(res.data)
+    } catch {
+      // ignore refresh errors
+    }
   }
 
   const openAuthModal = (featureName = 'this feature') => {

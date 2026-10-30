@@ -33,6 +33,7 @@ export const API_BASE_URL = getApiBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 12000, // 12-second timeout to prevent infinite hanging
 })
 
 // Attach access token to every request
@@ -90,7 +91,7 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const res = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, { refresh })
+        const res = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, { refresh }, { timeout: 8000 })
         const newAccess = res.data.access
         localStorage.setItem('skillzo_access', newAccess)
         processQueue(null, newAccess)

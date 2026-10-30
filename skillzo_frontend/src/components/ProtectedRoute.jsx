@@ -1,13 +1,59 @@
-import React from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Navigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Loader from './Loader'
 
 const ProtectedRoute = ({ children, featureName = 'this feature', requireLeader = false }) => {
-  const { user, loading, isLeader } = useAuth()
+  const { user, loading, isLeader, logout } = useAuth()
   const location = useLocation()
+  const [slowLoading, setSlowLoading] = useState(false)
 
-  if (loading) return <Loader full />
+  useEffect(() => {
+    let timer
+    if (loading) {
+      timer = setTimeout(() => {
+        setSlowLoading(true)
+      }, 3500)
+    } else {
+      setSlowLoading(false)
+    }
+    return () => clearTimeout(timer)
+  }, [loading])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center p-4 text-center">
+        <Loader label="Loading workspace..." />
+        {slowLoading && (
+          <div className="mt-4 max-w-sm bg-[#0E152B] p-4 rounded-2xl border border-slate-800 text-slate-300 space-y-3 animate-fade-in shadow-xl">
+            <p className="text-xs text-slate-400">
+              Cloud server is taking longer than usual to respond (Render cold-start).
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer"
+              >
+                🔄 Refresh
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  logout()
+                  window.location.href = '/login'
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer border border-slate-700"
+              >
+                Go to Login
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
