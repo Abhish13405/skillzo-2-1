@@ -17,6 +17,7 @@ from .serializers import (
     LiveInterviewInviteSerializer
 )
 from .services import EmailNotificationChannel, WhatsAppNotificationChannel, normalize_phone_e164
+from common.cloud_storage import optimize_cloudinary_url
 from interview.models import InterviewSession
 from resume_analysis.models import Resume
 
@@ -204,8 +205,8 @@ class CompanyCandidateDetailView(APIView):
                 ans_data = None
                 if hasattr(q, 'answer') and q.answer:
                     ans = q.answer
-                    v_url = ans.cloud_video_url or (ans.video_file.url if ans.video_file else None)
-                    a_url = ans.cloud_audio_url or (ans.audio_file.url if ans.audio_file else None)
+                    v_url = optimize_cloudinary_url(ans.cloud_video_url) if ans.cloud_video_url else (ans.video_file.url if ans.video_file else None)
+                    a_url = optimize_cloudinary_url(ans.cloud_audio_url) if ans.cloud_audio_url else (ans.audio_file.url if ans.audio_file else None)
                     ans_data = {
                         "id": ans.id,
                         "answer_text": ans.answer_text,
