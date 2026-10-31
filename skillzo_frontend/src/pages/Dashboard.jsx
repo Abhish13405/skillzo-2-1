@@ -106,7 +106,7 @@ const Dashboard = () => {
             Welcome to Skillzo
           </h1>
           <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-400 mt-2.5 max-w-xl mx-auto leading-relaxed">
-            Pick a workspace to start practicing mock interviews. Resume Analysis is always one click away in the sidebar.
+            Pick a workspace to start practicing mock interviews.
           </p>
         </div>
 

@@ -68,18 +68,6 @@ const AppShell = ({ children, hideSidebar = false, noScroll = false }) => {
                 </div>
               </Link>
               <div className="flex items-center gap-2 sm:gap-3">
-                {/* Quick Link to Resume Analysis when sidebar is hidden */}
-                <Link
-                  to="/resume"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-slate-100/70 dark:bg-[#121212] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400/50 transition-all shadow-2xs"
-                  title="ATS Resume Analysis"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                  </svg>
-                  <span>Resume Analysis</span>
-                </Link>
                 {/* Quota / Membership Pill */}
                 {user && (
                   <button
