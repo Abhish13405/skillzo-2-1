@@ -13,6 +13,7 @@ import NotFound from './pages/NotFound'
 
 // Lazy-Loaded Heavy Subpages (Loaded on demand to cut initial JS bundle by 70%)
 const Profile = lazy(() => import('./pages/Profile'))
+const Settings = lazy(() => import('./pages/Settings'))
 const ResumeAnalysis = lazy(() => import('./pages/ResumeAnalysis'))
 const InterviewSetup = lazy(() => import('./pages/InterviewSetup'))
 const InterviewSession = lazy(() => import('./pages/InterviewSession'))
@@ -58,6 +59,7 @@ function App() {
         <Route path="/hr" element={<ProtectedRoute featureName="HR Workspace"><HrStudio /></ProtectedRoute>} />
         <Route path="/technical" element={<ProtectedRoute featureName="Technical Studio"><TechnicalStudio /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute featureName="Profile"><Profile /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute featureName="Settings"><Settings /></ProtectedRoute>} />
         <Route path="/resume" element={<ProtectedRoute featureName="ATS Resume Analysis"><ResumeAnalysis /></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute featureName="Reports & History"><History /></ProtectedRoute>} />
         <Route path="/recordings" element={<ProtectedRoute featureName="Recordings"><Recordings /></ProtectedRoute>} />
