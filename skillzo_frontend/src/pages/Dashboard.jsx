@@ -84,7 +84,7 @@ const Dashboard = () => {
   }, [user, isLeader])
 
   return (
-    <AppShell hideSidebar={false}>
+    <AppShell hideSidebar={true}>
       <div className="w-full max-w-5xl mx-auto min-h-[calc(100vh-80px)] flex flex-col justify-center py-6 sm:py-10 px-4">
         {/* Leader student view return banner */}
         {isLeader && (
