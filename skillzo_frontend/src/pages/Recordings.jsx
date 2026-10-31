@@ -13,10 +13,28 @@ import {
 } from '../utils/recordingsDb'
 import { uploadInterviewRecording } from '../api/interview'
 
+const pauseOtherMedia = (currentMedia) => {
+  document.querySelectorAll('video, audio').forEach((el) => {
+    if (el !== currentMedia && !el.paused) {
+      el.pause()
+    }
+  })
+}
+
+const formatPlaybackTime = (secs) => {
+  if (isNaN(secs) || secs === Infinity) return '0:00'
+  const total = Math.max(0, Math.floor(secs))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${s < 10 ? '0' : ''}${s}`
+}
+
 const Recordings = () => {
   const { user } = useAuth()
   const location = useLocation()
   const videoPlayerRef = useRef(null)
+
+
 
   const userEmail = (user?.email || '').toLowerCase().trim()
   const isLeader = Boolean(
@@ -39,6 +57,27 @@ const Recordings = () => {
   const [search, setSearch] = useState('')
   const [storageInfo, setStorageInfo] = useState({ totalBytes: 0, formatted: '0 KB', count: 0 })
   const [activePlayback, setActivePlayback] = useState(null) // Recording object being played in modal
+  const [playbackCurrentTime, setPlaybackCurrentTime] = useState(0)
+  const [playbackDuration, setPlaybackDuration] = useState(0)
+
+  useEffect(() => {
+    if (activePlayback) {
+      setPlaybackCurrentTime(0)
+      setPlaybackDuration(activePlayback.durationSeconds || 0)
+    }
+  }, [activePlayback])
+
+  const handleSeek = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const percent = Math.max(0, Math.min(1, clickX / rect.width))
+    const totalDur = playbackDuration || activePlayback?.durationSeconds || 1
+    const newTime = percent * totalDur
+    if (videoPlayerRef.current) {
+      videoPlayerRef.current.currentTime = newTime
+      setPlaybackCurrentTime(newTime)
+    }
+  }
   const [uploadingId, setUploadingId] = useState(null)
   const [uploadAllLoading, setUploadAllLoading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
@@ -613,16 +652,36 @@ const Recordings = () => {
                   controls
                   playsInline
                   onPlay={(e) => {
+                    pauseOtherMedia(e.target)
                     try {
                       e.target.muted = false
                       e.target.volume = 1.0
                     } catch {}
                   }}
+                  onTimeUpdate={(e) => {
+                    setPlaybackCurrentTime(e.target.currentTime)
+                    if (e.target.duration && !isNaN(e.target.duration) && e.target.duration !== Infinity) {
+                      setPlaybackDuration(e.target.duration)
+                    } else if (activePlayback.durationSeconds) {
+                      setPlaybackDuration(activePlayback.durationSeconds)
+                    }
+                  }}
                   onLoadedMetadata={(e) => {
+                    const v = e.target
                     try {
-                      e.target.muted = false
-                      e.target.volume = 1.0
+                      v.muted = false
+                      v.volume = 1.0
                     } catch {}
+                    // Chromium WebM duration fix:
+                    if (v.duration === Infinity || isNaN(v.duration)) {
+                      v.currentTime = 1e101
+                      v.ontimeupdate = function () {
+                        this.ontimeupdate = null
+                        this.currentTime = 0
+                      }
+                    } else {
+                      setPlaybackDuration(v.duration)
+                    }
                   }}
                   className="w-full h-full object-contain"
                 />
@@ -636,15 +695,55 @@ const Recordings = () => {
                     controls
                     autoPlay
                     onPlay={(e) => {
+                      pauseOtherMedia(e.target)
                       try {
                         e.target.muted = false
                         e.target.volume = 1.0
                       } catch {}
                     }}
+                    onTimeUpdate={(e) => {
+                      setPlaybackCurrentTime(e.target.currentTime)
+                    }}
                     className="w-full max-w-md"
                   />
                 </div>
               )}
+            </div>
+
+            {/* Interactive Timeline & Remaining Video Line ("Kitni video bachi line") */}
+            <div className="bg-slate-50 dark:bg-[#131E38] p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
+                  <span>▶️</span>
+                  <span>{formatPlaybackTime(playbackCurrentTime)}</span>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                  <span>⏳ Bachi hai:</span>
+                  <span>
+                    {formatPlaybackTime(Math.max(0, (playbackDuration || activePlayback.durationSeconds || 0) - playbackCurrentTime))}
+                  </span>
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  Total: {formatPlaybackTime(playbackDuration || activePlayback.durationSeconds || 0)}
+                </span>
+              </div>
+
+              {/* Seekable Progress Line */}
+              <div
+                onClick={handleSeek}
+                className="w-full h-3.5 bg-slate-200 dark:bg-slate-800 rounded-full cursor-pointer relative overflow-hidden group shadow-inner"
+                title="Click on the line to scrub video"
+              >
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-75"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (playbackCurrentTime / Math.max(1, playbackDuration || activePlayback.durationSeconds || 1)) * 100
+                    )}%`
+                  }}
+                />
+              </div>
             </div>
 
             {/* Audio & Volume Quick Controls for Mobile / Desktop */}

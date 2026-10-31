@@ -42,6 +42,14 @@ const formatTimeDisplay = (timeStr) => {
   return `${displayH}:${displayM} ${period}`
 }
 
+const pauseOtherMedia = (currentMedia) => {
+  document.querySelectorAll('video, audio').forEach((el) => {
+    if (el !== currentMedia && !el.paused) {
+      el.pause()
+    }
+  })
+}
+
 const LeaderPortal = () => {
   const { user, logout, isLeader } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -1314,6 +1322,7 @@ const LeaderPortal = () => {
                                         playsInline
                                         preload="metadata"
                                         onPlay={(e) => {
+                                          pauseOtherMedia(e.target)
                                           try {
                                             e.target.muted = false
                                             e.target.volume = 1.0

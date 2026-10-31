@@ -106,13 +106,6 @@ const deduplicateAppend = (existing, incoming) => {
     }
   }
 
-  // 5. Tail containment check: if incoming chunk is already in the last N words of base
-  const cleanChunkStr = chunkWords.map(cleanWord).join(' ')
-  const recentBaseSlice = baseWords.slice(-Math.min(baseWords.length, chunkWords.length * 2)).map(cleanWord).join(' ')
-  if (cleanChunkStr && recentBaseSlice.includes(cleanChunkStr)) {
-    return base
-  }
-
   return `${base} ${chunk}`.trim()
 }
 
@@ -135,6 +128,7 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   const accumulatedFinalRef = useRef('')
   // Highest resultIndex finalized in the active recognition session to prevent duplicate processing
   const lastFinalizedIndexRef = useRef(-1)
+  const currentSessionFinalRef = useRef('')
   const restartTimerRef = useRef(null)
 
   const onTranscriptRef = useRef(onTranscript)
@@ -217,30 +211,32 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       onSpeechActivityRef.current?.()
       if (!event.results) return
 
-      let interim = ''
+      let sessionFinal = ''
+      let sessionInterim = ''
 
-      // Process only from event.resultIndex forward
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const item = event.results[i]
         const transcript = (item[0]?.transcript || '').trim()
         if (!transcript) continue
 
         if (item.isFinal) {
-          // Guard against duplicate isFinal events for the same result index (Chromium bug)
-          if (i > lastFinalizedIndexRef.current) {
-            lastFinalizedIndexRef.current = i
-            accumulatedFinalRef.current = deduplicateAppend(accumulatedFinalRef.current, transcript)
-          }
+          sessionFinal += (sessionFinal ? ' ' : '') + transcript
         } else {
-          interim += (interim ? ' ' : '') + transcript
+          sessionInterim += (sessionInterim ? ' ' : '') + transcript
         }
       }
 
-      // Live transcript = permanently committed final text + active live interim phrase
+      currentSessionFinalRef.current = sessionFinal
+
+      // Live transcript = permanently committed final text + active live session words
       const baseFinal = accumulatedFinalRef.current.trim()
-      const liveText = baseFinal
-        ? (interim ? `${baseFinal} ${interim}` : baseFinal)
-        : interim
+      let liveText = baseFinal
+      if (sessionFinal) {
+        liveText = liveText ? `${liveText} ${sessionFinal}` : sessionFinal
+      }
+      if (sessionInterim) {
+        liveText = liveText ? `${liveText} ${sessionInterim}` : sessionInterim
+      }
 
       if (liveText) {
         onTranscriptRef.current?.(liveText.trim())
@@ -270,6 +266,14 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     recognition.onend = () => {
       isStartingRef.current = false
       isRunningRef.current = false
+
+      if (currentSessionFinalRef.current) {
+        const chunk = currentSessionFinalRef.current.trim()
+        if (chunk) {
+          accumulatedFinalRef.current = deduplicateAppend(accumulatedFinalRef.current, chunk)
+        }
+        currentSessionFinalRef.current = ''
+      }
 
       // Restart smoothly if candidate is still actively answering and mic is not explicitly stopped
       if (!isExplicitlyStoppedRef.current) {
@@ -696,13 +700,18 @@ const InterviewSession = () => {
 
   // Live transcribed speech directly streams into the candidate's answer box in real-time
   const handleTranscript = useCallback((t) => {
-    if (isAiAskingRef.current || isWarmupRef.current) {
+    if (isWarmupRef.current) {
       return
+    }
+    if (isAiAskingRef.current) {
+      isAiAskingRef.current = false
+      setIsAiAsking(false)
+      try { cancelSpeech?.() } catch {}
     }
     lastSpeechTimeRef.current = Date.now()
     setSilenceSeconds(0)
     setAnswerText(t)
-  }, [])
+  }, [cancelSpeech])
 
   const {
     listening,

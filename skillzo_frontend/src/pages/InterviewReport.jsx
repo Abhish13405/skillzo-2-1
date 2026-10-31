@@ -111,6 +111,14 @@ const Certificate = React.forwardRef(({ session, user }, ref) => {
   )
 })
 
+const pauseOtherMedia = (currentMedia) => {
+  document.querySelectorAll('video, audio').forEach((el) => {
+    if (el !== currentMedia && !el.paused) {
+      el.pause()
+    }
+  })
+}
+
 const InterviewReport = () => {
   const params = useParams()
   const sessionId = params.sessionId || params.id
@@ -852,9 +860,9 @@ const InterviewReport = () => {
                           )}
                         </div>
                         {isVideo ? (
-                          <video src={mediaUrl} controls playsInline onPlay={(e) => { try { e.target.muted = false; e.target.volume = 1.0; } catch {} }} className="w-full max-h-36 rounded-lg bg-black" />
+                          <video src={mediaUrl} controls playsInline onPlay={(e) => { pauseOtherMedia(e.target); try { e.target.muted = false; e.target.volume = 1.0; } catch {} }} className="w-full max-h-36 rounded-lg bg-black" />
                         ) : (
-                          <audio src={mediaUrl} controls className="w-full" />
+                          <audio src={mediaUrl} controls onPlay={(e) => pauseOtherMedia(e.target)} className="w-full" />
                         )}
                       </div>
                     )}
