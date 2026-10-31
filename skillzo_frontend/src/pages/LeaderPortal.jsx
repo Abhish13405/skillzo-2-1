@@ -382,9 +382,11 @@ const LeaderPortal = () => {
         {/* ═══════════════ CLAUDE HEADER (NO CANDIDATE SIDEBAR) ═══════════════ */}
         <header className="flex items-center justify-between border-b border-[#262a4d] pb-4 flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#7c6cff] to-indigo-500 flex items-center justify-center font-extrabold text-white shadow-lg shadow-[#7c6cff]/20">
-              SZ
-            </div>
+            <img
+              src="/logo-icon.png"
+              alt="Skillzo Logo"
+              className="w-10 h-10 object-contain shrink-0 drop-shadow-md"
+            />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-extrabold text-white tracking-tight">
@@ -516,79 +518,6 @@ const LeaderPortal = () => {
                 >
                   <span>📥 Export CSV</span>
                 </button>
-              </div>
-            </div>
-
-            {/* Needs your attention today (Claude Feature) */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-[#151833] border border-[#262a4d] shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base sm:text-lg font-bold text-white">
-                  Needs your attention today
-                </h3>
-                <span className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
-                  Priority
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3 py-2 border-b border-[#262a4d]/60">
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold text-white">
-                      Candidates waiting for your decision
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Evaluated, but not yet shortlisted, held or rejected
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('candidates')
-                      setStatusFilter('new')
-                    }}
-                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#7c6cff] hover:bg-[#6a58f7] text-white shadow-md shadow-[#7c6cff]/20 cursor-pointer"
-                  >
-                    Review Candidates
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 py-2 border-b border-[#262a4d]/60">
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold text-white">
-                      2 Live interviews scheduled today
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      4:00 PM and 5:30 PM (Asia/Kolkata IST)
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('live_rooms')}
-                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#151833] hover:bg-[#1f244a] text-slate-200 border border-[#262a4d] cursor-pointer"
-                  >
-                    View Rooms
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 py-2">
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold text-white">
-                      Invite top applicants to 1:1 round
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Send official invitations via WhatsApp & Email
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (candidates.length > 0) handleOpenInvite(candidates[0])
-                    }}
-                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#7c6cff] hover:bg-[#6a58f7] text-white shadow-md shadow-[#7c6cff]/20 cursor-pointer"
-                  >
-                    + Send Invites
-                  </button>
-                </div>
               </div>
             </div>
 
