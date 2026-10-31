@@ -95,8 +95,13 @@ const LeaderPortal = () => {
         getCompanyStats(),
         getCompanyCandidates({ page_size: 100 })
       ])
-      setStats(statsRes.data)
-      setCandidates(candRes.data.results || [])
+      const candList = candRes.data?.results || []
+      if (candList.length > 0) {
+        setStats(statsRes.data)
+        setCandidates(candList)
+      } else {
+        throw new Error('Company candidates empty, triggering platform users fallback.')
+      }
     } catch (err) {
       console.warn('Company endpoint fallback triggered:', err.message)
       // 2. Seamless Fallback: Load full registered roster from dashboard leader stats
