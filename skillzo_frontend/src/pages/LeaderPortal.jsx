@@ -122,10 +122,17 @@ const LeaderPortal = () => {
             remark: u.is_leader ? 'Lead Project Admin' : 'Registered candidate',
             shares_with_company: true,
             version: 1,
-            interview_status: (u.total_interviews || 0) > 0 ? 'Completed' : 'Not started',
+                        interview_status: (u.total_interviews || 0) > 0 ? 'Completed' : 'Not started',
             interview_score: u.avg_score || u.best_score || null,
             interview_type: (u.total_interviews || 0) > 0 ? 'Real interview' : 'Practice',
+            is_subscribed: Boolean(u.is_subscribed),
+            subscription_plan: u.subscription_plan || 'free',
+            total_interviews: u.total_interviews || 0,
+            completed_interviews: u.completed_interviews || (u.sessions?.length || 0),
+            avg_score: u.avg_score || u.best_score || 0,
+            best_score: u.best_score || 0,
             sessions: u.sessions || [],
+            recordings: u.recordings || [],
             resumes: u.resumes || [],
           }))
 
@@ -1090,9 +1097,13 @@ const LeaderPortal = () => {
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded-full uppercase font-bold bg-[#0d0f1e] text-indigo-300 border border-[#262a4d]">
                       {selectedCandidate.status || 'new'}
                     </span>
-                    {selectedCandidate.is_subscribed && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                        ⭐ PRO
+                                        {selectedCandidate.is_subscribed ? (
+                      <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-xs">
+                        ⭐ PRO ({selectedCandidate.subscription_plan ? selectedCandidate.subscription_plan.toUpperCase() : 'ACTIVE'})
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                        🆓 FREE TIER ({selectedCandidate.completed_interviews ?? selectedCandidate.sessions?.length ?? 0}/5 used)
                       </span>
                     )}
                   </div>
@@ -1144,8 +1155,8 @@ const LeaderPortal = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Executive Score Summary */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                                {/* Executive Score Summary with Subscription Status */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
                   <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
                     <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Overall AI Score</div>
                     <div className="text-2xl font-black text-emerald-400 mt-1">
@@ -1153,14 +1164,23 @@ const LeaderPortal = () => {
                     </div>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
-                    <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Interviews Taken</div>
+                    <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Interviews Given</div>
                     <div className="text-2xl font-black text-indigo-400 mt-1">
                       {selectedCandidate.completed_interviews ?? selectedCandidate.sessions?.length ?? 0}
                     </div>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Subscription</div>
+                    <div className={`text-base font-black mt-1 ${selectedCandidate.is_subscribed ? 'text-amber-300' : 'text-slate-300'}`}>
+                      {selectedCandidate.is_subscribed ? (selectedCandidate.subscription_plan ? selectedCandidate.subscription_plan.toUpperCase() : 'PRO') : 'FREE'}
+                    </div>
+                    <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                      {selectedCandidate.is_subscribed ? 'Unlimited AI' : '5 Quota Tier'}
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-[#0d0f1e] border border-[#262a4d]">
                     <div className="text-[10px] text-slate-400 uppercase font-bold font-mono">Joined Platform</div>
-                    <div className="text-sm font-bold text-slate-200 mt-2 font-mono">
+                    <div className="text-xs font-bold text-slate-200 mt-2 font-mono">
                       {selectedCandidate.date_joined || '—'}
                     </div>
                   </div>

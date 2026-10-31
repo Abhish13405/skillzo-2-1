@@ -310,6 +310,8 @@ class LeaderPortalStatsView(APIView):
                     (u.email and u.email.lower().strip() in ['abhishekkushwaha13405@gmail.com', 'abhish@gmail.com']) or
                     (u.username and u.username.lower().strip() in ['abhish', 'abhishek13405'])
                 ),
+                "is_subscribed": getattr(u, 'is_subscribed', False),
+                "subscription_plan": getattr(u, 'subscription_plan', 'free') or 'free',
                 "total_interviews": st.get('total', len(u_sessions)),
                 "completed_interviews": st.get('completed', len([s for s in u_sessions if s['status'] == 'completed'])),
                 "avg_score": round(st['avg_score'], 1) if st.get('avg_score') is not None else 0,

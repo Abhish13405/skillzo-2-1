@@ -302,6 +302,7 @@ class CompanyCandidateDetailView(APIView):
             "earned_badges": earned_badges,
             "bonus_interviews": getattr(cand, 'bonus_interviews', 0) or 0,
             "is_subscribed": getattr(cand, 'is_subscribed', False),
+            "subscription_plan": getattr(cand, 'subscription_plan', 'free') or 'free',
             "total_interviews": total_sessions,
             "completed_interviews": len(completed_sessions),
             "avg_score": avg_score,
