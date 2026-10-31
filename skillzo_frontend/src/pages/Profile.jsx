@@ -31,13 +31,18 @@ const Profile = () => {
 
   return (
     <AppShell>
-      <div className="mb-4 sm:mb-5 border-b border-slate-200/60 dark:border-slate-800 pb-3 sm:pb-4">
-        <span className="eyebrow mb-1">User Settings</span>
-        <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">Candidate Profile</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Manage your candidate details and career target roles.</p>
-      </div>
+      <div className="max-w-2xl mx-auto w-full py-2 sm:py-6">
+        <div className="mb-5 sm:mb-6 border-b border-slate-200/60 dark:border-slate-800 pb-3 sm:pb-4 text-center sm:text-left">
+          <span className="eyebrow mb-1">User Settings</span>
+          <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">
+            Candidate Profile
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
+            Manage your candidate details and career target roles.
+          </p>
+        </div>
 
-      <div className="card border border-slate-200/80 dark:border-neutral-800 dark:bg-[#0D0D0D] shadow-craft max-w-xl p-4 sm:p-6 rounded-2xl">
+        <div className="card border border-slate-200/80 dark:border-neutral-800 dark:bg-[#0D0D0D] shadow-craft w-full p-5 sm:p-7 rounded-2xl">
         <div className="flex items-center gap-3.5 mb-4 pb-4 border-b border-slate-100 dark:border-neutral-800">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-blue-400 border border-blue-200 dark:border-blue-500/40 flex items-center justify-center font-display font-extrabold text-white text-lg shadow-sm">
             {user?.username?.[0]?.toUpperCase() || 'U'}
@@ -78,6 +83,7 @@ const Profile = () => {
             {saving ? 'Saving changes...' : 'Save Profile Changes →'}
           </button>
         </form>
+        </div>
       </div>
     </AppShell>
   )
