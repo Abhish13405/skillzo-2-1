@@ -664,7 +664,7 @@ const InterviewSession = () => {
   const attachVideoRef = useCallback((el) => {
     videoRef.current = el
     if (el) {
-      const activeStream = streamRef.current || stream
+      let activeStream = streamRef.current || stream
       if (activeStream && el.srcObject !== activeStream) {
         el.srcObject = activeStream
       }
@@ -737,9 +737,23 @@ const InterviewSession = () => {
   const startCamera = useCallback(async () => {
     let combinedStream = null
 
-    // On mobile devices (Android/iOS): video only!
-    // This strictly prevents the camera from locking the hardware microphone away from Web Speech API!
-    if (isMobileDevice()) {
+    // Strategy 1: Crisp selfie video + echo-cancelled noise-suppressed microphone
+    try {
+      combinedStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
+    } catch (err1) {
+      console.warn('Advanced constraints failed, attempting standard video + audio:', err1)
+      // Strategy 2: Universal standard video: true, audio: true
       try {
         combinedStream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -747,46 +761,33 @@ const InterviewSession = () => {
             width: { ideal: 640 },
             height: { ideal: 480 },
           },
-          audio: false,
+          audio: true,
         })
-      } catch (mErr1) {
+      } catch (err2) {
+        console.warn('Combined getUserMedia failed, attempting separate video + audio acquisition:', err2)
+        // Strategy 3: Separate acquisition and merge
         try {
-          combinedStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        } catch (mErr2) {
-          console.warn('Mobile video camera acquisition failed:', mErr2)
-        }
-      }
-    } else {
-      // Desktop PC/Laptop:
-      try {
-        combinedStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'user',
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        })
-      } catch (err1) {
-        try {
-          combinedStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true,
-          })
-        } catch (err2) {
+          const vStream = await navigator.mediaDevices.getUserMedia({ video: true })
+          let aStream = null
           try {
-            combinedStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-          } catch {}
+            aStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          } catch (aErr) {
+            console.warn('Audio-only microphone acquisition failed:', aErr)
+          }
+
+          if (aStream && aStream.getAudioTracks().length > 0) {
+            combinedStream = new MediaStream([...vStream.getVideoTracks(), ...aStream.getAudioTracks()])
+          } else {
+            combinedStream = vStream
+          }
+        } catch (vErr) {
+          console.error('All camera acquisition strategies failed:', vErr)
         }
       }
     }
 
     if (combinedStream) {
-      // Enable video, but strictly mute audio tracks if AI is asking
+      // Enable video, and enable audio for the stream
       combinedStream.getVideoTracks().forEach((track) => {
         track.enabled = true
       })
@@ -848,7 +849,7 @@ const InterviewSession = () => {
 
   // Start High-Reliability Video/Audio Recording with multi-tier fallback & self-healing audio track
   const startRecording = useCallback(async () => {
-    const activeStream = streamRef.current || stream
+    let activeStream = streamRef.current || stream
     if (!activeStream || typeof MediaRecorder === 'undefined') {
       console.warn('startRecording: No active stream available yet.')
       return
@@ -856,19 +857,19 @@ const InterviewSession = () => {
     const mode = session?.mode || 'video'
     if (mode === 'text') return // text mode does not record media
 
-    // Self-healing for desktop: If stream has 0 audio tracks, dynamically acquire microphone for desktop
-    if (!isMobileDevice() && activeStream.getAudioTracks().length === 0) {
+    // Guarantee active stream has at least one audio track for audio/video recording
+    if (activeStream.getAudioTracks().length === 0) {
       try {
         console.log('⚠️ Stream has 0 audio tracks! Acquiring microphone dynamically for recording...')
         const aStream = await navigator.mediaDevices.getUserMedia({ audio: true })
         const aTrack = aStream.getAudioTracks()[0]
         if (aTrack) {
           aTrack.enabled = true
-          activeStream.addTrack(aTrack)
-          if (streamRef.current && streamRef.current !== activeStream) {
-            streamRef.current.addTrack(aTrack)
-          }
-          console.log('✅ Successfully attached microphone track to recording stream!')
+          const merged = new MediaStream([...activeStream.getVideoTracks(), aTrack])
+          activeStream = merged
+          streamRef.current = merged
+          setStream(merged)
+          console.log('✅ Successfully created combined stream with microphone audio track!')
         }
       } catch (micErr) {
         console.warn('Could not dynamically attach microphone track to stream:', micErr)
@@ -1088,7 +1089,7 @@ const InterviewSession = () => {
   useEffect(() => {
     const mode = session?.mode || 'text'
     if (mode === 'text' || isPaused || isCompleted || isAiAsking || isCountingDown) return
-    const activeStream = streamRef.current || stream
+    let activeStream = streamRef.current || stream
     if (!activeStream) return
 
     if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {

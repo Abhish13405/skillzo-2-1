@@ -852,7 +852,7 @@ const InterviewReport = () => {
                           )}
                         </div>
                         {isVideo ? (
-                          <video src={mediaUrl} controls className="w-full max-h-36 rounded-lg bg-black" />
+                          <video src={mediaUrl} controls playsInline onPlay={(e) => { try { e.target.muted = false; e.target.volume = 1.0; } catch {} }} className="w-full max-h-36 rounded-lg bg-black" />
                         ) : (
                           <audio src={mediaUrl} controls className="w-full" />
                         )}

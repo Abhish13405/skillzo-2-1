@@ -1384,6 +1384,18 @@ const LeaderPortal = () => {
                                         controls
                                         playsInline
                                         preload="metadata"
+                                        onPlay={(e) => {
+                                          try {
+                                            e.target.muted = false
+                                            e.target.volume = 1.0
+                                          } catch {}
+                                        }}
+                                        onLoadedMetadata={(e) => {
+                                          try {
+                                            e.target.muted = false
+                                            e.target.volume = 1.0
+                                          } catch {}
+                                        }}
                                         className="w-full max-h-80 object-contain bg-black"
                                         src={q.answer.video_url}
                                       />
