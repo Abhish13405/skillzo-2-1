@@ -85,7 +85,7 @@ const Dashboard = () => {
 
   return (
     <AppShell hideSidebar={true}>
-      <div className="w-full max-w-5xl mx-auto min-h-[calc(100vh-80px)] flex flex-col justify-center py-6 sm:py-10 px-4">
+      <div className="w-full max-w-5xl mx-auto flex flex-col pt-1 sm:pt-2 pb-10 px-4">
         {/* Leader student view return banner */}
         {isLeader && (
           <div className="mb-4 flex justify-center">
@@ -101,7 +101,7 @@ const Dashboard = () => {
         )}
 
         {/* Top Header */}
-        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
           <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-display font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
             Welcome to Skillzo
           </h1>
