@@ -100,16 +100,18 @@ export const getAllRecordings = async (filterUser = null, showAll = false) => {
 
       req.onsuccess = () => {
         let list = req.result || []
-        if (filterUser && !showAll) {
-          const uid = filterUser.id
-          const uemail = (filterUser.email || '').toLowerCase()
+        if (!showAll) {
+          // Regular user is strictly restricted to their own recordings
+          if (!filterUser) {
+            resolve([])
+            return
+          }
+          const uid = filterUser.id ? String(filterUser.id) : null
+          const uemail = (filterUser.email || '').toLowerCase().trim()
           list = list.filter((r) => {
-            // Match by userId or userEmail
-            if (r.userId && uid && String(r.userId) === String(uid)) return true
-            if (r.userEmail && uemail && r.userEmail.toLowerCase() === uemail) return true
-            // Legacy recording created before user tagging (only show if email matches current candidate or no user tagged)
-            if (!r.userId && !r.userEmail) return true
-            return false
+            const matchId = r.userId && uid && String(r.userId) === uid
+            const matchEmail = r.userEmail && uemail && r.userEmail.toLowerCase().trim() === uemail
+            return Boolean(matchId || matchEmail)
           })
         }
         // Sort newest first

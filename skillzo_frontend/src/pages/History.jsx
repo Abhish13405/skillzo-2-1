@@ -65,7 +65,7 @@ const History = () => {
               status: 'completed',
               completed_at: clip.createdAt,
               started_at: clip.createdAt,
-              overall_score: 80,
+              overall_score: clip.overallScore ?? null,
               fromVault: true,
               candidate_name: clip.userEmail ? clip.userEmail.split('@')[0] : 'Candidate',
               candidate_email: clip.userEmail || '',
@@ -121,9 +121,11 @@ const History = () => {
                         (s.candidate_name || '').toLowerCase().includes(search.toLowerCase()) ||
                         (s.candidate_email || '').toLowerCase().includes(search.toLowerCase())
     const matchDiff = filterDiff === 'All' || s.difficulty === filterDiff
-    const matchUser = (!isLeader || showAllCandidates)
-      ? true
-      : (!s.candidate_email || s.candidate_email.toLowerCase() === (user?.email || '').toLowerCase())
+    const userEmailStr = (user?.email || '').toLowerCase().trim()
+    const candidateEmailStr = (s.candidate_email || '').toLowerCase().trim()
+    const matchUser = isLeader
+      ? (showAllCandidates ? true : candidateEmailStr === userEmailStr)
+      : (candidateEmailStr === userEmailStr || !s.candidate_email)
 
     const isHr = (s.job_role || '').toLowerCase().includes('hr') ||
                  (s.job_role || '').toLowerCase().includes('behavioral') ||

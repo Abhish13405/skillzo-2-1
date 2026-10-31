@@ -849,6 +849,13 @@ Difficulty: {difficulty}
 Question: {question}
 Candidate's Answer: {answer}
 {intro_guidance}
+CRITICAL REAL EVALUATION RULES:
+1. Base scores strictly on what the candidate ACTUALLY said in 'Candidate's Answer'.
+2. If the candidate answered accurately and thoroughly, award scores between 70-95, and cite their specific correct points in 'strengths'.
+3. If the candidate gave a partial, weak, or flawed answer, score fairly (between 20-60) and cite their exact mistakes or omissions in 'improvements'.
+4. If the candidate skipped, said 'Passed without verbal response', 'Question skipped', or gave no response, give 0 for overall_score, technical_knowledge, communication, and confidence. Leave strengths as [] and in improvements explain what a complete response requires.
+5. In 'ideal_answer_summary', ALWAYS provide a high-quality, 100% correct model answer specifically explaining the concepts, code/logic, and best practices for this exact question and role (3-5 comprehensive sentences).
+
 Evaluate the answer and return JSON with EXACTLY this structure:
 {{
   "technical_knowledge": <integer 0-100>,
@@ -867,12 +874,20 @@ Evaluate the answer and return JSON with EXACTLY this structure:
     def generate_final_report_summary(self, all_evaluations: list, role: str) -> dict:
         """After all questions answered, summarize the full interview into a final report."""
         system_prompt = (
-            "You are an AI career coach summarizing an interview performance. "
+            "You are an expert AI Career Evaluator and Technical Hiring Manager summarizing an interview. "
+            "You analyze what the candidate actually answered across all questions and synthesize a 100% genuine, personalized evaluation report. "
             "Always respond with valid JSON only. Never output unescaped double quotes inside string values; use single quotes."
         )
         user_prompt = f"""
 Role: {role}
-Per-question evaluations: {json.dumps(all_evaluations)}
+All interview questions, candidate answers, and individual evaluations:
+{json.dumps(all_evaluations, indent=2)}
+
+CRITICAL EVALUATION RULES:
+1. Base overall_score, technical_score, and communication_score directly on the candidate's actual answers and individual scores above.
+2. In 'ai_suggestions', provide 3-4 genuine, actionable suggestions highlighting specific topics or communication areas the candidate struggled with in their answers.
+3. In 'verdict', give a realistic 1-2 sentence hiring recommendation tailored specifically to how well they answered.
+4. In 'confidence_trend', specify 'improving', 'declining', or 'steady'.
 
 Return JSON with EXACTLY this structure:
 {{

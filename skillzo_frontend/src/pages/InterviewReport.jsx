@@ -363,7 +363,7 @@ const InterviewReport = () => {
   const durationSecs = totalSpeakingSeconds % 60
   const durationText = totalSpeakingSeconds > 0
     ? `${String(durationMins).padStart(2, '0')}:${String(durationSecs).padStart(2, '0')} mins`
-    : '08:24 mins' // Default fallback matching sample
+    : (session.completed_at && session.started_at ? `${Math.max(1, Math.round((new Date(session.completed_at) - new Date(session.started_at)) / 60000))} mins` : 'Session Completed')
 
   // Format Level Badge
   const levelBadge = overallScore >= 75
@@ -788,19 +788,15 @@ const InterviewReport = () => {
             )
             const isVideo = Boolean(ans?.video_url || localClip?.mode !== 'audio' || session.mode === 'video')
 
-            const scoreVal = ans?.overall_score ?? (i === 0 ? 10 : i === 1 ? 15 : 18)
+            const scoreVal = Number(ans?.overall_score ?? 0)
             const scoreColor = scoreVal >= 70
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
               : scoreVal >= 40
-              ? 'bg-amber-50 text-amber-700 border-amber-200'
-              : 'bg-rose-50 text-rose-600 border-rose-200'
+              ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+              : 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/60'
 
             const idealAnswerText = ans?.ideal_answer_summary ||
-              (i === 0
-                ? "A strong introduction should briefly state the candidate's name, current role or education, years of experience, key technical skills (e.g., Python, Django, SQL), and a brief mention of a relevant project or career goal."
-                : i === 1
-                ? "Arithmetic operators perform mathematical computations (+, -, *, /). Comparison operators evaluate numerical or identity relationships (==, !=, >, <), and logical operators combine boolean expressions (and, or, not). Always cite clear examples for each category."
-                : `A high-scoring answer for this question should clearly outline core concepts, practical implementation examples, and edge-case handling relevant to ${session.job_role || 'software engineering'}.`)
+              `A high-scoring model answer for "${q.question_text}" should clearly explain foundational principles, practical implementation details, and key best practices relevant to ${targetRole}.`
 
             return (
               <div key={q.id || i} className="border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 bg-slate-50/40 dark:bg-[#0A0F1D]/50 shadow-2xs">
@@ -890,13 +886,14 @@ const InterviewReport = () => {
                       </span>
                     </div>
                     <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
-                      {(ans?.improvements?.length > 0 ? ans.improvements : [
-                        'Your answer is too short.',
-                        'Include your education and current status.',
-                        'Mention key technical skills and libraries.',
-                        'Add one relevant project and your career goal.',
-                        'Speak clearly and confidently.',
-                      ]).map((item, fbIdx) => (
+                      {((ans?.improvements && ans.improvements.length > 0)
+                        ? ans.improvements
+                        : isBlankOrTimeout
+                        ? ['No verbal or typed answer was recorded for this question.', 'Practice answering this prompt to receive detailed AI feedback.']
+                        : scoreVal >= 75
+                        ? ['Well-articulated response with solid technical accuracy.', 'Demonstrated clear understanding of core concepts.']
+                        : ['Expand on the core concept with specific real-world examples.', 'Structure your explanation with problem context and solution steps.']
+                      ).map((item, fbIdx) => (
                         <li key={fbIdx} className="flex items-start gap-1.5">
                           <span className="text-blue-500 font-bold shrink-0">•</span>
                           <span>{item}</span>
@@ -924,24 +921,22 @@ const InterviewReport = () => {
             </h3>
           </div>
           <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
-            <li className="flex items-center gap-2">
-              <span className="text-emerald-500 font-bold">✓</span>
-              <span>Attempted all questions</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-emerald-500 font-bold">✓</span>
-              <span>Basic understanding of {targetRole}</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-emerald-500 font-bold">✓</span>
-              <span>Good willingness to participate</span>
-            </li>
-            {session.strengths?.map((str, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-emerald-500 font-bold">✓</span>
-                <span>{str}</span>
-              </li>
-            ))}
+            {(() => {
+              const realStr = Array.from(new Set([
+                ...(session.strengths || []),
+                ...answersList.flatMap((a) => a.strengths || [])
+              ])).filter(Boolean)
+              const listToRender = realStr.length > 0 ? realStr.slice(0, 5) : [
+                'Attempted interview assessment questions',
+                `Demonstrated interest and baseline participation for ${targetRole}`,
+              ]
+              return listToRender.map((str, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="text-emerald-500 font-bold shrink-0">✓</span>
+                  <span>{str}</span>
+                </li>
+              ))
+            })()}
           </ul>
         </div>
 
@@ -956,18 +951,23 @@ const InterviewReport = () => {
             </h3>
           </div>
           <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
-            {[
-              'Technical concepts and depth',
-              'Communication clarity and structure',
-              'Provide complete and detailed answers',
-              'Use proper examples and code snippets',
-              'Improve confidence and speaking pace',
-            ].map((area, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-rose-500 font-bold">⊗</span>
-                <span>{area}</span>
-              </li>
-            ))}
+            {(() => {
+              const realImp = Array.from(new Set([
+                ...(session.ai_suggestions || []),
+                ...answersList.flatMap((a) => a.improvements || [])
+              ])).filter(Boolean)
+              const listToRender = realImp.length > 0 ? realImp.slice(0, 5) : [
+                `Strengthen foundational and advanced concepts for ${targetRole}`,
+                'Provide concrete real-world project examples in technical explanations',
+                'Structure verbal answers using problem-action-result frameworks',
+              ]
+              return listToRender.map((area, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="text-rose-500 font-bold shrink-0">⊗</span>
+                  <span>{area}</span>
+                </li>
+              ))
+            })()}
           </ul>
         </div>
 
@@ -1005,8 +1005,8 @@ const InterviewReport = () => {
               {levelBadge.title} Level
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            You are at the {levelBadge.title.toLowerCase()} stage. Focus on building strong fundamentals in {targetRole}, practice giving structured answers, and work on your communication skills. Take more mock interviews to track your progress.
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+            {session.verdict || `You are at the ${levelBadge.title.toLowerCase()} stage. Focus on building strong fundamentals in ${targetRole}, practice giving structured answers, and work on your communication skills. Take more mock interviews to track your progress.`}
           </p>
         </div>
 
