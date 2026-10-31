@@ -38,9 +38,7 @@ const Dashboard = () => {
       userEmail === 'abhishekkushwaha31387@bbdu.ac.in' ||
       userName === 'abhishek13405' ||
       userName === 'abhish' ||
-      userName === 'abhishekkushwaha31387' ||
-      userEmail.includes('abhishek') ||
-      userName.includes('abhishek')
+      userName === 'abhishekkushwaha31387'
     ))
   )
 

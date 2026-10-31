@@ -19,8 +19,10 @@ class IsLeaderUser(permissions.BasePermission):
         leader_identifiers = [
             'abhishekkushwaha13405@gmail.com',
             'abhish@gmail.com',
+            'abhishekkushwaha31387@bbdu.ac.in',
             'abhishek13405',
             'abhish',
+            'abhishekkushwaha31387',
         ]
         return bool(
             user.is_superuser or
