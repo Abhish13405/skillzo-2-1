@@ -67,48 +67,53 @@ const AudioWaveformBars = ({ isRecording = true, isPaused = false }) => {
   )
 }
 
-// ─── Overlap-Aware Transcript Merger (Prevents duplicate repeated words) ──────
-const mergeTranscripts = (base, newSpoken) => {
-  const b = (base || '').trim()
-  const n = (newSpoken || '').trim()
+// ─── Word Cleaner for Accurate Deduplication ──────────────────────────────────
+const cleanWord = (w) => (w || '').toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '')
 
-  if (!b) return n
-  if (!n) return b
-  if (b.toLowerCase() === n.toLowerCase()) return b
+// ─── Overlap-Aware & Duplicate-Immune Transcript Merger ───────────────────────
+const deduplicateAppend = (existing, incoming) => {
+  const base = (existing || '').trim()
+  const chunk = (incoming || '').trim()
 
-  // If base already ends with newSpoken, do not duplicate
-  if (b.toLowerCase().endsWith(n.toLowerCase())) {
-    return b
-  }
+  if (!base) return chunk
+  if (!chunk) return base
 
-  // If newSpoken already begins with base, take newSpoken
-  if (n.toLowerCase().startsWith(b.toLowerCase())) {
-    return n
-  }
+  const baseLower = base.toLowerCase()
+  const chunkLower = chunk.toLowerCase()
 
-  const bWords = b.split(/\s+/)
-  const nWords = n.split(/\s+/)
+  // 1. Exact identical sentence match
+  if (baseLower === chunkLower) return base
 
-  // Find longest matching word suffix of base that matches prefix of newSpoken
-  const maxCheck = Math.min(bWords.length, nWords.length, 10)
+  // 2. Base already ends with incoming chunk
+  if (baseLower.endsWith(chunkLower)) return base
+
+  // 3. Incoming chunk already starts with base (chunk contains the full utterance)
+  if (chunkLower.startsWith(baseLower)) return chunk
+
+  const baseWords = base.split(/\s+/)
+  const chunkWords = chunk.split(/\s+/)
+
+  // 4. Overlap check: match suffix of base with prefix of incoming chunk
+  const maxCheck = Math.min(baseWords.length, chunkWords.length)
   for (let len = maxCheck; len >= 1; len--) {
-    const bSlice = bWords.slice(-len).map(w => w.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '')).join(' ')
-    const nSlice = nWords.slice(0, len).map(w => w.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '')).join(' ')
+    const baseSlice = baseWords.slice(-len).map(cleanWord).join(' ')
+    const chunkSlice = chunkWords.slice(0, len).map(cleanWord).join(' ')
 
-    if (bSlice && bSlice === nSlice) {
-      const remainingNewWords = nWords.slice(len)
-      if (remainingNewWords.length === 0) return b
-      return `${b} ${remainingNewWords.join(' ')}`.trim()
+    if (baseSlice && baseSlice === chunkSlice) {
+      const remainingChunk = chunkWords.slice(len).join(' ').trim()
+      if (!remainingChunk) return base
+      return `${base} ${remainingChunk}`.trim()
     }
   }
 
-  // Deduplicate single repeating words (e.g. "hello" + "hello")
-  const lastBWord = bWords[bWords.length - 1].toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '')
-  if (nWords.every(w => w.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/gi, '') === lastBWord)) {
-    return b
+  // 5. Tail containment check: if incoming chunk is already in the last N words of base
+  const cleanChunkStr = chunkWords.map(cleanWord).join(' ')
+  const recentBaseSlice = baseWords.slice(-Math.min(baseWords.length, chunkWords.length * 2)).map(cleanWord).join(' ')
+  if (cleanChunkStr && recentBaseSlice.includes(cleanChunkStr)) {
+    return base
   }
 
-  return `${b} ${n}`.trim()
+  return `${base} ${chunk}`.trim()
 }
 
 // ─── Continuous & Resilient Speech Recognition Hook ───────────────────────────
@@ -119,16 +124,17 @@ const getSpeechRecognitionAPI = () => {
 
 const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN') => {
   const recognitionRef = useRef(null)
-  const isExplicitlyStoppedRef = useRef(false)
+  const isExplicitlyStoppedRef = useRef(true)
   const isRunningRef = useRef(false)
   const isStartingRef = useRef(false)
   const [listening, setListening] = useState(false)
   const [supported] = useState(() => !!getSpeechRecognitionAPI())
   const [speechError, setSpeechError] = useState('')
 
-  const baseTextRef = useRef('')
-  const currentFinalRef = useRef('')
-  const currentSessionSpokenRef = useRef('')
+  // Accumulated finalized text for the current answer turn
+  const accumulatedFinalRef = useRef('')
+  // Highest resultIndex finalized in the active recognition session to prevent duplicate processing
+  const lastFinalizedIndexRef = useRef(-1)
   const restartTimerRef = useRef(null)
 
   const onTranscriptRef = useRef(onTranscript)
@@ -156,14 +162,14 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     isExplicitlyStoppedRef.current = false
     setSpeechError('')
 
-    if (isRunningRef.current || isStartingRef.current) {
-      setListening(true)
-      return
-    }
-
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
+    }
+
+    if (isRunningRef.current || isStartingRef.current) {
+      setListening(true)
+      return
     }
 
     if (recognitionRef.current) {
@@ -193,8 +199,8 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     recognition.maxAlternatives = 1
     recognition.lang = languageRef.current || 'en-IN'
 
-    currentFinalRef.current = ''
-    currentSessionSpokenRef.current = ''
+    // Reset session-specific finalized index pointer for this new recognition instance
+    lastFinalizedIndexRef.current = -1
 
     recognition.onstart = () => {
       isStartingRef.current = false
@@ -209,28 +215,35 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
 
     recognition.onresult = (event) => {
       onSpeechActivityRef.current?.()
-      let sessionFinal = ''
-      let sessionInterim = ''
+      if (!event.results) return
 
-      for (let i = 0; i < event.results.length; i++) {
+      let interim = ''
+
+      // Process only from event.resultIndex forward
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const item = event.results[i]
-        const text = item[0]?.transcript || ''
+        const transcript = (item[0]?.transcript || '').trim()
+        if (!transcript) continue
+
         if (item.isFinal) {
-          sessionFinal += text + ' '
+          // Guard against duplicate isFinal events for the same result index (Chromium bug)
+          if (i > lastFinalizedIndexRef.current) {
+            lastFinalizedIndexRef.current = i
+            accumulatedFinalRef.current = deduplicateAppend(accumulatedFinalRef.current, transcript)
+          }
         } else {
-          sessionInterim += text
+          interim += (interim ? ' ' : '') + transcript
         }
       }
 
-      currentFinalRef.current = sessionFinal.trim()
-      const sessionSpoken = (sessionFinal + sessionInterim).trim()
-      currentSessionSpokenRef.current = sessionSpoken
+      // Live transcript = permanently committed final text + active live interim phrase
+      const baseFinal = accumulatedFinalRef.current.trim()
+      const liveText = baseFinal
+        ? (interim ? `${baseFinal} ${interim}` : baseFinal)
+        : interim
 
-      const base = baseTextRef.current.trim()
-      const combined = mergeTranscripts(base, sessionSpoken)
-
-      if (combined) {
-        onTranscriptRef.current?.(combined)
+      if (liveText) {
+        onTranscriptRef.current?.(liveText.trim())
       }
     }
 
@@ -257,15 +270,8 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
     recognition.onend = () => {
       isStartingRef.current = false
       isRunningRef.current = false
-      if (currentSessionSpokenRef.current.trim()) {
-        const base = baseTextRef.current.trim()
-        const add = currentSessionSpokenRef.current.trim()
-        baseTextRef.current = mergeTranscripts(base, add)
-        currentSessionSpokenRef.current = ''
-        currentFinalRef.current = ''
-      }
 
-      // Restart speech recognition smoothly if candidate is still in their active answering window
+      // Restart smoothly if candidate is still actively answering and mic is not explicitly stopped
       if (!isExplicitlyStoppedRef.current) {
         setListening(true)
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
@@ -310,13 +316,6 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
     }
-    if (currentSessionSpokenRef.current.trim()) {
-      const base = baseTextRef.current.trim()
-      const add = currentSessionSpokenRef.current.trim()
-      baseTextRef.current = mergeTranscripts(base, add)
-      currentSessionSpokenRef.current = ''
-      currentFinalRef.current = ''
-    }
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onstart = null
@@ -331,21 +330,25 @@ const useSpeechRecognition = (onTranscript, onSpeechActivity, language = 'en-IN'
   }, [])
 
   const resetTranscript = useCallback(() => {
-    baseTextRef.current = ''
-    currentFinalRef.current = ''
-    currentSessionSpokenRef.current = ''
-    // Abort active recognition session to flush browser native result buffer
+    accumulatedFinalRef.current = ''
+    lastFinalizedIndexRef.current = -1
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onstart = null
+        recognitionRef.current.onend = null
+        recognitionRef.current.onerror = null
+        recognitionRef.current.onresult = null
         recognitionRef.current.abort()
       } catch {}
+      recognitionRef.current = null
     }
+    isRunningRef.current = false
+    isStartingRef.current = false
   }, [])
 
   const syncTranscript = useCallback((text) => {
-    baseTextRef.current = text ? text.trim() : ''
-    currentFinalRef.current = ''
-    currentSessionSpokenRef.current = ''
+    accumulatedFinalRef.current = text ? text.trim() : ''
+    lastFinalizedIndexRef.current = -1
   }, [])
 
   return { listening, supported, speechError, start, stop, resetTranscript, syncTranscript }
@@ -1216,6 +1219,7 @@ const InterviewSession = () => {
     isWarmupRef.current = false
     aiFinishedForQuestionRef.current = false
     cancelSpeech()
+    stopMic()
     resetTranscript()
     setAnswerText('')
     setSilenceSeconds(0)
